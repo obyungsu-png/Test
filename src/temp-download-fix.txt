@@ -1,0 +1,37 @@
+수정할 부분:
+
+Line 204-215:
+  const handleDownloadPDF = () => {
+    const selectedWords = getAvailableWords().filter(w => wordSelections[w.id]);
+    const selectedDays = getSelectedDays();
+    const dayRange = selectedDays.length === 1 
+      ? `Day${selectedDays[0]}` 
+      : `Day${selectedDays[0]}~Day${selectedDays[selectedDays.length - 1]}`;
+    
+    downloadHackersVocaPDF(selectedWords, selectedExam, dayRange);
+    toast.success("PDF 파일로 다운로드되었습니다!");
+  };
+
+Line 218-228:
+  const handleDownloadWord = () => {
+    const selectedWords = getAvailableWords().filter(w => wordSelections[w.id]);
+    const selectedDays = getSelectedDays();
+    const dayRange = selectedDays.length === 1 
+      ? `Day${selectedDays[0]}` 
+      : `Day${selectedDays[0]}~Day${selectedDays[selectedDays.length - 1]}`;
+    
+    downloadHackersVocaWord(selectedWords, selectedExam, dayRange);
+    toast.success("워드 파일로 다운로드되었습니다!");
+  };
+
+Line 231-241:
+  const handleDownloadHWP = () => {
+    const selectedWords = getAvailableWords().filter(w => wordSelections[w.id]);
+    const selectedDays = getSelectedDays();
+    const dayRange = selectedDays.length === 1 
+      ? `Day${selectedDays[0]}` 
+      : `Day${selectedDays[0]}~Day${selectedDays[selectedDays.length - 1]}`;
+    
+    downloadHackersVocaHWP(selectedWords, selectedExam, dayRange);
+    toast.success("한글 파일로 다운로드되었습니다!");
+  };
