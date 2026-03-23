@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { ChevronRight, ArrowLeft, Layers, Globe, MessageSquare } from 'lucide-react';
+import { ChevronRight, ArrowLeft, Layers, Globe, MessageSquare, BookOpen, FileText, Clock, Target } from 'lucide-react';
+import MobileAdBanner from './components/MobileAdBanner';
+import { BrandLogo } from './components/BrandLogo';
 
 interface KoreanSchoolPageProps {
   onBack: () => void;
@@ -61,21 +63,16 @@ const KoreanSchoolPage: React.FC<KoreanSchoolPageProps> = ({ onBack, onSubjectSe
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex justify-between items-center h-14 sm:h-16">
             <div className="flex items-center">
               <button
                 onClick={onBack}
-                className="flex items-center text-gray-600 hover:text-gray-900 transition-colors mr-4"
+                className="flex items-center text-gray-600 hover:text-gray-900 transition-colors mr-3 sm:mr-4"
               >
                 <ArrowLeft className="w-5 h-5 mr-1" />
-                Back
+                <span className="hidden sm:inline">Back</span>
               </button>
-              <div className="flex items-center">
-                <div className="w-8 h-8 bg-cyan-500 rounded-full flex items-center justify-center mr-3">
-                  <span className="text-white font-bold">N</span>
-                </div>
-                <span className="text-xl font-bold text-gray-900">Study Hub</span>
-              </div>
+              <BrandLogo size="md" />
             </div>
             <nav className="hidden md:flex space-x-8">
               <button 
@@ -97,16 +94,19 @@ const KoreanSchoolPage: React.FC<KoreanSchoolPageProps> = ({ onBack, onSubjectSe
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-20">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-          {/* Left side - Text content and image */}
-          <div className="space-y-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-12 lg:py-20 pb-20 sm:pb-12">
+        {/* Top Ad Banner */}
+        <MobileAdBanner page="korean" position="top" />
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center">
+          {/* Left side - Text content and image - hidden on mobile */}
+          <div className="hidden sm:block space-y-6 sm:space-y-8">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">
                 한국 교육의 완벽한 지원!
               </h1>
             </motion.div>
@@ -116,18 +116,18 @@ const KoreanSchoolPage: React.FC<KoreanSchoolPageProps> = ({ onBack, onSubjectSe
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
             >
-              <p className="text-lg text-gray-600 leading-relaxed mb-8">
+              <p className="text-base sm:text-lg text-gray-600 leading-relaxed mb-6 sm:mb-8">
                 내신부터 특례, 서류전형까지<br />
                 한국 학생들을 위한 체계적인 학습 시스템
               </p>
             </motion.div>
 
-            {/* Image collage section */}
+            {/* Image collage section - hidden on mobile */}
             <motion.div
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.3 }}
-              className="relative max-w-md mx-auto lg:mx-0"
+              className="relative max-w-md mx-auto lg:mx-0 hidden sm:block"
             >
               <div className="relative">
                 {/* Background decorative shapes */}
@@ -220,10 +220,16 @@ const KoreanSchoolPage: React.FC<KoreanSchoolPageProps> = ({ onBack, onSubjectSe
               transition={{ duration: 0.6, delay: 0.2 }}
               className="text-center lg:text-left"
             >
-              <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
+              {/* Mobile compact title */}
+              <div className="sm:hidden mb-2">
+                <h1 className="text-2xl font-bold text-gray-900 mb-1">한국학교</h1>
+                <p className="text-sm text-gray-500">내신, 특례, 서류전형 맞춤 학습</p>
+              </div>
+              
+              <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2 hidden sm:block">
                 전형 유형을 선택하세요
               </h2>
-              <p className="text-gray-600">
+              <p className="text-gray-600 hidden sm:block">
                 준비하고 있는 입시 전형을 선택해주세요
               </p>
             </motion.div>
@@ -282,7 +288,7 @@ const KoreanSchoolPage: React.FC<KoreanSchoolPageProps> = ({ onBack, onSubjectSe
               })}
             </motion.div>
             
-            <div className="mt-6">
+            <div className="mt-6 hidden sm:block">
               <p className="text-sm text-gray-600 text-center lg:text-left">
                 전형별 상세 정보가 필요하신가요?{" "}
                 <button className="text-cyan-600 hover:text-cyan-700 hover:underline">
@@ -297,19 +303,20 @@ const KoreanSchoolPage: React.FC<KoreanSchoolPageProps> = ({ onBack, onSubjectSe
             </div>
           </div>
         </div>
+
+        {/* Middle Ad Banner */}
+        <MobileAdBanner page="korean" position="middle" />
+
+        {/* Bottom Ad Banner */}
+        <MobileAdBanner page="korean" position="bottom" />
       </main>
 
       {/* Footer */}
-      <footer className="bg-gradient-to-r from-gray-50 to-cyan-50/40 border-t border-gray-200 mt-20">
+      <footer className="hidden md:block bg-gradient-to-r from-gray-50 to-cyan-50/40 border-t border-gray-200 mt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div className="space-y-4">
-              <div className="flex items-center">
-                <div className="w-6 h-6 bg-cyan-500 rounded-full flex items-center justify-center mr-2">
-                  <span className="text-white font-bold text-sm">N</span>
-                </div>
-                <span className="text-gray-900 font-bold">Study Hub</span>
-              </div>
+              <BrandLogo size="xs" />
               <p className="text-gray-600 text-sm">
                 한국 학생들의 성공적인 진학을 위한 완벽한 학습 지원 시스템.
               </p>
@@ -321,7 +328,7 @@ const KoreanSchoolPage: React.FC<KoreanSchoolPageProps> = ({ onBack, onSubjectSe
                 <li><a href="#" className="hover:text-cyan-600 transition-colors">내신 관리</a></li>
                 <li><a href="#" className="hover:text-cyan-600 transition-colors">특례 전형</a></li>
                 <li><a href="#" className="hover:text-cyan-600 transition-colors">서류 전형</a></li>
-                <li><a href="#" className="hover:text-cyan-600 transition-colors">입시 일정</a></li>
+                <li><a href="#" className="hover:text-cyan-600 transition-colors">입 일정</a></li>
               </ul>
             </div>
             

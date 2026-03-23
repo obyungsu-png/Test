@@ -62,6 +62,11 @@ export default function MainApp({ onUploadClick, onBackToLanding, onLMSClick, on
         selectedSubject={selectedSubject}
         onSubjectChange={(subject) => {
           setSelectedSubject(subject);
+          // 과목 변경 시 카테고리/서브카테고리 리셋 (이전 과목의 카테고리가 남아있으면 콘텐츠가 표시되지 않음)
+          if (!isCertificationMode) {
+            setSelectedCategory("");
+            setSelectedSubCategory("");
+          }
         }}
         onUploadClick={onUploadClick}
         onHomeClick={onBackToLanding}
@@ -72,9 +77,9 @@ export default function MainApp({ onUploadClick, onBackToLanding, onLMSClick, on
         isCertificationMode={isCertificationMode}
       />
       
-      <div className="max-w-full mx-auto px-3 sm:px-4 lg:px-8 py-3 sm:py-4 lg:py-8">
-        <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 lg:gap-6 max-w-none">
-          <div className={`lg:flex-shrink-0 ${(activeTab === "Exam Questions" || activeTab === "Key Notes" || activeTab === "Practice Test" || activeTab === "Past Papers" || activeTab === "Subject" || activeTab === "전체보기" || activeTab === "1타 강사님들") && schoolType === 'international' ? 'lg:w-48' : isCertificationMode ? 'lg:w-72' : 'lg:w-72'}`}>
+      <div className="max-w-full mx-auto px-2 sm:px-4 lg:px-8 py-2 sm:py-4 lg:py-8 pb-16 md:pb-4">
+        <div className="flex flex-col lg:flex-row gap-2 sm:gap-4 lg:gap-6 max-w-none">
+          <div className={`hidden lg:block lg:flex-shrink-0 lg:w-72`}>
             <Sidebar 
               selectedSubject={selectedSubject}
               selectedCategory={selectedCategory}
@@ -101,7 +106,7 @@ export default function MainApp({ onUploadClick, onBackToLanding, onLMSClick, on
         </div>
       </div>
       
-      {/* Right Sidebar - Show on International School when viewing Key Notes, Exam Questions, or Practice Test */}
+      {/* Right Sidebar - Show on International School when viewing Key Notes, Exam Questions, Practice Test, or Past Papers */}
       {schoolType === 'international' && (activeTab === "Key Notes" || activeTab === "Exam Questions" || activeTab === "Practice Test" || activeTab === "Past Papers") && (
         <ContentRightSidebar />
       )}

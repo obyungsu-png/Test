@@ -40,7 +40,7 @@ export function UploadModal({ isOpen, onClose, selectedSubject }: UploadModalPro
     },
     "영어": {
       "중등": ["중등영어1-1", "중등영어1-2", "중등영어2-1", "중등영어2-2", "중등영어3-1", "중등영어3-2"],
-      "고등": ["영어I", "영어II", "영어회화", "영어독해와작문", "실용영어"]
+      "고등": ["고등영어1-1", "고등영어1-2", "고등영어2-1", "고등영어2-2", "고등영어3-1", "고등영어3-2"]
     },
     "수학": {
       "중등": ["중등수학1", "중등수학2", "중등수학3"],
@@ -60,7 +60,7 @@ export function UploadModal({ isOpen, onClose, selectedSubject }: UploadModalPro
     }
   };
 
-  const contentTypes = ["전체보기", "단원별 요약", "3일의 기적", "모의고사", "past papers", "1타 강사님들"];
+  const contentTypes = ["교과서 뽀개기", "단원별 요약", "모의고사", "직전 대비", "우리학교 기출", "보조자료"];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -389,7 +389,7 @@ export function UploadModal({ isOpen, onClose, selectedSubject }: UploadModalPro
                 onValueChange={(value) => setUploadData({...uploadData, category: value})}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="세부 과목을 선택하세요" />
+                  <SelectValue placeholder="세부 과목을 선택��세요" />
                 </SelectTrigger>
                 <SelectContent>
                   {currentCategories.map(category => (

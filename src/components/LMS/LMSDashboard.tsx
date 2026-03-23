@@ -46,7 +46,7 @@ export default function LMSDashboard() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
         <div>
           <h1 className="text-2xl text-gray-900">대시보드</h1>
-          <p className="text-gray-600">서준 02 LMS 관리 현황을 확인하세요</p>
+          <p className="text-gray-600">서준 02 CMS 관리 현황을 확인하세요</p>
         </div>
         <div className="text-sm text-gray-500">
           마지막 업데이트: {new Date().toLocaleString('ko-KR')}
@@ -117,11 +117,11 @@ export default function LMSDashboard() {
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="users" stroke="#3b82f6" strokeWidth={2} />
+                <CartesianGrid strokeDasharray="3 3" key="grid-1" />
+                <XAxis dataKey="month" key="xaxis-1" />
+                <YAxis key="yaxis-1" />
+                <Tooltip key="tooltip-1" />
+                <Line type="monotone" dataKey="users" stroke="#3b82f6" strokeWidth={2} key="line-users" />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
@@ -134,11 +134,11 @@ export default function LMSDashboard() {
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="downloads" fill="#8b5cf6" />
+                <CartesianGrid strokeDasharray="3 3" key="grid-2" />
+                <XAxis dataKey="month" key="xaxis-2" />
+                <YAxis key="yaxis-2" />
+                <Tooltip key="tooltip-2" />
+                <Bar dataKey="downloads" fill="#8b5cf6" key="bar-downloads" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>

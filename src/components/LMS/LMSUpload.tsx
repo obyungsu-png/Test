@@ -72,8 +72,8 @@ export default function LMSUpload({ selectedSubject, onNavigateToContent }: LMSU
 
   // Load uploaded files and notices
   useEffect(() => {
-    const loadData = () => {
-      const uploads = getUploadedMaterials();
+    const loadData = async () => {
+      const uploads = await getUploadedMaterials();
       const notices = JSON.parse(localStorage.getItem('notices') || '[]');
       setUploadedFiles(uploads);
       setUploadedNotices(notices);
@@ -91,10 +91,12 @@ export default function LMSUpload({ selectedSubject, onNavigateToContent }: LMSU
     };
 
     window.addEventListener('storage', handleStorageChange);
-    const interval = setInterval(handleStorageChange, 1000);
+    window.addEventListener('materialsUpdated', handleStorageChange);
+    const interval = setInterval(handleStorageChange, 5000); // reduced frequency
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('materialsUpdated', handleStorageChange);
       clearInterval(interval);
     };
   }, [activeTab, schoolType]);
@@ -222,7 +224,8 @@ export default function LMSUpload({ selectedSubject, onNavigateToContent }: LMSU
     });
     setFile(null);
     setPreviewFile(null);
-    setUploadedFiles(getUploadedMaterials());
+    const updatedFiles = await getUploadedMaterials();
+    setUploadedFiles(updatedFiles);
     if (onNavigateToContent) {
       onNavigateToContent();
     }
@@ -255,9 +258,11 @@ export default function LMSUpload({ selectedSubject, onNavigateToContent }: LMSU
 
   const handleDeleteFile = (fileId: string) => {
     if (confirm("정말로 이 파일을 삭제하시겠습니까?")) {
-      deleteUploadedMaterial(fileId);
-      setUploadedFiles(getUploadedMaterials());
-      toast.success('파일이 삭제되었습니다.');
+      deleteUploadedMaterial(fileId).then(async () => {
+        const updatedFiles = await getUploadedMaterials();
+        setUploadedFiles(updatedFiles);
+        toast.success('파일이 삭제되었습니다.');
+      });
     }
   };
 

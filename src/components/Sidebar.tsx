@@ -1,6 +1,6 @@
 import { motion } from "motion/react";
 import { ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { getSubjectStructure, getCategoryCustomName } from "./utils/dataManager";
 
 interface SidebarProps {
@@ -18,6 +18,31 @@ export function Sidebar({ selectedSubject, selectedCategory, selectedSubCategory
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   // 중첩된 서브카테고리 확장 상태를 추적하는 state (SAT Reading 등)
   const [expandedSubCategory, setExpandedSubCategory] = useState<string | null>(null);
+  // 카테고리 커스텀 이름 캐시
+  const [customNames, setCustomNames] = useState<Record<string, string>>({});
+
+  // Load custom names for categories
+  useEffect(() => {
+    if (!schoolType || isCertificationMode) return;
+    
+    const subjectStructure = getSubjectStructure(schoolType);
+    const categories = subjectStructure[selectedSubject] || {};
+    
+    const loadCustomNames = async () => {
+      const names: Record<string, string> = {};
+      for (const [levelName, items] of Object.entries(categories)) {
+        if (Array.isArray(items)) {
+          for (const item of items) {
+            const key = `${levelName}::${item}`;
+            names[key] = await getCategoryCustomName(schoolType, selectedSubject, levelName, item);
+          }
+        }
+      }
+      setCustomNames(names);
+    };
+    
+    loadCustomNames();
+  }, [schoolType, selectedSubject, isCertificationMode]);
   
   if (!schoolType && !isCertificationMode) {
     return (
@@ -366,7 +391,8 @@ export function Sidebar({ selectedSubject, selectedCategory, selectedSubCategory
                   className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-1.5 sm:gap-2 lg:space-y-1.5 lg:space-x-0 text-xs sm:text-sm"
                 >
                   {items.map((item) => {
-                    const customName = getCategoryCustomName(schoolType, selectedSubject, levelName, item);
+                    const key = `${levelName}::${item}`;
+                    const customName = customNames[key] || item;
                     return (
                       <motion.div
                         key={item}

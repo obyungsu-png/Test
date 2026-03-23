@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { ChevronRight, ArrowLeft, Calculator, Award, Globe, GraduationCap, BookOpen, FileText, PenTool } from 'lucide-react';
+import { ChevronRight, ArrowLeft, Calculator, Award, Globe, GraduationCap, BookOpen, FileText, PenTool, BarChart3, Lightbulb, TrendingUp } from 'lucide-react';
+import MobileAdBanner from './components/MobileAdBanner';
+import { BrandLogo } from './components/BrandLogo';
 
 interface InternationalSchoolPageProps {
   onBack: () => void;
@@ -74,21 +76,16 @@ const InternationalSchoolPage: React.FC<InternationalSchoolPageProps> = ({ onBac
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex justify-between items-center h-14 sm:h-16">
             <div className="flex items-center">
               <button
                 onClick={onBack}
-                className="flex items-center text-gray-600 hover:text-gray-900 transition-colors mr-4"
+                className="flex items-center text-gray-600 hover:text-gray-900 transition-colors mr-3 sm:mr-4"
               >
                 <ArrowLeft className="w-5 h-5 mr-1" />
-                Back
+                <span className="hidden sm:inline">Back</span>
               </button>
-              <div className="flex items-center">
-                <div className="w-8 h-8 bg-cyan-500 rounded-full flex items-center justify-center mr-3">
-                  <span className="text-white font-bold">N</span>
-                </div>
-                <span className="text-xl font-bold text-gray-900">Study Hub</span>
-              </div>
+              <BrandLogo size="md" />
             </div>
             <nav className="hidden md:flex space-x-8">
               <span className="text-cyan-600 font-medium cursor-default">국제학교</span>
@@ -110,16 +107,19 @@ const InternationalSchoolPage: React.FC<InternationalSchoolPageProps> = ({ onBac
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-20">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-12 lg:py-20 pb-20 sm:pb-12">
+        {/* Top Ad Banner */}
+        <MobileAdBanner page="international" position="top" />
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center">
           {/* Left side - Text content and image */}
-          <div className="space-y-8">
+          <div className="hidden sm:block space-y-6 sm:space-y-8">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">
                 Excel in international education!
               </h1>
             </motion.div>
@@ -129,18 +129,18 @@ const InternationalSchoolPage: React.FC<InternationalSchoolPageProps> = ({ onBac
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
             >
-              <p className="text-lg text-gray-600 leading-relaxed mb-8">
+              <p className="text-base sm:text-lg text-gray-600 leading-relaxed mb-6 sm:mb-8">
                 국제학교 교육과정을 위한 완벽한 학습 자료<br />
                 GPA 관리부터 IB, AP, A-level까지 체계적인 학습 지원
               </p>
             </motion.div>
 
-            {/* Image collage section */}
+            {/* Image collage section - hidden on mobile */}
             <motion.div
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.3 }}
-              className="relative max-w-md mx-auto lg:mx-0"
+              className="relative max-w-md mx-auto lg:mx-0 hidden sm:block"
             >
               <div className="relative">
                 {/* Background decorative shapes */}
@@ -230,10 +230,16 @@ const InternationalSchoolPage: React.FC<InternationalSchoolPageProps> = ({ onBac
               transition={{ duration: 0.6, delay: 0.2 }}
               className="text-center lg:text-left"
             >
-              <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
+              {/* Mobile compact title */}
+              <div className="sm:hidden mb-2">
+                <h1 className="text-2xl font-bold text-gray-900 mb-1">국제학교</h1>
+                <p className="text-sm text-gray-500">GPA, AP, IB, A-level 맞춤 학습</p>
+              </div>
+              
+              <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2 hidden sm:block">
                 Choose your curriculum
               </h2>
-              <p className="text-gray-600">
+              <p className="text-gray-600 hidden sm:block">
                 Select the international program you're studying
               </p>
             </motion.div>
@@ -243,7 +249,7 @@ const InternationalSchoolPage: React.FC<InternationalSchoolPageProps> = ({ onBac
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+              className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4"
             >
               {subjects.map((subject, index) => {
                 const Icon = subject.icon;
@@ -260,19 +266,19 @@ const InternationalSchoolPage: React.FC<InternationalSchoolPageProps> = ({ onBac
                       boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)'
                     }}
                     whileTap={{ scale: 0.97 }}
-                    className="bg-white border border-gray-200 rounded-xl p-5 flex items-start gap-5 text-left transition-all hover:border-gray-400"
+                    className="bg-white border border-gray-200 rounded-xl p-3 sm:p-5 flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-5 text-center sm:text-left transition-all hover:border-gray-400"
                   >
                     {/* Icon Box */}
-                    <div className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 ${subject.bgColor} border border-black/5`}>
-                      <Icon className="w-6 h-6 text-gray-900" />
+                    <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center flex-shrink-0 ${subject.bgColor} border border-black/5`}>
+                      <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-900" />
                     </div>
                     
                     {/* Content */}
-                    <div className="flex-1 pt-1">
-                      <h3 className="text-lg font-bold text-gray-900 mb-1.5">
+                    <div className="flex-1 sm:pt-1">
+                      <h3 className="text-base sm:text-lg font-bold text-gray-900 sm:mb-1.5">
                         {subject.name}
                       </h3>
-                      <p className="text-[15px] text-gray-600 leading-relaxed">
+                      <p className="text-xs sm:text-[15px] text-gray-600 leading-relaxed">
                         {subject.description}
                       </p>
                     </div>
@@ -281,7 +287,7 @@ const InternationalSchoolPage: React.FC<InternationalSchoolPageProps> = ({ onBac
               })}
             </motion.div>
             
-            <div className="mt-6">
+            <div className="mt-6 hidden sm:block">
               <p className="text-sm text-gray-600 text-center lg:text-left">
                 Need guidance on curriculum selection?{" "}
                 <button className="text-cyan-600 hover:text-cyan-700 hover:underline">
@@ -296,19 +302,90 @@ const InternationalSchoolPage: React.FC<InternationalSchoolPageProps> = ({ onBac
             </div>
           </div>
         </div>
+
+        {/* Middle Ad Banner */}
+        <MobileAdBanner page="international" position="middle" />
+
+        {/* Mobile-only additional content */}
+        <div className="sm:hidden mt-8 space-y-5">
+          {/* Curriculum Highlights */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="bg-gradient-to-br from-cyan-50 to-blue-50 rounded-xl p-4 border border-cyan-100"
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <BarChart3 className="w-4 h-4 text-cyan-600" />
+              <h3 className="font-bold text-gray-900 text-sm">Curriculum Overview</h3>
+            </div>
+            <div className="space-y-2.5">
+              {[
+                { label: "AP", desc: "38개 과목, College Board 인증", color: "bg-purple-500" },
+                { label: "IB", desc: "HL/SL 구분, Extended Essay", color: "bg-cyan-500" },
+                { label: "A-level", desc: "Cambridge 기반, 영국 대학 입시", color: "bg-indigo-500" },
+                { label: "IGCSE", desc: "국제 중등교육 인증 과정", color: "bg-orange-500" }
+              ].map((item, i) => (
+                <div key={i} className="flex items-center gap-2.5 bg-white/70 rounded-lg p-2.5">
+                  <div className={`w-2 h-2 rounded-full ${item.color} flex-shrink-0`} />
+                  <div className="flex-1">
+                    <span className="text-xs font-bold text-gray-800">{item.label}</span>
+                    <span className="text-[10px] text-gray-500 ml-1.5">{item.desc}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Study Stats */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+            className="grid grid-cols-3 gap-3"
+          >
+            <div className="bg-white rounded-xl p-3 text-center border border-gray-100 shadow-sm">
+              <TrendingUp className="w-5 h-5 text-emerald-500 mx-auto mb-1" />
+              <p className="text-lg font-bold text-gray-900">4.0+</p>
+              <p className="text-[10px] text-gray-500">평균 GPA</p>
+            </div>
+            <div className="bg-white rounded-xl p-3 text-center border border-gray-100 shadow-sm">
+              <Award className="w-5 h-5 text-purple-500 mx-auto mb-1" />
+              <p className="text-lg font-bold text-gray-900">200+</p>
+              <p className="text-[10px] text-gray-500">학습 자료</p>
+            </div>
+            <div className="bg-white rounded-xl p-3 text-center border border-gray-100 shadow-sm">
+              <Lightbulb className="w-5 h-5 text-amber-500 mx-auto mb-1" />
+              <p className="text-lg font-bold text-gray-900">50+</p>
+              <p className="text-[10px] text-gray-500">Key Notes</p>
+            </div>
+          </motion.div>
+
+          {/* Quick Tip */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+            className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm"
+          >
+            <h3 className="font-bold text-gray-900 text-sm mb-2">Study Tip</h3>
+            <p className="text-xs text-gray-600 leading-relaxed">
+              Focus on understanding key concepts first. Use Key Notes for quick reviews 
+              and practice with past exam questions to identify weak areas before the exam period.
+            </p>
+          </motion.div>
+        </div>
+
+        {/* Bottom Ad Banner */}
+        <MobileAdBanner page="international" position="bottom" />
       </main>
 
       {/* Footer */}
-      <footer className="bg-gradient-to-r from-gray-50 to-cyan-50/40 border-t border-gray-200 mt-20">
+      <footer className="hidden md:block bg-gradient-to-r from-gray-50 to-cyan-50/40 border-t border-gray-200 mt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div className="space-y-4">
-              <div className="flex items-center">
-                <div className="w-6 h-6 bg-cyan-500 rounded-full flex items-center justify-center mr-2">
-                  <span className="text-white font-bold text-sm">N</span>
-                </div>
-                <span className="text-gray-900 font-bold">Study Hub</span>
-              </div>
+              <BrandLogo size="xs" />
               <p className="text-gray-600 text-sm">
                 Empowering international students with comprehensive curriculum support.
               </p>
@@ -347,7 +424,7 @@ const InternationalSchoolPage: React.FC<InternationalSchoolPageProps> = ({ onBac
           
           <div className="border-t border-gray-300 mt-8 pt-8 text-center">
             <p className="text-sm text-gray-600">
-              © 2024 N Study Hub. All rights reserved.
+              © 2025 AllMyExam. All rights reserved.
             </p>
           </div>
         </div>

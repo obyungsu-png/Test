@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { toast } from "sonner@2.0.3";
-import { Plus, Trash2, Edit2, Save, X, Search, BookOpen, Upload, Download, FileSpreadsheet, FileText, CloudUpload, Cloud } from "lucide-react";
+import { Plus, Trash2, Edit2, Save, X, Search, BookOpen, Upload, Download, FileSpreadsheet, FileText, CloudUpload, Cloud, Filter, EyeOff, Eye, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Textarea } from "./ui/textarea";
 import { generateWordsForDay } from "./vocaWordSets";
@@ -11,12 +11,87 @@ import { migrateLocalStorageToSupabase, uploadSampleWordsToSupabase, getDataStat
 
 export interface VocaWord {
   id: string;
-  exam: 'TOEFL' | 'SAT' | 'IELTS' | 'ACT' | 'TOEIC';
+  exam: string; // 인증시험: 'TOEFL'|'SAT'|'IELTS'|'ACT'|'TOEIC', 한국학교: 'KR-초등영어'|'KR-중등영어'|'KR-고등영어'|'KR-내신영단어'
   day: number; // 1-30+
   english: string;
   korean: string;
   definition?: string; // 영영풀이 (SAT 전용)
   synonyms: string; // 쉼표로 구분
+  textbook?: string; // 한국학교 교과서 ID (예: '천재-함순애', '대교-이재근' 등)
+  grade?: number; // 학년 (1-6: 초등, 1-3: 중등, 1-3: 고등)
+  semester?: number; // 학기 (1 or 2)
+}
+
+// 한국학교 교과서 목록 (LMS, KoreanVocaPage 공용)
+export interface TextbookInfo {
+  id: string;
+  name: string;
+  publisher: string;
+  author: string;
+}
+
+export const KOREAN_TEXTBOOKS_BY_EXAM: { [key: string]: TextbookInfo[] } = {
+  "KR-초등영어": [
+    { id: "천재-함순애", name: "천재교육", publisher: "천재교육", author: "함순애" },
+    { id: "대교-이재근", name: "대교", publisher: "대교", author: "이재근" },
+    { id: "YBM-김혜리", name: "YBM", publisher: "YBM", author: "김혜리" },
+    { id: "동아-윤정미", name: "동아출판", publisher: "동아출판", author: "윤정미" },
+    { id: "능률-김혜련", name: "NE능률", publisher: "NE능률", author: "김혜련" },
+    { id: "기타", name: "기타", publisher: "기타", author: "" },
+  ],
+  "KR-중등영어": [
+    { id: "동아-윤정미", name: "동아출판", publisher: "동아출판", author: "윤정미" },
+    { id: "능률-김성곤", name: "NE능률", publisher: "NE능률", author: "김성곤" },
+    { id: "천재-이재영", name: "천재교육", publisher: "천재교육", author: "이재영" },
+    { id: "미래엔-최연희", name: "미래엔", publisher: "미래엔", author: "최연희" },
+    { id: "YBM-박준언", name: "YBM", publisher: "YBM", author: "박준언" },
+    { id: "비상-김진완", name: "비상교육", publisher: "비상교육", author: "김진완" },
+    { id: "기타", name: "기타", publisher: "기타", author: "" },
+  ],
+  "KR-고등영어": [
+    { id: "능률-김성곤", name: "NE능률", publisher: "NE능률", author: "김성곤" },
+    { id: "천재-이재영", name: "천재교육", publisher: "천재교육", author: "이재영" },
+    { id: "비상-홍민표", name: "비상교육", publisher: "비상교육", author: "홍민표" },
+    { id: "YBM-박준언", name: "YBM", publisher: "YBM", author: "박준언" },
+    { id: "동아-윤정미", name: "동아출판", publisher: "동아출판", author: "윤정미" },
+    { id: "미래엔-배두본", name: "미래엔", publisher: "미래엔", author: "배두본" },
+    { id: "기타", name: "기타", publisher: "기타", author: "" },
+  ],
+  "KR-내신영단어": [],
+};
+
+// 출판사명/교과서명 → 교과서 ID 자동 매핑 (CSV 업로드용)
+export function autoMapTextbookId(examId: string, textbookInput: string): string {
+  if (!textbookInput || !textbookInput.trim()) return "";
+  const input = textbookInput.trim().toLowerCase();
+  const textbooks = KOREAN_TEXTBOOKS_BY_EXAM[examId] || [];
+  
+  // 정확한 ID 매치
+  const exactMatch = textbooks.find(t => t.id.toLowerCase() === input);
+  if (exactMatch) return exactMatch.id;
+  
+  // 출판사명 매치
+  const publisherMatch = textbooks.find(t => 
+    t.publisher.toLowerCase() === input || 
+    t.name.toLowerCase() === input
+  );
+  if (publisherMatch) return publisherMatch.id;
+  
+  // 저자명 매치
+  const authorMatch = textbooks.find(t => t.author && t.author.toLowerCase() === input);
+  if (authorMatch) return authorMatch.id;
+  
+  // 부분 매치 (포함 검색)
+  const partialMatch = textbooks.find(t =>
+    t.publisher.toLowerCase().includes(input) ||
+    t.name.toLowerCase().includes(input) ||
+    t.id.toLowerCase().includes(input) ||
+    input.includes(t.publisher.toLowerCase()) ||
+    input.includes(t.name.toLowerCase())
+  );
+  if (partialMatch) return partialMatch.id;
+
+  return "기타";
 }
 
 // Day 이름 매핑 인터페이스
@@ -87,7 +162,7 @@ export const saveVocaWords = async (words: VocaWord[]) => {
 
 export function VocaManagement() {
   const [words, setWords] = useState<VocaWord[]>([]);
-  const [selectedExam, setSelectedExam] = useState<'TOEFL' | 'SAT' | 'IELTS' | 'ACT' | 'TOEIC'>('TOEFL');
+  const [selectedExam, setSelectedExam] = useState<string>('TOEFL');
   const [selectedDay, setSelectedDay] = useState<number>(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -110,8 +185,89 @@ export function VocaManagement() {
   // 마이그레이션 모달
   const [showMigrationModal, setShowMigrationModal] = useState(false);
 
-  const exams = ['TOEFL', 'SAT', 'IELTS', 'ACT', 'TOEIC'];
-  const maxDay = getMaxDay(words, selectedExam);
+  // DAY 생략(숨기기) 관리
+  const [hiddenDays, setHiddenDays] = useState<{ [exam: string]: number[] }>(() => {
+    try {
+      const stored = localStorage.getItem('vocaHiddenDays');
+      return stored ? JSON.parse(stored) : {};
+    } catch { return {}; }
+  });
+  const [showHiddenDays, setShowHiddenDays] = useState(false);
+  const [showDeleteDayConfirm, setShowDeleteDayConfirm] = useState(false);
+
+  // 모드: 인증시험 vs 한국학교
+  const [vocaMode, setVocaMode] = useState<'certification' | 'korean'>('certification');
+  
+  // 한국학교 교과서 필터
+  const [selectedTextbook, setSelectedTextbook] = useState<string>("");
+
+  // 한국학교 학년/학기 선택 (NEW)
+  const [selectedGrade, setSelectedGrade] = useState<number>(1);
+  const [selectedSemester, setSelectedSemester] = useState<number>(1);
+
+  const certExams = ['TOEFL', 'SAT', 'IELTS', 'ACT', 'TOEIC'];
+  const koreanExams = [
+    { id: 'KR-초등영어', name: '초등영어' },
+    { id: 'KR-중등영어', name: '중등영어' },
+    { id: 'KR-고등영어', name: '고등영어' },
+    { id: 'KR-내신영단어', name: '내신영단어' },
+  ];
+  const exams = vocaMode === 'certification' ? certExams : koreanExams.map(e => e.id);
+  const getExamLabel = (examId: string) => {
+    const kr = koreanExams.find(e => e.id === examId);
+    return kr ? kr.name : examId;
+  };
+
+  // 학년-학기 모드 판별: 초등/중등/고등 영어는 학년-학기 사용
+  const isGradeSemesterMode = ['KR-초등영어', 'KR-중등영어', 'KR-고등영어'].includes(selectedExam);
+
+  // 학년 범위 설정
+  const getGradeRange = (examId: string): number[] => {
+    switch (examId) {
+      case 'KR-초등영어': return [3, 4, 5, 6]; // 초등 3~6학년
+      case 'KR-중등영어': return [1, 2, 3]; // 중1~3
+      case 'KR-고등영어': return [1, 2, 3]; // 고1~3
+      default: return [];
+    }
+  };
+
+  // 학년-학기 옵션 생성
+  const gradeSemesterOptions = isGradeSemesterMode
+    ? getGradeRange(selectedExam).flatMap(grade => [1, 2].map(sem => ({ grade, semester: sem, label: `${grade}-${sem}`, fullLabel: `${grade}학년 ${sem}학기` })))
+    : [];
+
+  // 학년-학기를 Day로 변환 (backward compat)
+  const gradeSemesterToDay = (grade: number, semester: number): number => {
+    const grades = getGradeRange(selectedExam);
+    const gradeIndex = grades.indexOf(grade);
+    if (gradeIndex === -1) return 1;
+    return gradeIndex * 2 + semester;
+  };
+
+  // 교재 변경 시 학년/학기 기본값 설정
+  useEffect(() => {
+    if (isGradeSemesterMode) {
+      const grades = getGradeRange(selectedExam);
+      setSelectedGrade(grades[0] || 1);
+      setSelectedSemester(1);
+      setSelectedDay(1);
+    }
+  }, [selectedExam]);
+
+  // 학년/학기 변경 시 DAY 1로 리셋
+  useEffect(() => {
+    if (isGradeSemesterMode) {
+      setSelectedDay(1);
+    }
+  }, [selectedGrade, selectedSemester]);
+
+  // 학년-학기 모드에서는 해당 grade+semester 단어들의 최대 day 기준으로 maxDay 계산
+  const gsWordsForMax = isGradeSemesterMode
+    ? words.filter(w => w.exam === selectedExam && w.grade === selectedGrade && w.semester === selectedSemester)
+    : [];
+  const maxDay = isGradeSemesterMode
+    ? Math.max(30, ...gsWordsForMax.map(w => w.day || 0))
+    : getMaxDay(words, selectedExam);
   const days = Array.from({ length: maxDay }, (_, i) => i + 1);
 
   useEffect(() => {
@@ -179,14 +335,82 @@ export function VocaManagement() {
     toast.success(`Day ${newDay}가 추가되었습니다. 단어를 추가해주세요.`);
   };
 
+  // === DAY 관리: 전체 삭제 & 생략(숨기기) ===
+  const currentHiddenDays = hiddenDays[selectedExam] || [];
+  const isDayHidden = currentHiddenDays.includes(selectedDay);
+  const currentDayLabel = isGradeSemesterMode
+    ? `${getDayName(selectedExam, selectedDay)} (${selectedGrade}학년 ${selectedSemester}학기)`
+    : getDayName(selectedExam, selectedDay);
+
+  // 현재 DAY 전체 단어 삭제
+  const handleDeleteAllDayWords = async () => {
+    const dayWordsCount = filteredWords.length;
+    if (dayWordsCount === 0) {
+      toast.error("삭제할 단어가 없습니다.");
+      setShowDeleteDayConfirm(false);
+      return;
+    }
+    const updatedWords = words.filter(w => {
+      if (w.exam !== selectedExam) return true;
+      if (w.day !== selectedDay) return true;
+      if (isGradeSemesterMode) {
+        return !(w.grade === selectedGrade && w.semester === selectedSemester);
+      }
+      return false;
+    });
+    setWords(updatedWords);
+    await saveVocaWords(updatedWords);
+    setShowDeleteDayConfirm(false);
+    toast.success(`${currentDayLabel}의 ${dayWordsCount}개 단어가 모두 삭제되었습니다.`);
+  };
+
+  // DAY 생략(숨기기) 토글
+  const handleToggleDayHidden = (day: number) => {
+    const examHidden = hiddenDays[selectedExam] || [];
+    let newExamHidden: number[];
+    if (examHidden.includes(day)) {
+      newExamHidden = examHidden.filter(d => d !== day);
+    } else {
+      newExamHidden = [...examHidden, day];
+    }
+    const newHiddenDays = { ...hiddenDays, [selectedExam]: newExamHidden };
+    setHiddenDays(newHiddenDays);
+    localStorage.setItem('vocaHiddenDays', JSON.stringify(newHiddenDays));
+    if (newExamHidden.includes(day)) {
+      toast.success(`${isGradeSemesterMode ? currentDayLabel : getDayName(selectedExam, day)}이(가) 숨김 처리되었습니다.`);
+    } else {
+      toast.success(`${isGradeSemesterMode ? currentDayLabel : getDayName(selectedExam, day)} 숨김이 해제되었습니다.`);
+    }
+  };
+
+  // DAY 숨김 해제 (복원)
+  const handleRestoreDay = (day: number) => {
+    const examHidden = hiddenDays[selectedExam] || [];
+    const newExamHidden = examHidden.filter(d => d !== day);
+    const newHiddenDays = { ...hiddenDays, [selectedExam]: newExamHidden };
+    setHiddenDays(newHiddenDays);
+    localStorage.setItem('vocaHiddenDays', JSON.stringify(newHiddenDays));
+    toast.success("DAY 숨김이 해제되었습니다.");
+  };
+
+  // 숨긴 DAY를 제외한 visible days (드롭다운용)
+  const visibleDays = showHiddenDays ? days : days.filter(d => !currentHiddenDays.includes(d));
+
   const filteredWords = words.filter(
     (word) =>
       word.exam === selectedExam &&
       word.day === selectedDay &&
+      (isGradeSemesterMode
+        ? (word.grade === selectedGrade && word.semester === selectedSemester)
+        : true) &&
+      (selectedTextbook === "" || !selectedExam.startsWith("KR-") || word.textbook === selectedTextbook) &&
       (searchTerm === "" ||
         word.english.toLowerCase().includes(searchTerm.toLowerCase()) ||
         word.korean.includes(searchTerm))
   );
+
+  // 현재 교재에 해당하는 교과서 목록
+  const currentTextbooks = vocaMode === 'korean' ? (KOREAN_TEXTBOOKS_BY_EXAM[selectedExam] || []) : [];
 
   const handleAddWord = async () => {
     if (!newWord.english.trim() || !newWord.korean.trim()) {
@@ -202,6 +426,8 @@ export function VocaManagement() {
       korean: newWord.korean.trim(),
       definition: newWord.definition?.trim(),
       synonyms: newWord.synonyms.trim(),
+      ...(vocaMode === 'korean' && selectedTextbook ? { textbook: selectedTextbook } : {}),
+      ...(vocaMode === 'korean' ? { grade: selectedGrade, semester: selectedSemester } : {}),
     };
 
     const updatedWords = [...words, word];
@@ -279,6 +505,8 @@ export function VocaManagement() {
           korean: korean.trim(),
           definition: definition.trim(),
           synonyms: synonyms.trim(),
+          ...(vocaMode === 'korean' && selectedTextbook ? { textbook: selectedTextbook } : {}),
+          ...(vocaMode === 'korean' ? { grade: selectedGrade, semester: selectedSemester } : {}),
         });
       } else {
         errorCount++;
@@ -303,12 +531,14 @@ export function VocaManagement() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    const isKorean = vocaMode === 'korean';
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target?.result as string;
       const lines = text.split('\n');
       const newWords: VocaWord[] = [];
       let errorCount = 0;
+      let mappedTextbooks = new Map<string, string>();
 
       // Skip header row
       lines.slice(1).forEach((line, index) => {
@@ -320,8 +550,19 @@ export function VocaManagement() {
           return;
         }
 
-        const [english, korean, definition = "", synonyms = ""] = parts;
+        const [english, korean, definition = "", synonyms = "", textbookCol = ""] = parts;
         if (english && korean) {
+          // 한국학교 모드: CSV에 교과서 열이 있으면 자동 매핑, 없으면 선택된 교과서 사용
+          let textbookId = "";
+          if (isKorean) {
+            if (textbookCol.trim()) {
+              textbookId = autoMapTextbookId(selectedExam, textbookCol);
+              mappedTextbooks.set(textbookCol.trim(), textbookId);
+            } else if (selectedTextbook) {
+              textbookId = selectedTextbook;
+            }
+          }
+
           newWords.push({
             id: `${Date.now()}-${index}`,
             exam: selectedExam,
@@ -330,6 +571,8 @@ export function VocaManagement() {
             korean: korean.trim(),
             definition: definition.trim(),
             synonyms: synonyms.trim(),
+            ...(textbookId ? { textbook: textbookId } : {}),
+            ...(vocaMode === 'korean' ? { grade: selectedGrade, semester: selectedSemester } : {}),
           });
         } else {
           errorCount++;
@@ -346,7 +589,13 @@ export function VocaManagement() {
       saveVocaWords(updatedWords);
       setShowBulkModal(false);
       
-      toast.success(`${newWords.length}개의 단어가 추가되었습니다.${errorCount > 0 ? ` (${errorCount}개 오류)` : ''}`);
+      let message = `${newWords.length}개의 단어가 추가되었습니다.`;
+      if (errorCount > 0) message += ` (${errorCount}개 오류)`;
+      if (mappedTextbooks.size > 0) {
+        const mappingInfo = Array.from(mappedTextbooks.entries()).map(([input, id]) => `${input}→${id}`).join(', ');
+        message += `\n교과서 자동 매핑: ${mappingInfo}`;
+      }
+      toast.success(message);
     };
 
     reader.readAsText(file);
@@ -356,10 +605,10 @@ export function VocaManagement() {
   };
 
   const handleDownloadTemplate = () => {
-    const template = `영어,한글,영영풀이,유의어
-abandon,버리다,desert; leave
-abundant,풍부한,plentiful; ample
-achieve,성취하다,accomplish; attain`;
+    const isKorean = vocaMode === 'korean';
+    const template = isKorean
+      ? `영어,한글,영영풀이,유의어,교과서\nabandon,버리다,,desert; leave,천재교육\nabundant,풍부한,,plentiful; ample,YBM\nachieve,성취하다,,accomplish; attain,동아출판`
+      : `영어,한글,영영풀이,유의어\nabandon,버리다,desert; leave\nabundant,풍부한,plentiful; ample\nachieve,성취하다,accomplish; attain`;
     
     const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -375,10 +624,19 @@ achieve,성취하다,accomplish; attain`;
       return;
     }
 
-    const csvContent = [
-      '영어,한글,영영풀이,유의어',
-      ...filteredWords.map(word => `${word.english},${word.korean},${word.definition},${word.synonyms}`)
-    ].join('\n');
+    const isKorean = vocaMode === 'korean';
+    const csvContent = isKorean
+      ? [
+          '영어,한글,영영풀이,유의어,교과서',
+          ...filteredWords.map(word => {
+            const tbName = currentTextbooks.find(t => t.id === word.textbook)?.name || word.textbook || '';
+            return `${word.english},${word.korean},${word.definition || ''},${word.synonyms},${tbName}`;
+          })
+        ].join('\n')
+      : [
+          '영어,한글,영영풀이,유의어',
+          ...filteredWords.map(word => `${word.english},${word.korean},${word.definition || ''},${word.synonyms}`)
+        ].join('\n');
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -389,7 +647,7 @@ achieve,성취하다,accomplish; attain`;
   };
 
   const handleGenerateSampleWords = async () => {
-    const confirm = window.confirm('7,500개의 샘플 단어를 생성하시겠습니까?\n\n포함 내용:\n• TOEFL, SAT, IELTS, ACT, TOEIC (5개 시험)\n• 각 시험별 DAY 1-30 (30일)\n• 각 Day별 50개 단어\n\n이 작업은 몇 초 소요될 수 있습니다.');
+    const confirm = window.confirm('7,800개의 샘플 단어를 생성하시겠습니까?\n\n포함 내용:\n• TOEFL, SAT, IELTS, ACT, TOEIC (5개 시험)\n• 각 시험별 DAY 1-30 (30일)\n• 각 Day별 50개 단어\n• 초등영어 1~6학년 (12학기 × 25단어 = 300단어)\n\n이 작업은 몇 초 소요될 수 있습니다.');
     
     if (!confirm) return;
 
@@ -414,11 +672,12 @@ achieve,성취하다,accomplish; attain`;
 
   const handleDeleteAllSampleWords = async () => {
     if (window.confirm('생성된 샘플 단어를 모두 삭제하시겠습니까?')) {
-      // ID 패턴으로 샘플 단어 식별 (EXAM-DAY-INDEX-TIMESTAMP 형식)
+      // ID 패턴으로 샘플 단어 식별
+      const allExamIds = [...certExams, ...koreanExams.map(e => e.id)];
       const filteredWords = words.filter(word => {
-        const idParts = word.id.split('-');
-        // 샘플 단어는 4개 부분으로 구성됨 (예: TOEFL-1-0-1234567890)
-        return idParts.length !== 4 || !exams.includes(idParts[0]);
+        // 샘플 단어 ID 패턴: EXAM-DAY-INDEX-TIMESTAMP 또는 KR-NAME-DAY-INDEX-TIMESTAMP
+        const isSample = allExamIds.some(examId => word.id.startsWith(`${examId}-`));
+        return !isSample;
       });
       
       const deletedCount = words.length - filteredWords.length;
@@ -513,25 +772,73 @@ achieve,성취하다,accomplish; attain`;
         </div>
       </div>
 
+      {/* 모드 선택: 인증시험 / 한국학교 */}
+      <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 mb-4">
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium text-gray-700">단어장 모드:</span>
+          <div className="flex rounded-lg border border-gray-300 overflow-hidden">
+            <button
+              onClick={() => { setVocaMode('certification'); setSelectedExam('TOEFL'); setSelectedDay(1); }}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${vocaMode === 'certification' ? 'bg-cyan-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+            >
+              인증시험 (TOEFL, SAT 등)
+            </button>
+            <button
+              onClick={() => { setVocaMode('korean'); setSelectedExam('KR-초등영어'); setSelectedDay(1); }}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${vocaMode === 'korean' ? 'bg-cyan-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+            >
+              한국학교 Voca
+            </button>
+          </div>
+          {vocaMode === 'korean' && (
+            <span className="text-xs text-gray-500 bg-yellow-50 px-2 py-1 rounded">한국학교 탭에서 독립 운영</span>
+          )}
+        </div>
+      </div>
+
       {/* 시험 및 Day 선택 */}
       <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className={`grid grid-cols-1 ${isGradeSemesterMode ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-4`}>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              시험 선택
+              {vocaMode === 'certification' ? '시험 선택' : '교재 선택'}
             </label>
             <select
               value={selectedExam}
-              onChange={(e) => setSelectedExam(e.target.value as any)}
+              onChange={(e) => { setSelectedExam(e.target.value as any); setSelectedTextbook(""); }}
               className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:border-cyan-500 focus:outline-none"
             >
               {exams.map((exam) => (
                 <option key={exam} value={exam}>
-                  {exam}
+                  {getExamLabel(exam)}
                 </option>
               ))}
             </select>
           </div>
+          {/* 학년-학기 선택 (학년-학기 모드일 때만) */}
+          {isGradeSemesterMode && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                학년-학기 선택
+              </label>
+              <select
+                value={`${selectedGrade}-${selectedSemester}`}
+                onChange={(e) => {
+                  const [g, s] = e.target.value.split('-').map(Number);
+                  setSelectedGrade(g);
+                  setSelectedSemester(s);
+                }}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:border-cyan-500 focus:outline-none font-semibold"
+              >
+                {gradeSemesterOptions.map((opt) => (
+                  <option key={opt.label} value={opt.label}>
+                    {opt.label} ({opt.fullLabel})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          {/* DAY 선택 (항상 표시) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               DAY 선택
@@ -542,15 +849,21 @@ achieve,성취하다,accomplish; attain`;
                 onChange={(e) => setSelectedDay(parseInt(e.target.value))}
                 className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:border-cyan-500 focus:outline-none"
               >
-                {days.map((day) => {
+                {visibleDays.map((day) => {
                   const isCustomDay = day > 30;
+                  const isHidden = currentHiddenDays.includes(day);
+                  const wordCountInDay = words.filter(w => {
+                    if (w.exam !== selectedExam || w.day !== day) return false;
+                    if (isGradeSemesterMode) return w.grade === selectedGrade && w.semester === selectedSemester;
+                    return true;
+                  }).length;
                   return (
                     <option 
                       key={day} 
                       value={day}
-                      style={isCustomDay ? { color: '#ef4444', fontWeight: 'bold' } : {}}
+                      style={isCustomDay ? { color: '#ef4444', fontWeight: 'bold' } : isHidden ? { color: '#9ca3af', fontStyle: 'italic' } : {}}
                     >
-                      {getDayName(selectedExam, day)} {isCustomDay ? '(추가됨)' : ''}
+                      {getDayName(selectedExam, day)} ({wordCountInDay}단어){isCustomDay ? ' (추가됨)' : ''}{isHidden ? ' (숨김)' : ''}
                     </option>
                   );
                 })}
@@ -593,13 +906,223 @@ achieve,성취하다,accomplish; attain`;
             </div>
           </div>
         </div>
+
+        {/* 한국학교 모드: 교과서 필터 */}
+        {vocaMode === 'korean' && currentTextbooks.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="flex items-center gap-2 mb-3">
+              <Filter className="w-4 h-4 text-cyan-600" />
+              <label className="text-sm font-medium text-gray-700">교과서 필터</label>
+              {selectedTextbook && (
+                <button
+                  onClick={() => setSelectedTextbook("")}
+                  className="text-xs text-gray-500 hover:text-red-500 ml-1"
+                >
+                  (전체 보기)
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setSelectedTextbook("")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                  selectedTextbook === ""
+                    ? "bg-cyan-600 text-white border-cyan-600"
+                    : "bg-white text-gray-600 border-gray-300 hover:border-cyan-400"
+                }`}
+              >
+                전체
+              </button>
+              {currentTextbooks.map((tb) => (
+                <button
+                  key={tb.id}
+                  onClick={() => setSelectedTextbook(tb.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                    selectedTextbook === tb.id
+                      ? "bg-cyan-600 text-white border-cyan-600"
+                      : "bg-white text-gray-600 border-gray-300 hover:border-cyan-400"
+                  }`}
+                >
+                  {tb.name}{tb.author ? ` (${tb.author})` : ''}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* DAY 관리 액션 바 */}
+      <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-700">
+              DAY 관리:
+            </span>
+            <span className="text-sm text-gray-500">
+              {currentDayLabel}
+              {isDayHidden && (
+                <span className="ml-1 text-xs text-amber-600 font-medium">(숨김 상태)</span>
+              )}
+            </span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+              {filteredWords.length}개 단어
+            </span>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* DAY 전체 단어 삭제 */}
+            <Button
+              onClick={() => setShowDeleteDayConfirm(true)}
+              variant="outline"
+              size="sm"
+              className="border-red-300 text-red-600 hover:bg-red-50"
+              disabled={filteredWords.length === 0}
+            >
+              <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+              전체 단어 삭제
+            </Button>
+
+            {/* DAY 생략(숨기기) 토글 */}
+            <Button
+              onClick={() => handleToggleDayHidden(selectedDay)}
+              variant="outline"
+              size="sm"
+              className={isDayHidden
+                ? "border-green-300 text-green-600 hover:bg-green-50"
+                : "border-amber-300 text-amber-600 hover:bg-amber-50"
+              }
+            >
+              {isDayHidden ? (
+                <>
+                  <Eye className="w-3.5 h-3.5 mr-1.5" />
+                  숨김 해제
+                </>
+              ) : (
+                <>
+                  <EyeOff className="w-3.5 h-3.5 mr-1.5" />
+                  DAY 생략
+                </>
+              )}
+            </Button>
+
+            {/* 숨긴 DAY 보기 토글 */}
+            {currentHiddenDays.length > 0 && (
+              <Button
+                onClick={() => setShowHiddenDays(!showHiddenDays)}
+                variant="outline"
+                size="sm"
+                className="border-gray-300 text-gray-600 hover:bg-gray-50"
+              >
+                {showHiddenDays ? (
+                  <>
+                    <Eye className="w-3.5 h-3.5 mr-1.5" />
+                    숨긴 DAY 포함
+                  </>
+                ) : (
+                  <>
+                    <EyeOff className="w-3.5 h-3.5 mr-1.5" />
+                    숨긴 DAY 표시 ({currentHiddenDays.length}개)
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* 숨긴 DAY 목록 표시 */}
+        {currentHiddenDays.length > 0 && (
+          <div className="mt-3 pt-3 border-t border-gray-100">
+            <div className="flex items-center gap-2 mb-2">
+              <EyeOff className="w-3.5 h-3.5 text-gray-400" />
+              <span className="text-xs font-medium text-gray-500">숨긴 DAY 목록:</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {currentHiddenDays.sort((a, b) => a - b).map(day => {
+                const gsOpt = isGradeSemesterMode
+                  ? gradeSemesterOptions[day - 1]
+                  : null;
+                const label = gsOpt ? gsOpt.label : getDayName(selectedExam, day);
+                return (
+                  <button
+                    key={day}
+                    onClick={() => handleRestoreDay(day)}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs bg-gray-100 text-gray-500 hover:bg-green-50 hover:text-green-700 border border-gray-200 hover:border-green-300 transition-colors group"
+                    title="클릭하여 숨김 해제"
+                  >
+                    <span>{label}</span>
+                    <Eye className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <X className="w-3 h-3 opacity-100 group-hover:opacity-0 transition-opacity -ml-3" />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* DAY 전체 삭제 확인 모달 */}
+      <AnimatePresence>
+        {showDeleteDayConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowDeleteDayConfirm(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-lg shadow-xl max-w-md w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-800">DAY 전체 단어 삭제</h3>
+                    <p className="text-sm text-gray-500">이 작업은 되돌릴 수 없습니다.</p>
+                  </div>
+                </div>
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                  <p className="text-sm text-red-800">
+                    <strong>{getExamLabel(selectedExam)}</strong>의 <strong>{currentDayLabel}</strong>에 등록된 <strong className="text-red-600">{filteredWords.length}개</strong>의 단어를 모두 삭제하시겠습니까?
+                  </p>
+                </div>
+              </div>
+              <div className="border-t border-gray-200 p-4 bg-gray-50 flex gap-3 rounded-b-lg">
+                <Button
+                  onClick={handleDeleteAllDayWords}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  전체 삭제
+                </Button>
+                <Button
+                  onClick={() => setShowDeleteDayConfirm(false)}
+                  variant="outline"
+                  className="px-6"
+                >
+                  취소
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 새 단어 추가 */}
       <div className="bg-gradient-to-r from-cyan-50 to-blue-50 rounded-lg p-6 border-2 border-cyan-200">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold text-gray-800">
-            새 단어 추가 ({selectedExam} - {getDayName(selectedExam, selectedDay)})
+            새 단어 추가 ({selectedExam} - {isGradeSemesterMode ? `${selectedGrade}-${selectedSemester} (${selectedGrade}학년 ${selectedSemester}학기) / ${getDayName(selectedExam, selectedDay)}` : getDayName(selectedExam, selectedDay)})
+            {vocaMode === 'korean' && selectedTextbook && (
+              <span className="ml-2 text-xs bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded-full">
+                {currentTextbooks.find(t => t.id === selectedTextbook)?.name || selectedTextbook}
+              </span>
+            )}
           </h2>
           {selectedDay > 30 && (
             <Button
@@ -786,11 +1309,23 @@ achieve,성취하다,accomplish; attain`;
                             {word.definition || "-"}
                           </div>
                         </div>
-                        <div>
-                          <div className="text-xs text-gray-500 mb-1">유의어</div>
-                          <div className="text-gray-600 text-sm">
-                            {word.synonyms || "-"}
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1">
+                            <div className="text-xs text-gray-500 mb-1">유의어</div>
+                            <div className="text-gray-600 text-sm">
+                              {word.synonyms || "-"}
+                            </div>
                           </div>
+                          {word.textbook && (
+                            <span className="text-[10px] bg-cyan-50 text-cyan-700 border border-cyan-200 px-2 py-0.5 rounded-full whitespace-nowrap">
+                              {currentTextbooks.find(t => t.id === word.textbook)?.name || word.textbook}
+                            </span>
+                          )}
+                          {isGradeSemesterMode && word.grade && word.semester && (
+                            <span className="text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-full whitespace-nowrap">
+                              {word.grade}-{word.semester}
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div className="flex gap-2">
@@ -961,10 +1496,15 @@ achieve	성취하다	accomplish, attain"
                     <div className="bg-gray-50 rounded-lg p-4">
                       <h4 className="font-medium text-gray-800 mb-2">파일 형식 안내</h4>
                       <ul className="text-sm text-gray-600 space-y-1">
-                        <li>• 첫 번째 줄은 헤더(영어, 한글, 영영풀이, 유의어)로 작성</li>
+                        <li>• 첫 번째 줄은 헤더(영어, 한글, 영영풀이, 유의어{vocaMode === 'korean' ? ', 교과서' : ''})로 작성</li>
                         <li>• 각 열은 쉼표(,) 또는 탭(Tab)으로 구분</li>
                         <li>• UTF-8 인코딩 권장</li>
                         <li>• 최대 1,000개 단어까지 한 번에 업로드 가능</li>
+                        {vocaMode === 'korean' && (
+                          <li className="text-cyan-700 font-medium">
+                             교과서 열에 출판사명(천재교육, YBM, 동아출판 등) 또는 저자명을 입력하면 자동 매핑됩니다
+                          </li>
+                        )}
                       </ul>
                     </div>
                   </div>

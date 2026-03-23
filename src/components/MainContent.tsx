@@ -11,6 +11,9 @@ import { KeyNotesViewer } from "./KeyNotesViewer";
 import { PracticeTestViewer } from "./PracticeTestViewer";
 import { MyContentRoom } from "./MyContentRoom";
 import { VocaPage } from "./VocaPage";
+import { KoreanVocaPage } from "./KoreanVocaPage";
+import { TextbookMasteryMain } from "./TextbookMastery/TextbookMasteryMain";
+import EnglishAI from "./EnglishAI";
 import { getFilteredMaterials } from "./utils/materialHelpers";
 import { getCategoryCustomName, updateUploadedMaterial } from "./utils/dataManager";
 import { DEFAULT_TABS, KOREAN_SCHOOL_TABS, INTERNATIONAL_SCHOOL_TABS, CERTIFICATION_TABS, CERTIFICATION_CONTENT_BY_TAB, CERTIFICATION_CONTENT_BY_SUBJECT_AND_CATEGORY } from "./constants/defaultContent";
@@ -95,6 +98,18 @@ function CategoryCard({ category, index, onClick }: { category: any; index: numb
 export function MainContent({ selectedSubject, selectedCategory, selectedSubCategory, schoolType, isCertificationMode, onActiveTabChange, onComponent3Click, onComponent4Click, onComponent5Click }: MainContentProps) {
   const defaultTabs = isCertificationMode ? CERTIFICATION_TABS : 
                     (schoolType === 'international' ? INTERNATIONAL_SCHOOL_TABS : KOREAN_SCHOOL_TABS);
+  // 서류전형 과목에서는 "교과서 뽀개기" → "합격 예측" 으로 탭 이름 변경
+  // 영어 과목이 아닌 경우 Voca 탭 숨기기
+  const adjustedTabs = (() => {
+    let tabs = defaultTabs;
+    if (schoolType === 'korean' && selectedSubject === '서류전형') {
+      tabs = tabs.map(tab => tab === '교과서 뽀개기' ? '합격 예측' : tab);
+    }
+    if (schoolType === 'korean' && selectedSubject !== '영어') {
+      tabs = tabs.filter(tab => tab !== 'Voca' && tab !== 'BS 에이아이');
+    }
+    return tabs;
+  })();
   const initialTab = schoolType === 'korean' ? "국어" : (schoolType === 'international' ? "Subject" : "전체보기");
   const [activeTab, setActiveTab] = useState(initialTab);
   const [currentPage, setCurrentPage] = useState(1);
@@ -118,7 +133,7 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
   const [showMyContentRoom, setShowMyContentRoom] = useState(false);
 
   const [uploadedMaterials, setUploadedMaterials] = useState<any[]>([]);
-  const [tabs, setTabs] = useState(defaultTabs);
+  const [tabs, setTabs] = useState(adjustedTabs);
   const [materials, setMaterials] = useState<any[]>([]);
   const [tabCounts, setTabCounts] = useState<{[key: string]: number}>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -135,6 +150,13 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
     setCurrentPage(1);
   }, [activeTab, selectedSubject, selectedCategory]);
 
+  // Voca 탭이 사라지면 첫 번째 탭으로 리셋
+  useEffect(() => {
+    if (activeTab === 'Voca' && schoolType === 'korean' && selectedSubject !== '영어') {
+      setActiveTab(adjustedTabs[0] || '국어');
+    }
+  }, [selectedSubject, schoolType]);
+
   // Load uploaded materials and custom tab names from localStorage
   useEffect(() => {
     // Use empty array since we're now using the new data management system
@@ -144,9 +166,9 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
     if (customTabs) {
       setTabs(customTabs);
     } else {
-      setTabs(defaultTabs);
+      setTabs(adjustedTabs);
     }
-  }, [schoolType]);
+  }, [schoolType, selectedSubject]);
 
   // Load materials and tab counts together (optimized)
   useEffect(() => {
@@ -232,7 +254,7 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
   }, []);
 
   const handleAuthSubmit = () => {
-    if (password === "123456") {
+    if (password === "matanboy00") {
       setShowAuthModal(false);
       setPassword("");
       toast.success("인증 성공! VIP 콘텐츠룸에 접근합니다.");
@@ -241,67 +263,159 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
     }
   };
 
-  const handleDownloadClick = (material: any) => {
-    if (material.isUploaded) {
-      // For uploaded materials, require password
-      setPendingDownloadMaterial(material);
-      setShowPasswordModal(true);
-    } else {
-      // For default materials, download info file directly
-      const success = downloadDefaultFile(material.title);
-      if (success) {
-        toast.success(`"${material.title}" 자료를 다운로드합니다.`);
+  const handleDirectPDFDownload = async (material: any) => {
+    try {
+      let textContent = '';
+      const uploadData = material.uploadData;
+      
+      if (material.isUploaded && uploadData && uploadData.fileData) {
+        // Extract text from uploaded file
+        try {
+          const base64Data = uploadData.fileData.split(',')[1];
+          const binaryString = atob(base64Data);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          const decoder = new TextDecoder('utf-8');
+          textContent = decoder.decode(bytes);
+        } catch {
+          textContent = material.title;
+        }
       } else {
-        toast.error("다운로드 중 오류가 발생했습니다.");
+        textContent = `${material.title}\n\n이 자료는 AllMyExam에서 제공되는 교육 자료입니다.\n다운로드 날짜: ${new Date().toLocaleDateString('ko-KR')}`;
       }
+      
+      const examHTML = generateKoreanExamStyleHTML(textContent, material.title, selectedSubject, selectedCategory);
+      
+      // Use jsPDF-like approach: open print window for PDF save
+      const printWin = window.open('', '_blank');
+      if (printWin) {
+        printWin.document.write(examHTML);
+        printWin.document.close();
+        printWin.onload = () => setTimeout(() => printWin.print(), 300);
+        toast.success(`"${material.title}" PDF 다운로드를 시작합니다.`);
+      } else {
+        // Popup blocked: download as HTML
+        const blob = new Blob([examHTML], { type: 'text/html;charset=utf-8' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `시험지_${material.title.replace(/\s+/g, '_')}.html`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        toast.success(`"${material.title}" 파일을 다운로드합니다.`);
+      }
+      
+      // Update download count
+      if (material.isUploaded) {
+        updateUploadedMaterial(material.id, {
+          downloadCount: (material.downloadCount || 0) + 1
+        });
+      }
+      
+      // Record download
+      const downloadRecord = {
+        id: `download-${Date.now()}`,
+        materialTitle: material.title,
+        subject: selectedSubject,
+        category: selectedCategory || activeTab,
+        date: new Date().toISOString(),
+        type: 'download'
+      };
+      const existingRecords = JSON.parse(localStorage.getItem('myContentRecords') || '[]');
+      existingRecords.unshift(downloadRecord);
+      localStorage.setItem('myContentRecords', JSON.stringify(existingRecords));
+      window.dispatchEvent(new Event('contentRecordsUpdated'));
+    } catch (error) {
+      console.error('Direct PDF download error:', error);
+      toast.error('PDF 다운로드 중 오류가 발생했습니다.');
     }
   };
 
-  const handlePasswordSubmit = async (inputPassword: string) => {
+  const handleDownloadClick = (material: any) => {
+    // Korean school: direct PDF download without modal
+    if (schoolType === 'korean') {
+      handleDirectPDFDownload(material);
+      return;
+    }
+    // All materials require password for download
+    setPendingDownloadMaterial(material);
+    setShowPasswordModal(true);
+  };
+
+  const handlePasswordSubmit = async (inputPassword: string, format: 'word' | 'pdf') => {
     if (!pendingDownloadMaterial) return;
 
-    if (inputPassword === pendingDownloadMaterial.password) {
-      // Password correct, download as Word file
+    if (inputPassword === "matanboy00") {
+      // Password correct
       const uploadData = pendingDownloadMaterial.uploadData;
       
-      if (uploadData && uploadData.fileData) {
+      if (pendingDownloadMaterial.isUploaded && uploadData && uploadData.fileData) {
         let success = false;
         
-        // Check if it's a TXT file - convert to Word
-        if (uploadData.fileType === 'text/plain' || uploadData.fileName?.toLowerCase().endsWith('.txt')) {
+        if (format === 'pdf') {
+          // PDF download - open print dialog
           try {
-            // Decode the text content
             const base64Data = uploadData.fileData.split(',')[1];
             const binaryString = atob(base64Data);
             const bytes = new Uint8Array(binaryString.length);
             for (let i = 0; i < binaryString.length; i++) {
               bytes[i] = binaryString.charCodeAt(i);
             }
-            const decoder = new TextDecoder('utf-8');
-            const textContent = decoder.decode(bytes);
             
-            // Download as Word document
-            success = await downloadAsWord(textContent, pendingDownloadMaterial.title);
+            if (uploadData.fileType === 'application/pdf') {
+              // Already PDF, download directly
+              success = downloadFile(uploadData.fileData, uploadData.fileName, uploadData.fileType);
+            } else {
+              // Convert text to PDF via print
+              const decoder = new TextDecoder('utf-8');
+              const textContent = decoder.decode(bytes);
+              const printHTML = generateExamPrintHTML(textContent, pendingDownloadMaterial.title);
+              const printWindow = window.open('', '_blank');
+              if (printWindow) {
+                printWindow.document.write(printHTML);
+                printWindow.document.close();
+                printWindow.onload = () => setTimeout(() => printWindow.print(), 300);
+                success = true;
+              } else {
+                toast.error("팝업이 차단되었습니다. 팝업을 허용해주세요.");
+              }
+            }
           } catch (error) {
-            console.error('Error converting to Word:', error);
+            console.error('Error downloading PDF:', error);
             success = false;
           }
         } else {
-          // For other file types, download directly
-          success = downloadFile(
-            uploadData.fileData,
-            uploadData.fileName,
-            uploadData.fileType || 'application/octet-stream'
-          );
+          // Word download
+          if (uploadData.fileType === 'text/plain' || uploadData.fileName?.toLowerCase().endsWith('.txt')) {
+            try {
+              const base64Data = uploadData.fileData.split(',')[1];
+              const binaryString = atob(base64Data);
+              const bytes = new Uint8Array(binaryString.length);
+              for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+              }
+              const decoder = new TextDecoder('utf-8');
+              const textContent = decoder.decode(bytes);
+              success = await downloadAsWord(textContent, pendingDownloadMaterial.title);
+            } catch (error) {
+              console.error('Error converting to Word:', error);
+              success = false;
+            }
+          } else {
+            success = downloadFile(
+              uploadData.fileData,
+              uploadData.fileName,
+              uploadData.fileType || 'application/octet-stream'
+            );
+          }
         }
         
         if (success) {
-          // Update download count
           updateUploadedMaterial(pendingDownloadMaterial.id, {
             downloadCount: (pendingDownloadMaterial.downloadCount || 0) + 1
           });
           
-          // Save download record to localStorage
           const downloadRecord = {
             id: `download-${Date.now()}`,
             materialTitle: pendingDownloadMaterial.title,
@@ -319,12 +433,30 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
           localStorage.setItem('myContentRecords', JSON.stringify(existingRecords));
           window.dispatchEvent(new Event('contentRecordsUpdated'));
           
-          toast.success(`\"${pendingDownloadMaterial.title}\" 자료를 Word 파일로 다운로드합니다.`);
+          toast.success(`"${pendingDownloadMaterial.title}" ${format === 'pdf' ? 'PDF' : 'Word'} 파일로 다운로드합니다.`);
         } else {
           toast.error("파일 다운로드 중 오류가 발생했습니다.");
         }
       } else {
-        toast.error("파일 데이터를 찾을 수 없습니다.");
+        // For default materials
+        if (format === 'pdf') {
+          const content = `${pendingDownloadMaterial.title}\n\n이 자료는 AllMyExam에서 제공되는 교육 자료입니다.\n다운로드 날짜: ${new Date().toLocaleDateString('ko-KR')}\n\n실제 학습 자료는 별도로 제공될 예정입니다.`;
+          const printHTML = generateExamPrintHTML(content, pendingDownloadMaterial.title);
+          const printWindow = window.open('', '_blank');
+          if (printWindow) {
+            printWindow.document.write(printHTML);
+            printWindow.document.close();
+            printWindow.onload = () => setTimeout(() => printWindow.print(), 300);
+            toast.success(`"${pendingDownloadMaterial.title}" PDF로 다운로드합니다.`);
+          }
+        } else {
+          const success = downloadDefaultFile(pendingDownloadMaterial.title);
+          if (success) {
+            toast.success(`"${pendingDownloadMaterial.title}" 자료를 다운로드합니다.`);
+          } else {
+            toast.error("다운로드 중 오류가 발생했습니다.");
+          }
+        }
       }
       
       setShowPasswordModal(false);
@@ -383,8 +515,33 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
   // Check if we should show Voca Page
   const showVocaPage = isCertificationMode && selectedSubject === 'Voca';
   
-  // Check if we should show grid layout for Subject or 1타 강사님들
-  const showGridLayout = (activeTab === "Subject" || activeTab === "1타 강사님들") && schoolType === 'international' && selectedSubject === 'AP';
+  // Check if we should show Korean Voca Page
+  const showKoreanVocaPage = activeTab === "Voca" && schoolType === 'korean';
+  
+  // Check if we should show English AI
+  const showEnglishAI = activeTab === "BS 에이아이" && schoolType === 'korean';
+  const [englishAIFullscreen, setEnglishAIFullscreen] = useState(false);
+
+  // BS 에이아이 탭 선택 시 자동 전체화면
+  useEffect(() => {
+    if (showEnglishAI) {
+      setEnglishAIFullscreen(true);
+    }
+  }, [showEnglishAI]);
+
+  // Check if we should show Textbook Mastery (교과서 뽀개기)
+  const showTextbookMastery = activeTab === "교과서 뽀개기" && schoolType === 'korean';
+  const [textbookMasteryFullscreen, setTextbookMasteryFullscreen] = useState(false);
+
+  // 교과서 뽀개기 탭 선택 시 자동 전체화면
+  useEffect(() => {
+    if (showTextbookMastery) {
+      setTextbookMasteryFullscreen(true);
+    }
+  }, [showTextbookMastery]);
+  
+  // Check if we should show grid layout for Subject or 보조자료
+  const showGridLayout = (activeTab === "Subject" || activeTab === "보조자료") && schoolType === 'international' && selectedSubject === 'AP';
   
   // AP Subject data with icons
   const apSubjects = [
@@ -533,10 +690,10 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
 
   return (
     <>
-      <div className="bg-white rounded-lg flex-1 max-w-none flex flex-col" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+      <div className="bg-white rounded-lg flex-1 max-w-none flex flex-col min-h-0" style={{ maxHeight: 'calc(100vh - 140px)' }}>
         {/* Tabs - Fixed at top - Hide for Voca */}
         {!showVocaPage && (
-          <div className="flex mb-0 border-b border-gray-200 relative overflow-x-auto p-4 sm:p-5 lg:p-6 pb-0">
+          <div className="flex flex-wrap mb-0 border-b border-gray-200 relative px-2 pt-2 sm:px-4 sm:pt-4 lg:px-6 pb-0 gap-y-0">
             {tabs.map((tab, index) => (
               <motion.button
                 key={tab}
@@ -547,9 +704,8 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
                     setActiveTab(tab);
                   }
                 }}
-                whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className={`px-4 sm:px-5 lg:px-6 py-3 sm:py-3.5 lg:py-4 text-sm sm:text-base lg:text-lg border-b-2 transition-all duration-200 relative whitespace-nowrap font-medium mr-2 flex items-center gap-2 ${ // 여백 추가
+                className={`px-3 sm:px-5 lg:px-6 py-2.5 sm:py-3.5 lg:py-4 text-sm sm:text-base lg:text-lg border-b-2 transition-all duration-200 relative whitespace-nowrap font-bold mr-1 sm:mr-2 flex items-center gap-1.5 sm:gap-2 ${
                   activeTab === tab
                     ? "border-cyan-600 text-cyan-600 bg-cyan-50"
                     : "border-transparent text-gray-700 hover:text-gray-900 hover:bg-gray-50"
@@ -557,12 +713,17 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
               >
                 {tab === "국어" || tab === "Subject" ? (
                   <>
-                    <Menu className="w-5 h-5" style={{ color: '#00C853' }} />
+                    <Menu className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#00C853' }} />
                     <span>{selectedSubject}</span>
                   </>
                 ) : (
                   tab
                 )}
+                <span className={`text-[10px] sm:text-xs font-bold ml-0.5 ${
+                  activeTab === tab ? "text-red-500" : "text-red-400"
+                }`}>
+                  {tabCounts[tab] || 0}
+                </span>
                 {activeTab === tab && (
                   <motion.div
                     layoutId="activeTab"
@@ -572,21 +733,13 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
                     transition={{ type: "spring", stiffness: 500, damping: 30 }}
                   />
                 )}
-                <motion.span
-                  key={`badge-${tab}`}
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="absolute top-1 right-1 text-red-500 text-xs sm:text-sm font-semibold"
-                >
-                  {tabCounts[tab] || 0}
-                </motion.span>
               </motion.button>
             ))}
           </div>
         )}
         
         {/* Scrollable content area */}
-        <div id="scrollable-content" className="flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6 pt-4">
+        <div id="scrollable-content" className="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-6 pt-3 sm:pt-4">
           {/* Show Exam Questions Viewer, Key Notes Viewer, or Practice Test Viewer if conditions are met */}
           {showExamQuestionsViewer ? (
             <ExamQuestionsViewer 
@@ -605,6 +758,36 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
             />
           ) : showVocaPage ? (
             <VocaPage />
+          ) : showKoreanVocaPage ? (
+            <KoreanVocaPage selectedCategory={selectedCategory} />
+          ) : showEnglishAI ? (
+            <div className="flex items-center justify-center py-20 text-center">
+              <div>
+                <Brain className="w-16 h-16 text-cyan-400 mx-auto mb-4" />
+                <h2 className="text-xl font-bold text-gray-700 mb-2">BS 에이아이</h2>
+                <p className="text-gray-500 mb-4">전체화면에서 학습 중입니다</p>
+                <button
+                  onClick={() => setEnglishAIFullscreen(true)}
+                  className="px-6 py-3 bg-cyan-600 text-white rounded-xl font-bold hover:bg-cyan-700 transition-colors"
+                >
+                  전체화면 열기
+                </button>
+              </div>
+            </div>
+          ) : showTextbookMastery ? (
+            <div className="flex items-center justify-center py-20 text-center">
+              <div>
+                <BookOpen className="w-16 h-16 text-cyan-400 mx-auto mb-4" />
+                <h2 className="text-xl font-bold text-gray-700 mb-2">교과서 뽀개기</h2>
+                <p className="text-gray-500 mb-4">전체화면에서 학습 중입니다</p>
+                <button
+                  onClick={() => setTextbookMasteryFullscreen(true)}
+                  className="px-6 py-3 bg-cyan-600 text-white rounded-xl font-bold hover:bg-cyan-700 transition-colors"
+                >
+                  전체화면 열기
+                </button>
+              </div>
+            </div>
           ) : (
             <>
             {/* Header with title and button */}
@@ -628,23 +811,27 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
                     // 한국학교에서는 VIP 콘텐츠룸 모달 열기
                     setShowMyContentRoom(true);
                   } else if (isCertificationMode) {
-                    // 인증시험 모드에서는 Component3 (TOEFL) 또는 Component4 (SAT) 페이지로 이동
-                    if (selectedSubject === 'TOEFL' && onComponent3Click) {
-                      onComponent3Click();
-                    } else if (selectedSubject === 'SAT' && onComponent4Click) {
-                      onComponent4Click();
+                    // 인증시험 모드에서는 서브도메인으로 이동
+                    if (selectedSubject === 'TOEFL') {
+                      window.open('https://toefl.allmyexam.com', '_blank');
+                    } else if (selectedSubject === 'SAT') {
+                      window.open('https://www.sat.allmyexam.com', '_blank');
                     } else {
                       // 다른 시험의 경우 외부 링크
                       window.open('https://tux-stood-50280581.figma.site', '_blank');
                     }
                   } else if (schoolType === 'international') {
-                    // 국제학교 모드에서 AP, IB, A-level, AS, IGCSE는 Component5 (gong-notch) 연결
-                    const vipSubjects = ['AP', 'IB', 'A-level', 'AS', 'IGCSE'];
-                    if (vipSubjects.includes(selectedSubject) && onComponent5Click) {
-                      onComponent5Click();
+                    // 국제학교 모드에서 AP는 서브도메인, 나머지는 Component5
+                    if (selectedSubject === 'AP') {
+                      window.open('https://www.ap.allmyexam.com', '_blank');
                     } else {
-                      // GPA, Writing 등 기타 과목은 외부 링크
-                      window.open('https://neon-sadly-99060853.figma.site/', '_blank');
+                      const vipSubjects = ['IB', 'A-level', 'AS', 'IGCSE'];
+                      if (vipSubjects.includes(selectedSubject) && onComponent5Click) {
+                        onComponent5Click();
+                      } else {
+                        // GPA, Writing 등 기타 과목은 외부 링크
+                        window.open('https://neon-sadly-99060853.figma.site/', '_blank');
+                      }
                     }
                   } else {
                     window.open('https://neon-sadly-99060853.figma.site/', '_blank');
@@ -656,7 +843,7 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
               </button>
             </div>
             
-            {/* Grid Layout for Subject and 1타 강사님들 */}
+            {/* Grid Layout for Subject and 보조자료 */}
             {showGridLayout ? (
               <>
                 {/* Show categories if no category is selected */}
@@ -914,7 +1101,8 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
             transition={{ duration: 0.3, ease: "easeInOut" }}
             className="overflow-hidden rounded-lg border border-gray-200"
           >
-            <table className="w-full">
+            {/* Desktop: table layout */}
+            <table className="w-full hidden sm:table">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="text-left py-2 px-4 text-sm text-gray-700 font-medium">제목</th>
@@ -966,12 +1154,6 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
                           시험보기
                         </button>
                         <button
-                          onClick={() => handleGlimpseClick(material)}
-                          className="bg-white border border-cyan-300 rounded px-4 py-1.5 text-xs text-cyan-600 hover:bg-cyan-50 hover:border-cyan-400 transition-all whitespace-nowrap"
-                        >
-                          미리보기
-                        </button>
-                        <button
                           onClick={() => handleDownloadClick(material)}
                           className="flex items-center justify-center bg-white border border-gray-300 rounded px-4 py-1.5 text-xs text-gray-600 hover:bg-gray-50 hover:border-cyan-300 transition-all whitespace-nowrap"
                         >
@@ -984,6 +1166,64 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
                 ))}
               </tbody>
             </table>
+
+            {/* Mobile: card layout */}
+            <div className="sm:hidden divide-y divide-gray-100">
+              {paginatedMaterials.map((material, index) => (
+                <motion.div
+                  key={`mobile-${activeTab}-${index}`}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3, delay: index * 0.05 }}
+                  className={`px-3 py-3 ${material.isUploaded ? 'bg-blue-50/60' : ''}`}
+                >
+                  {/* 제목 줄 */}
+                  <div className="flex items-start gap-2 mb-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        {material.isUploaded && (
+                          <span className="inline-block w-1.5 h-1.5 bg-green-500 rounded-full flex-shrink-0"></span>
+                        )}
+                        {material.isNew && (
+                          <motion.img 
+                            src={imgRectangle8} 
+                            alt="New" 
+                            className="w-3 h-3 flex-shrink-0"
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ delay: 0.2 + index * 0.05, type: "spring" }}
+                          />
+                        )}
+                        <span className="text-gray-400 text-[10px]">[{material.count}]</span>
+                      </div>
+                      <a 
+                        href="#" 
+                        className="text-gray-800 hover:text-cyan-600 text-[13px] font-medium transition-colors leading-snug line-clamp-2"
+                        title={material.title}
+                      >
+                        {material.title}
+                      </a>
+                    </div>
+                  </div>
+                  {/* 버튼 줄 */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handlePreviewClick(material)}
+                      className="flex-1 bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-lg py-2.5 text-xs text-white font-medium text-center shadow-sm active:opacity-80 transition-all"
+                    >
+                      시험보기
+                    </button>
+                    <button
+                      onClick={() => handleDownloadClick(material)}
+                      className="flex-1 flex items-center justify-center bg-white border border-gray-300 rounded-lg py-2.5 text-xs text-gray-700 font-medium active:bg-gray-100 transition-all"
+                    >
+                      <img src={imgRectangle9} alt="" className="w-3 h-3 mr-1.5" />
+                      다운로드
+                    </button>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
           </motion.div>
         </AnimatePresence>
         
@@ -1045,7 +1285,7 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
               <div className="w-20 h-20 mx-auto mb-4 flex items-center justify-center">
                 <img 
                   src={authModalImg} 
-                  alt="N Study Hub 로고" 
+                  alt="All My Exam 로고" 
                   className="w-full h-full object-contain"
                 />
               </div>
@@ -1165,6 +1405,346 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
       {showMyContentRoom && (
         <MyContentRoom onClose={() => setShowMyContentRoom(false)} />
       )}
+
+      {/* Textbook Mastery Fullscreen Overlay */}
+      <AnimatePresence>
+        {textbookMasteryFullscreen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-[90] bg-white flex flex-col"
+          >
+            {/* Fullscreen Header */}
+            <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-gray-200 bg-gradient-to-r from-cyan-50 to-white shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-cyan-600 flex items-center justify-center">
+                  <BookOpen className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-lg font-bold text-gray-800">교과서 뽀개기</h1>
+                  <p className="text-xs text-gray-400">{selectedSubject} · {selectedCategory || '전체'}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setTextbookMasteryFullscreen(false);
+                  setActiveTab(tabs[0] || '국어');
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-600 transition-colors"
+              >
+                <X className="w-4 h-4" />
+                닫기
+              </button>
+            </div>
+            {/* Fullscreen Content */}
+            <div className="flex-1 overflow-y-auto">
+              <div className="max-w-7xl mx-auto">
+                <TextbookMasteryMain
+                  subject={selectedSubject}
+                  category={selectedCategory}
+                />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* English AI Fullscreen Overlay */}
+      <AnimatePresence>
+        {englishAIFullscreen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-[90] bg-white flex flex-col"
+          >
+            {/* Fullscreen Header */}
+            <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-gray-200 bg-gradient-to-r from-cyan-50 to-white shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center">
+                  <Brain className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-lg font-bold text-gray-800">BS 에이아이</h1>
+                  <p className="text-xs text-gray-400">{selectedSubject} · {selectedCategory || '전체'}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setEnglishAIFullscreen(false);
+                  setActiveTab(tabs[0] || '국어');
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-600 transition-colors"
+              >
+                <X className="w-4 h-4" />
+                닫기
+              </button>
+            </div>
+            {/* Fullscreen Content */}
+            <div className="flex-1 overflow-y-auto">
+              <div className="max-w-5xl mx-auto">
+                <EnglishAI />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
+}
+
+// Generate Korean school exam style PDF HTML (한국학교 정기고사 스타일)
+function generateKoreanExamStyleHTML(content: string, title: string, subject: string, category: string): string {
+  const date = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+  const lines = content.split('\n').filter(l => l.trim());
+  
+  // Try to parse questions from content
+  const questions: { num: number; text: string; options: string[]; isPassage?: boolean; passageText?: string }[] = [];
+  let currentPassage = '';
+  let currentQuestion = '';
+  let currentOptions: string[] = [];
+  let qNum = 0;
+  let isInPassage = false;
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    
+    // Detect passage markers
+    if (line.startsWith('[지문]') || line.startsWith('※') || line.match(/^다음.*읽고.*답하/)) {
+      isInPassage = true;
+      currentPassage = line.replace('[지문]', '').trim();
+      continue;
+    }
+    
+    // Detect question numbers
+    const qMatch = line.match(/^(\d+)\.\s*(.*)/);
+    if (qMatch) {
+      // Save previous question
+      if (currentQuestion) {
+        qNum++;
+        questions.push({
+          num: qNum,
+          text: currentQuestion,
+          options: [...currentOptions],
+          isPassage: !!currentPassage,
+          passageText: currentPassage || undefined
+        });
+        currentOptions = [];
+        if (!isInPassage) currentPassage = '';
+      }
+      currentQuestion = qMatch[2];
+      isInPassage = false;
+      continue;
+    }
+    
+    // Detect options (①②③④⑤ or (1)(2) or A. B. etc)
+    const optMatch = line.match(/^[①②③④⑤\(]\s*(.*)/);
+    const alphaOptMatch = line.match(/^[A-E]\.\s*(.*)/);
+    if (optMatch || alphaOptMatch) {
+      currentOptions.push(line);
+      continue;
+    }
+    
+    // Accumulate passage or content
+    if (isInPassage || (!currentQuestion && !qMatch)) {
+      currentPassage += (currentPassage ? '\n' : '') + line;
+    } else if (currentQuestion) {
+      currentQuestion += ' ' + line;
+    }
+  }
+  
+  // Push last question
+  if (currentQuestion) {
+    qNum++;
+    questions.push({
+      num: qNum,
+      text: currentQuestion,
+      options: [...currentOptions],
+      isPassage: !!currentPassage,
+      passageText: currentPassage || undefined
+    });
+  }
+  
+  // If no questions parsed, treat entire content as a document
+  const hasQuestions = questions.length > 0;
+  
+  // Build question HTML
+  let questionsHTML = '';
+  let lastPassage = '';
+  
+  if (hasQuestions) {
+    for (const q of questions) {
+      // Render passage if different from last
+      if (q.passageText && q.passageText !== lastPassage) {
+        lastPassage = q.passageText;
+        questionsHTML += `
+          <div style="margin:16px 0;padding:12px 16px;border:1.5px solid #d1d5db;border-radius:6px;background:#fafbfc;">
+            <div style="font-size:9pt;color:#666;font-weight:bold;margin-bottom:6px;">※ 다음 글을 읽고 물음에 답하시오.</div>
+            <div style="font-size:10pt;line-height:1.8;color:#333;text-align:justify;">${q.passageText.replace(/\n/g, '<br>')}</div>
+          </div>`;
+      }
+      
+      const optionsHTML = q.options.map(opt => 
+        `<span style="display:inline-block;margin-right:14px;margin-bottom:3px;font-size:10pt;color:#333;">${opt}</span>`
+      ).join('');
+      
+      questionsHTML += `
+        <div style="margin-bottom:18px;page-break-inside:avoid;">
+          <div style="display:flex;gap:6px;align-items:flex-start;">
+            <div style="font-weight:bold;font-size:11pt;min-width:28px;color:#1a1a1a;">${q.num}.</div>
+            <div style="flex:1;">
+              <div style="font-size:10.5pt;line-height:1.7;color:#1a1a1a;margin-bottom:6px;">${q.text}</div>
+              ${q.options.length > 0 ? `<div style="padding-left:2px;line-height:1.9;">${optionsHTML}</div>` : `<div style="border-bottom:1px dashed #ccc;padding:10px 0;min-height:30px;"></div>`}
+            </div>
+          </div>
+        </div>`;
+    }
+  } else {
+    // No questions: render content as text in 2-column layout
+    const midpoint = Math.ceil(lines.length / 2);
+    const leftLines = lines.slice(0, midpoint);
+    const rightLines = lines.slice(midpoint);
+    
+    questionsHTML = `
+      <table style="width:100%;border-collapse:collapse;">
+        <tr>
+          <td style="width:48%;vertical-align:top;padding-right:12px;">
+            ${leftLines.map(l => `<p style="margin:0 0 6px;font-size:10pt;line-height:1.7;color:#333;">${l}</p>`).join('')}
+          </td>
+          <td style="width:4%;border-left:1px solid #e5e7eb;"></td>
+          <td style="width:48%;vertical-align:top;padding-left:12px;">
+            ${rightLines.map(l => `<p style="margin:0 0 6px;font-size:10pt;line-height:1.7;color:#333;">${l}</p>`).join('')}
+          </td>
+        </tr>
+      </table>`;
+  }
+  
+  const totalQ = hasQuestions ? questions.length : '-';
+  const subjectDisplay = subject || '영어';
+  const gradeDisplay = category || '';
+  
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>${title} - 시험지</title>
+<style>
+  @page { size: A4; margin: 15mm 12mm; }
+  body {
+    font-family: 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+    margin: 0; padding: 0; color: #333;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    line-height: 1.5;
+  }
+  table { border-collapse: collapse; }
+  td, th { vertical-align: top; }
+  @media print {
+    .no-break { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+  <div style="padding:0;">
+    <!-- ═══ 시험지 헤더 (한국학교 정기고사 스타일) ═══ -->
+    <table style="width:100%;border-collapse:collapse;border:2.5px solid #222;margin-bottom:14px;">
+      <tr>
+        <td rowspan="2" style="width:100px;padding:10px;text-align:center;border-right:2px solid #222;vertical-align:middle;">
+          <div style="font-size:10pt;font-weight:900;color:#00838f;line-height:1.3;">All My<br>Exam</div>
+          <div style="font-size:7pt;color:#999;margin-top:2px;">⚡</div>
+        </td>
+        <td style="padding:6px 14px;border-bottom:1px solid #bbb;border-right:1px solid #bbb;text-align:center;">
+          <div style="font-size:8pt;color:#888;margin-bottom:2px;">${gradeDisplay}</div>
+          <div style="font-size:16pt;font-weight:900;color:#1a1a1a;letter-spacing:3px;">${title.length > 20 ? title.substring(0, 20) : title}</div>
+        </td>
+        <td rowspan="2" style="width:90px;padding:6px 10px;text-align:center;border-left:0;vertical-align:middle;">
+          <div style="font-size:14pt;font-weight:900;color:#1a1a1a;">${subjectDisplay}</div>
+        </td>
+        <td rowspan="2" style="width:150px;padding:6px 8px;vertical-align:top;">
+          <table style="width:100%;border-collapse:collapse;">
+            <tr>
+              <td style="border:1px solid #aaa;padding:4px 8px;font-size:8pt;font-weight:bold;background:#f5f5f5;width:36px;">학년</td>
+              <td style="border:1px solid #aaa;padding:4px 8px;font-size:8pt;">${gradeDisplay}</td>
+            </tr>
+            <tr>
+              <td style="border:1px solid #aaa;padding:4px 8px;font-size:8pt;font-weight:bold;background:#f5f5f5;">반</td>
+              <td style="border:1px solid #aaa;padding:4px 8px;font-size:8pt;"></td>
+            </tr>
+            <tr>
+              <td style="border:1px solid #aaa;padding:4px 8px;font-size:8pt;font-weight:bold;background:#f5f5f5;">번호</td>
+              <td style="border:1px solid #aaa;padding:4px 8px;font-size:8pt;"></td>
+            </tr>
+            <tr>
+              <td style="border:1px solid #aaa;padding:4px 8px;font-size:8pt;font-weight:bold;background:#f5f5f5;">이름</td>
+              <td style="border:1px solid #aaa;padding:4px 8px;font-size:8pt;"></td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:5px 14px;text-align:center;">
+          <span style="font-size:8pt;color:#666;">${date}</span>
+        </td>
+      </tr>
+    </table>
+
+    <!-- ═══ 유의사항 ═══ -->
+    <div style="border:1px solid #d1d5db;border-radius:4px;padding:8px 14px;margin-bottom:16px;background:#f8fafc;font-size:8pt;color:#555;line-height:1.6;">
+      · 먼저 답안지에 성명, 학년, 과목코드를 기입하시오.<br>
+      · 문항을 읽고 맞는 답을 답란에 표시하시오.${hasQuestions ? `<br>· 총 ${totalQ}문항입니다.` : ''}
+    </div>
+
+    <!-- ═══ 문제 영역 ═══ -->
+    ${questionsHTML}
+
+    <!-- ═══ 페이지 하단 ═══ -->
+    <div style="margin-top:24px;border-top:1px solid #ddd;padding-top:6px;display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-size:7pt;color:#bbb;">⚡ AllMyExam</div>
+      <div style="font-size:8pt;color:#999;">- 1 -</div>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+// Generate exam-style print HTML for PDF download
+function generateExamPrintHTML(content: string, title: string): string {
+  const date = new Date().toLocaleDateString('ko-KR');
+  const lines = content.split('\n');
+  const bodyContent = lines.map(line => 
+    `<p style="margin:0 0 6px 0;font-size:11pt;line-height:1.6;color:#333;">${line || '&nbsp;'}</p>`
+  ).join('');
+  
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>${title}</title>
+<style>
+  @page { size: A4; margin: 2cm; }
+  body { font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; margin: 0; padding: 0; color: #333; }
+</style>
+</head>
+<body>
+  <div style="border-bottom:2px solid #00bcd4;padding-bottom:12px;margin-bottom:20px;">
+    <div style="font-size:18pt;font-weight:bold;color:#00838f;margin-bottom:6px;">AllMyExam</div>
+    <div style="font-size:14pt;font-weight:bold;color:#333;">${title}</div>
+    <div style="font-size:9pt;color:#888;margin-top:4px;">날짜: ${date} | allmyexam.com</div>
+  </div>
+  <div style="margin-bottom:16px;">
+    <table style="width:100%;font-size:10pt;color:#555;">
+      <tr>
+        <td>이름: ____________________</td>
+        <td style="text-align:right;">점수: _____ / _____</td>
+      </tr>
+    </table>
+  </div>
+  <div>${bodyContent}</div>
+  <div style="margin-top:30px;border-top:1px solid #eee;padding-top:8px;text-align:center;font-size:8pt;color:#aaa;">
+    AllMyExam | allmyexam.com
+  </div>
+</body>
+</html>`;
 }

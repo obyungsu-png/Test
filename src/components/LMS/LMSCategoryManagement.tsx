@@ -17,20 +17,49 @@ export default function LMSCategoryManagement() {
   const [schoolType, setSchoolType] = useState<'korean' | 'international' | 'certification'>('korean');
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
-  const [customNames, setCustomNames] = useState(getCategoryCustomNames());
+  const [customNames, setCustomNames] = useState<Record<string, string>>({});
 
   const subjectStructure = getSubjectStructure(schoolType);
 
-  const handleEdit = (schoolType: 'korean' | 'international' | 'certification', subject: string, level: string, category: string) => {
-    const currentName = getCategoryCustomName(schoolType, subject, level, category);
+  // Load custom names asynchronously
+  useEffect(() => {
+    const loadCustomNames = async () => {
+      try {
+        const categories = await getCategoryCustomNames();
+        const nameMap: Record<string, string> = {};
+        for (const cat of categories) {
+          nameMap[cat.id] = cat.customName;
+        }
+        setCustomNames(nameMap);
+      } catch (error) {
+        console.error('Error loading custom names:', error);
+      }
+    };
+    loadCustomNames();
+  }, [schoolType]);
+
+  // Helper to get custom name synchronously from loaded map
+  const getCustomName = (schoolType: string, subject: string, level: string, category: string): string => {
+    const id = `${schoolType}-${subject}-${level}-${category}`;
+    return customNames[id] || category;
+  };
+
+  const handleEdit = async (schoolType: 'korean' | 'international' | 'certification', subject: string, level: string, category: string) => {
+    const currentName = await getCategoryCustomName(schoolType, subject, level, category);
     setEditValue(currentName);
     setEditingCategory(`${schoolType}-${subject}-${level}-${category}`);
   };
 
-  const handleSave = (schoolType: 'korean' | 'international' | 'certification', subject: string, level: string, category: string) => {
+  const handleSave = async (schoolType: 'korean' | 'international' | 'certification', subject: string, level: string, category: string) => {
     if (editValue.trim()) {
-      setCategoryCustomName(schoolType, subject, level, category, editValue.trim());
-      setCustomNames(getCategoryCustomNames());
+      await setCategoryCustomName(schoolType, subject, level, category, editValue.trim());
+      // Reload custom names
+      const categories = await getCategoryCustomNames();
+      const nameMap: Record<string, string> = {};
+      for (const cat of categories) {
+        nameMap[cat.id] = cat.customName;
+      }
+      setCustomNames(nameMap);
       toast.success("카테고리 이름이 업데이트되었습니다.");
     }
     setEditingCategory(null);
@@ -75,7 +104,7 @@ export default function LMSCategoryManagement() {
                       {categories.map((category) => {
                         const editId = `${schoolType}-${subject}-${level}-${category}`;
                         const isEditing = editingCategory === editId;
-                        const customName = getCategoryCustomName(schoolType, subject, level, category);
+                        const customName = getCustomName(schoolType, subject, level, category);
                         const hasCustomName = customName !== category;
                         
                         return (
@@ -158,7 +187,7 @@ export default function LMSCategoryManagement() {
                       {categories.map((category) => {
                         const editId = `${schoolType}-${subject}-${level}-${category}`;
                         const isEditing = editingCategory === editId;
-                        const customName = getCategoryCustomName(schoolType, subject, level, category);
+                        const customName = getCustomName(schoolType, subject, level, category);
                         const hasCustomName = customName !== category;
                         
                         return (
@@ -241,7 +270,7 @@ export default function LMSCategoryManagement() {
                       {categories.map((category) => {
                         const editId = `${schoolType}-${subject}-${level}-${category}`;
                         const isEditing = editingCategory === editId;
-                        const customName = getCategoryCustomName(schoolType, subject, level, category);
+                        const customName = getCustomName(schoolType, subject, level, category);
                         const hasCustomName = customName !== category;
                         
                         return (

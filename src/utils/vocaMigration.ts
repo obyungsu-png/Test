@@ -5,7 +5,7 @@ import { toast } from 'sonner@2.0.3';
 
 export interface VocaWord {
   id: string;
-  exam: 'TOEFL' | 'SAT' | 'IELTS' | 'ACT' | 'TOEIC';
+  exam: string;
   day: number;
   english: string;
   korean: string;
@@ -31,11 +31,12 @@ export function getLocalStorageDayNames(): DayNameMapping {
   return stored ? JSON.parse(stored) : {};
 }
 
-// 7,500개 샘플 단어 생성 (TOEFL, SAT, IELTS, ACT, TOEIC 각 30일 × 50단어)
+// 7,500개 샘플 단어 + 한국학교 초등영어 60개 생성
 export function generateAllSampleWords(): VocaWord[] {
-  const exams: ('TOEFL' | 'SAT' | 'IELTS' | 'ACT' | 'TOEIC')[] = ['TOEFL', 'SAT', 'IELTS', 'ACT', 'TOEIC'];
+  const exams: string[] = ['TOEFL', 'SAT', 'IELTS', 'ACT', 'TOEIC'];
   const sampleWords: VocaWord[] = [];
 
+  // 인증시험 샘플 (5개 시험 × 30일 × 50단어)
   exams.forEach((exam) => {
     for (let day = 1; day <= 30; day++) {
       const dayWords = generateWordsForDay(exam, day);
@@ -47,12 +48,29 @@ export function generateAllSampleWords(): VocaWord[] {
           day: day,
           english: word.english,
           korean: word.korean,
-          definition: (word as any).definition, // SAT 전용
+          definition: (word as any).definition,
           synonyms: word.synonyms,
         });
       });
     }
   });
+
+  // 한국학교 초등영어 전학년 (Day 1~12: 1학년 1학기 ~ 6학년 2학기)
+  const krExam = 'KR-초등영어';
+  for (let day = 1; day <= 12; day++) {
+    const dayWords = generateWordsForDay(krExam, day);
+    dayWords.forEach((word, index) => {
+      sampleWords.push({
+        id: `${krExam}-${day}-${index}-${Date.now()}`,
+        exam: krExam,
+        day: day,
+        english: word.english,
+        korean: word.korean,
+        definition: (word as any).definition,
+        synonyms: word.synonyms,
+      });
+    });
+  }
 
   return sampleWords;
 }
@@ -105,13 +123,20 @@ export async function uploadSampleWordsToSupabase(): Promise<{
   error?: string;
 }> {
   try {
-    console.log('🚀 Generating and uploading 7,500 sample words to Supabase...');
+    console.log('🚀 Generating and uploading sample words to Supabase...');
 
     const sampleWords = generateAllSampleWords();
-    console.log(`📦 Generated ${sampleWords.length} sample words (5 exams × 30 days × 50 words)`);
+    console.log(`📦 Generated ${sampleWords.length} sample words (5 exams × 30 days × 50 words + 초등영어 전학년 300단어)`);
 
     await saveVocaWords(sampleWords);
     console.log(`✅ Successfully uploaded ${sampleWords.length} words to Supabase`);
+
+    // 초등영어 Day 이름도 함께 저장 (1학년~6학년)
+    const { KR_ELEM_DAY_NAMES } = await import('../components/vocaWordSets');
+    const existingDayNames = JSON.parse(localStorage.getItem('vocaDayNames') || '{}');
+    const mergedDayNames = { ...existingDayNames, ...KR_ELEM_DAY_NAMES };
+    await saveDayNames(mergedDayNames);
+    console.log('✅ Saved KR-초등영어 day names');
 
     return {
       success: true,

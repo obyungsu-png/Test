@@ -1,7 +1,7 @@
 export const CONTENT_BY_SUBJECT_AND_CATEGORY = {
   "국어": {
     "중등국어1-1(개정)": {
-      "전체보기": [
+      "교과서 뽀개기": [
         { title: "[적중문제] 중등국어1-1 천재박 1-1 문학의 갈래 이해하기 (12문제)", count: "[7]", isNew: true, isDefault: true },
         { title: "[적중문제] 중등국어1-1 천재박 1-2 운율과 리듬 (15문제)", count: "[9]", isNew: true, isDefault: true },
         { title: "[적중문제] 중등국어1-1 천재박 2-1 설명문 읽기 (18문제)", count: "[12]", isNew: true, isDefault: true }
@@ -10,22 +10,22 @@ export const CONTENT_BY_SUBJECT_AND_CATEGORY = {
         { title: "[단원별] 1단원 문학의 갈래 - 시와 소설의 특성 (25문제)", count: "[15]", isNew: true, isDefault: true },
         { title: "[단원별] 2단원 글의 전개 방식 - 설명과 논증 (20문제)", count: "[8]", isNew: true, isDefault: true }
       ],
-      "3일의 기적": [
-        { title: "[3일의 기적] Day 1 - 문학 갈래별 특성 완전정복 (30문제)", count: "[18]", isNew: true, isDefault: true }
-      ],
       "모의고사": [
         { title: "[중간고사 대비] 1학기 중간고사 모의고사 1회 (40문제)", count: "[22]", isNew: true, isDefault: true }
       ],
-      "past papers": [
+      "직전 대비": [
+        { title: "[직전 대비] Day 1 - 문학 갈래별 특성 완전정복 (30문제)", count: "[18]", isNew: true, isDefault: true }
+      ],
+      "우리학교 기출": [
         { title: "[기출문제] 2023년 1학기 중간고사 기출문제집 (35문제)", count: "[14]", isNew: false, isDefault: true }
       ],
-      "1타 강사님들": [
-        { title: "[김현우T] 국어 문학 갈래별 완전정복 강의 (12강)", count: "[12]", isNew: true, isDefault: true },
-        { title: "[박지영T] 중등국어 독해의 기술 마스터 강의 (8강)", count: "[8]", isNew: true, isDefault: true }
+      "보조자료": [
+        { title: "[보조자료] 국어 문학 갈래별 핵심 정리 (12페이지)", count: "[12]", isNew: true, isDefault: true },
+        { title: "[보조자료] 중등국어 독해 전략 요약 (8페이지)", count: "[8]", isNew: true, isDefault: true }
       ]
     },
     "중등국어1-2(개정)": {
-      "전체보기": [
+      "교과서 뽀개기": [
         { title: "[적중문제] 중등국어1-2 천재박 3-1 논설문 읽기 전략 (16문제)", count: "[11]", isNew: true, isDefault: true },
         { title: "[적중문제] 중등국어1-2 천재박 3-2 주장과 근거 파악하기 (14문제)", count: "[8]", isNew: true, isDefault: true },
         { title: "[적중문제] 중등국어1-2 천재박 4-1 창작과 수용 (19문제)", count: "[13]", isNew: true, isDefault: true }
@@ -34,22 +34,22 @@ export const CONTENT_BY_SUBJECT_AND_CATEGORY = {
         { title: "[단원별] 3단원 논설문의 구조 - 주장과 논거 (22문제)", count: "[16]", isNew: true, isDefault: true },
         { title: "[단원별] 4단원 문학과 현실 - 작품 속 현실 인식 (18문제)", count: "[9]", isNew: true, isDefault: true }
       ],
-      "3일의 기적": [
-        { title: "[3일의 기적] Day 2 - 논설문 완전 분석 (28문제)", count: "[20]", isNew: true, isDefault: true }
-      ],
       "모의고사": [
         { title: "[기말고사 대비] 1학기 기말고사 모의고사 1회 (45문제)", count: "[25]", isNew: true, isDefault: true }
       ],
-      "past papers": [
+      "직전 대비": [
+        { title: "[직전 대비] Day 2 - 논설문 완전 분석 (28문제)", count: "[20]", isNew: true, isDefault: true }
+      ],
+      "우리학교 기출": [
         { title: "[기출문제] 2023년 1학기 기말고사 기출문제집 (38문제)", count: "[17]", isNew: false, isDefault: true }
       ],
-      "1타 강사님들": [
-        { title: "[이민경T] 중등국어 문법의 기초 완성 강의 (10강)", count: "[10]", isNew: true, isDefault: true },
-        { title: "[최준호T] 논설문 읽기와 쓰기 전략 강의 (15강)", count: "[15]", isNew: true, isDefault: true }
+      "보조자료": [
+        { title: "[보조자료] 중등국어 문법 기초 완성 자료 (10페이지)", count: "[10]", isNew: true, isDefault: true },
+        { title: "[보조자료] 논설문 읽기와 쓰기 전략 자료 (15페이지)", count: "[15]", isNew: true, isDefault: true }
       ]
     },
     "중등국어2-1": {
-      "전체보기": [
+      "교과서 뽀개기": [
         { title: "[적중문제] 중등국어2-1 천재박 1-1 문학 작품의 갈등 (17문제)", count: "[10]", isNew: true, isDefault: true },
         { title: "[적중문제] 중등국어2-1 천재박 1-2 인물의 심리 변화 (20문제)", count: "[14]", isNew: true, isDefault: true },
         { title: "[적중문제] 중등국어2-1 천재박 2-1 토론의 절차와 방법 (15문제)", count: "[7]", isNew: true, isDefault: true }
@@ -58,22 +58,22 @@ export const CONTENT_BY_SUBJECT_AND_CATEGORY = {
         { title: "[단원별] 1단원 문학과 삶 - 갈등과 해결 (24문제)", count: "[18]", isNew: true, isDefault: true },
         { title: "[단원별] 2단원 듣기와 말하기 - 토론과 토의 (21문제)", count: "[12]", isNew: true, isDefault: true }
       ],
-      "3일의 기적": [
-        { title: "[3일의 기적] Day 1 - 문학 작품 속 갈등 완전정복 (32문제)", count: "[22]", isNew: true, isDefault: true }
-      ],
       "모의고사": [
         { title: "[중간고사 대비] 2학년 1학기 중간고사 모의고사 (42문제)", count: "[28]", isNew: true, isDefault: true }
       ],
-      "past papers": [
+      "직전 대비": [
+        { title: "[직전 대비] Day 1 - 문학 작품 속 갈등 완전정복 (32문제)", count: "[22]", isNew: true, isDefault: true }
+      ],
+      "우리학교 기출": [
         { title: "[기출문제] 2023년 2학년 1학기 중간고사 기출 (40문제)", count: "[19]", isNew: false, isDefault: true }
       ],
-      "1타 강사님들": [
-        { title: "[장혜진T] 중2 국어 고전문학의 이해 강의 (14강)", count: "[14]", isNew: true, isDefault: true },
-        { title: "[홍성민T] 화법과 작문 실전 완성 강의 (12강)", count: "[12]", isNew: true, isDefault: true }
+      "보조자료": [
+        { title: "[보조자료] 중2 국어 고전문학 핵심 정리 (14페이지)", count: "[14]", isNew: true, isDefault: true },
+        { title: "[보조자료] 화법과 작문 실전 요약 (12페이지)", count: "[12]", isNew: true, isDefault: true }
       ]
     },
     "중등국어2-2": {
-      "전체보기": [
+      "교과서 뽀개기": [
         { title: "[적중문제] 중등국어2-2 천재박 4-2 매체 바르게 읽기 01 (14문제)", count: "[5]", isNew: true, isDefault: true },
         { title: "[적중문제] 중등국어2-2 천재박 4-1 매체 자료의 효과 판단하며 듣기 01 (13문제)", count: "[3]", isNew: true, isDefault: true },
         { title: "[적중문제] 중등국어2-2 천재박 3-2 설명하는 글 쓰기 01 (15문제)", count: "[4]", isNew: true, isDefault: true }
@@ -82,18 +82,18 @@ export const CONTENT_BY_SUBJECT_AND_CATEGORY = {
         { title: "[단원별] 3단원 글쓰기의 과정 - 설명문 작성법 (26문제)", count: "[16]", isNew: true, isDefault: true },
         { title: "[단원별] 4단원 매체 언어 - 특성과 활용 (23문제)", count: "[11]", isNew: true, isDefault: true }
       ],
-      "3일의 기적": [
-        { title: "[3일의 기적] Day 2 - 매체 언어 완전정복 (29문제)", count: "[19]", isNew: true, isDefault: true }
-      ],
       "모의고사": [
         { title: "[기말고사 대비] 2학년 2학기 기말고사 모의고사 (48문제)", count: "[31]", isNew: true, isDefault: true }
       ],
-      "past papers": [
+      "직전 대비": [
+        { title: "[직전 대비] Day 2 - 매체 언어 완전정복 (29문제)", count: "[19]", isNew: true, isDefault: true }
+      ],
+      "우리학교 기출": [
         { title: "[기출문제] 2023년 2학년 2학기 기말고사 기출 (43문제)", count: "[21]", isNew: false, isDefault: true }
       ]
     },
     "공통국어1(개정)": {
-      "전체보기": [
+      "교과서 뽀개기": [
         { title: "[적중문제] 공통국어1 천재 1-1 문학과 인간 (22문제)", count: "[15]", isNew: true, isDefault: true },
         { title: "[적중문제] 공통국어1 천재 1-2 화법과 작문 통합 (18문제)", count: "[12]", isNew: true, isDefault: true },
         { title: "[적중문제] 공통국어1 천재 2-1 언어와 매체의 본질 (20문제)", count: "[9]", isNew: true, isDefault: true }
@@ -102,20 +102,20 @@ export const CONTENT_BY_SUBJECT_AND_CATEGORY = {
         { title: "[단원별] 1단원 문학의 수용과 생산 - 갈래별 특성 (28문제)", count: "[20]", isNew: true, isDefault: true },
         { title: "[단원별] 2단원 화법과 작문 - 의사소통과 표현 (25문제)", count: "[14]", isNew: true, isDefault: true }
       ],
-      "3일의 기적": [
-        { title: "[3일의 기적] Day 1 - 고등 문학 입문 완전정복 (35문제)", count: "[25]", isNew: true, isDefault: true }
-      ],
       "모의고사": [
         { title: "[중간고사 대비] 고1 1학기 중간고사 모의고사 (50문제)", count: "[35]", isNew: true, isDefault: true }
       ],
-      "past papers": [
+      "직전 대비": [
+        { title: "[직전 대비] Day 1 - 고등 문학 입문 완전정복 (35문제)", count: "[25]", isNew: true, isDefault: true }
+      ],
+      "우리학교 기출": [
         { title: "[기출문제] 2023년 고1 1학기 중간고사 기출 (45문제)", count: "[28]", isNew: false, isDefault: true }
       ]
     }
   },
   "영어": {
     "중등영어1-1": {
-      "전체보기": [
+      "교과서 뽀��기": [
         { title: "[적중문제] 중등영어1-1 Lesson 1 - Greetings and Introductions (16문제)", count: "[8]", isNew: true, isDefault: true },
         { title: "[적중문제] 중등영어1-1 Lesson 2 - Family and Friends (14문제)", count: "[6]", isNew: true, isDefault: true },
         { title: "[적중문제] 중등영어1-1 Lesson 3 - School Life (18문제)", count: "[10]", isNew: true, isDefault: true }
@@ -124,40 +124,40 @@ export const CONTENT_BY_SUBJECT_AND_CATEGORY = {
         { title: "[단원별] Unit 1 - Basic Communication (22문제)", count: "[12]", isNew: true, isDefault: true },
         { title: "[단원별] Unit 2 - Personal Information (20문제)", count: "[9]", isNew: true, isDefault: true }
       ],
-      "3일의 기적": [
-        { title: "[3일의 기적] Day 1 - 영어 기초 문법 완전정복 (25문제)", count: "[15]", isNew: true, isDefault: true }
-      ],
       "모의고사": [
-        { title: "[중간고사 대비] 1학년 1학기 중간고사 모의고사 (35문제)", count: "[20]", isNew: true, isDefault: true }
+        { title: "[중간고�� 대비] 1학년 1학기 중간고사 모의고사 (35문제)", count: "[20]", isNew: true, isDefault: true }
       ],
-      "past papers": [
+      "직전 대비": [
+        { title: "[직전 대비] Day 1 - 영어 기초 문법 완전정복 (25문제)", count: "[15]", isNew: true, isDefault: true }
+      ],
+      "우리학교 기출": [
         { title: "[기출문제] 2023년 중1 1학기 중간고사 기출 (30문제)", count: "[16]", isNew: false, isDefault: true }
       ]
     },
-    "영어I": {
-      "전체보기": [
-        { title: "[적중문제] 영어I Lesson 1 - Technology and Life (20문제)", count: "[12]", isNew: true, isDefault: true },
-        { title: "[적중문제] 영어I Lesson 2 - Environmental Issues (18문제)", count: "[9]", isNew: true, isDefault: true },
-        { title: "[적중문제] 영어I Lesson 3 - Cultural Diversity (22문제)", count: "[14]", isNew: true, isDefault: true }
+    "고등영어1-1": {
+      "교과서 뽀개기": [
+        { title: "[적중문제] 고등영어1-1 Lesson 1 - Technology and Life (20문제)", count: "[12]", isNew: true, isDefault: true },
+        { title: "[적중문제] 고등영어1-1 Lesson 2 - Environmental Issues (18문제)", count: "[9]", isNew: true, isDefault: true },
+        { title: "[적중문제] 고등영어1-1 Lesson 3 - Cultural Diversity (22문제)", count: "[14]", isNew: true, isDefault: true }
       ],
       "단원별 요약": [
         { title: "[단원별] Unit 1 - Modern Society (25문제)", count: "[18]", isNew: true, isDefault: true },
         { title: "[단원별] Unit 2 - Global Issues (23문제)", count: "[13]", isNew: true, isDefault: true }
       ],
-      "3일의 기적": [
-        { title: "[3일의 기적] Day 1 - 고등 영어 독해 완전정복 (30문제)", count: "[22]", isNew: true, isDefault: true }
-      ],
       "모의고사": [
-        { title: "[중간고사 대비] 고1 영어I 중간고사 모의고사 (45문제)", count: "[28]", isNew: true, isDefault: true }
+        { title: "[중간고사 대비] 고1 고등영어1-1 중간고사 모의고사 (45문제)", count: "[28]", isNew: true, isDefault: true }
       ],
-      "past papers": [
-        { title: "[기출문제] 2023년 고1 영어I 중간고사 기출 (40문제)", count: "[25]", isNew: false, isDefault: true }
+      "직전 대비": [
+        { title: "[직전 대비] Day 1 - 고등 영어 독해 완전정복 (30문제)", count: "[22]", isNew: true, isDefault: true }
+      ],
+      "우리학교 기출": [
+        { title: "[기출문제] 2023년 고1 고등영어1-1 중간고사 기출 (40문제)", count: "[25]", isNew: false, isDefault: true }
       ]
     }
   },
   "수학": {
     "중등수학1-1": {
-      "전체보기": [
+      "교과서 뽀개기": [
         { title: "[적중문제] 중등수학1-1 1단원 자연수의 성질 (15문제)", count: "[8]", isNew: true, isDefault: true },
         { title: "[적중문제] 중등수학1-1 2단원 정수와 유리수 (18문제)", count: "[11]", isNew: true, isDefault: true },
         { title: "[적중문제] 중등수학1-1 3단원 문자와 식 (20문제)", count: "[13]", isNew: true, isDefault: true }
@@ -166,18 +166,18 @@ export const CONTENT_BY_SUBJECT_AND_CATEGORY = {
         { title: "[단원별] 1단원 수와 연산 - 기본 개념 (25문제)", count: "[16]", isNew: true, isDefault: true },
         { title: "[단원별] 2단원 문자와 식 - 계산 방법 (22문제)", count: "[12]", isNew: true, isDefault: true }
       ],
-      "3일의 기적": [
-        { title: "[3일의 기적] Day 1 - 중학 수학 기초 완전정복 (28문제)", count: "[18]", isNew: true, isDefault: true }
-      ],
       "모의고사": [
         { title: "[중간고사 대비] 중1 수학 중간고사 모의고사 (40문제)", count: "[24]", isNew: true, isDefault: true }
       ],
-      "past papers": [
+      "직전 대비": [
+        { title: "[직전 대비] Day 1 - 중학 수학 기초 완전정복 (28문제)", count: "[18]", isNew: true, isDefault: true }
+      ],
+      "우리학교 기출": [
         { title: "[기출문제] 2023년 중1 수학 중간고사 기출 (35문제)", count: "[19]", isNew: false, isDefault: true }
       ]
     },
     "수학": {
-      "전체보기": [
+      "교과서 뽀개기": [
         { title: "[적중문제] 고등수학 1단원 다항식 (22문제)", count: "[14]", isNew: true, isDefault: true },
         { title: "[적중문제] 고등수학 2단원 방정식과 부등식 (25문제)", count: "[16]", isNew: true, isDefault: true },
         { title: "[적중문제] 고등수학 3단원 도형의 방정식 (20문제)", count: "[12]", isNew: true, isDefault: true }
@@ -186,13 +186,13 @@ export const CONTENT_BY_SUBJECT_AND_CATEGORY = {
         { title: "[단원별] 1단원 다항식의 연산 - 기본 공식 (28문제)", count: "[20]", isNew: true, isDefault: true },
         { title: "[단원별] 2단원 방정식과 부등식 - 해법 정리 (26문제)", count: "[15]", isNew: true, isDefault: true }
       ],
-      "3일의 기적": [
-        { title: "[3일의 기적] Day 1 - 고등수학 기초 완전정복 (35문제)", count: "[25]", isNew: true, isDefault: true }
-      ],
       "모의고사": [
         { title: "[중간고사 대비] 고1 수학 중간고사 모의고사 (50문제)", count: "[32]", isNew: true, isDefault: true }
       ],
-      "past papers": [
+      "직전 대비": [
+        { title: "[직전 대비] Day 1 - 고등수학 기초 완전정복 (35문제)", count: "[25]", isNew: true, isDefault: true }
+      ],
+      "우리학교 기출": [
         { title: "[기출문제] 2023년 고1 수학 중간고사 기출 (45문제)", count: "[28]", isNew: false, isDefault: true }
       ]
     }
@@ -205,7 +205,7 @@ export const DEFAULT_CONTENT_BY_TAB = {
     { title: "[전체] 중등국어 1-2 독해력 향상 문제집 (22문제)", count: "[11]", isNew: true, isDefault: true },
     { title: "[전체] 중등국어 문법 핵심 개념 (15문제)", count: "[7]", isNew: true, isDefault: true }
   ],
-  "전체보기": [
+  "교과서 뽀개기": [
     { title: "[적중문제] 중등국어2-2 천재박 4-2 매체 바르게 읽기 01 (14문제)", count: "[5]", isNew: true, isDefault: true },
     { title: "[적중문제] 중등국어2-2 천재박 4-1 매체 자료의 효과 판단하며 듣기 01 (13문제)", count: "[3]", isNew: true, isDefault: true },
     { title: "[적중문제] 중등국어2-2 천재박 3-2 설명하는 글 쓰기 01 (15문제)", count: "[4]", isNew: true, isDefault: true }
@@ -214,19 +214,19 @@ export const DEFAULT_CONTENT_BY_TAB = {
     { title: "[단원별] 1단원 문학의 즐거움 - 소나기 기본문제 (20문제)", count: "[8]", isNew: true, isDefault: true },
     { title: "[단원별] 2단원 한글의 우수성 - 창제원리 기본문제 (18문제)", count: "[4]", isNew: true, isDefault: true }
   ],
-  "3일의 기적": [
-    { title: "[3일의 기적] Day 1 - 문학 작품 감상 완전정복 (25문제)", count: "[12]", isNew: true, isDefault: true }
-  ],
   "모의고사": [
     { title: "[중간고사 대비] 1학기 중간고사 모의고사 1회 (50문제)", count: "[25]", isNew: true, isDefault: true }
   ],
-  "past papers": [
-    { title: "[콘텐츠 소개] NS Coach 국어 학습 시스템 안내", count: "[1]", isNew: false, isDefault: true }
+  "직전 대비": [
+    { title: "[직전 대비] Day 1 - 문학 작품 감상 완전정복 (25문제)", count: "[12]", isNew: true, isDefault: true }
   ],
-  "1타 강사님들": [
-    { title: "[김현우T] 국어 문학 갈래별 완전정복 강의 (12강)", count: "[12]", isNew: true, isDefault: true },
-    { title: "[박지영T] 중등국어 독해의 기술 마스터 강의 (8강)", count: "[8]", isNew: true, isDefault: true },
-    { title: "[이민경T] 중등국어 문법의 기초 완성 강의 (10강)", count: "[10]", isNew: true, isDefault: true }
+  "우리학교 기출": [
+    { title: "[기출문제] 우리학교 국어 기출문제 모음", count: "[1]", isNew: false, isDefault: true }
+  ],
+  "보조자료": [
+    { title: "[보조자료] 국어 문학 갈래별 핵심 정리 (12페이지)", count: "[12]", isNew: true, isDefault: true },
+    { title: "[보조자료] 중등국어 독해 전략 요약 (8페이지)", count: "[8]", isNew: true, isDefault: true },
+    { title: "[보조자료] 중등국어 문법 기초 완성 자료 (10페이지)", count: "[10]", isNew: true, isDefault: true }
   ]
 };
 
@@ -256,10 +256,10 @@ export const INTERNATIONAL_CONTENT_BY_TAB = {
     { title: "[Past Paper] 2023 AP Physics 1 Exam (50 questions)", count: "[22]", isNew: false, isDefault: true },
     { title: "[Past Paper] IB Mathematics HL May 2023 (35 questions)", count: "[16]", isNew: false, isDefault: true }
   ],
-  "1타 강사님들": [
-    { title: "[David Kim T] SAT Math Strategy Complete Course (20 lectures)", count: "[20]", isNew: true, isDefault: true },
-    { title: "[Jennifer Park T] AP Biology Intensive Review (15 lectures)", count: "[15]", isNew: true, isDefault: true },
-    { title: "[Michael Lee T] TOEFL Speaking Mastery Course (12 lectures)", count: "[12]", isNew: true, isDefault: true }
+  "보조자료": [
+    { title: "[보조자료] SAT Math Strategy Summary (20 pages)", count: "[20]", isNew: true, isDefault: true },
+    { title: "[보조자료] AP Biology Key Concepts Guide (15 pages)", count: "[15]", isNew: true, isDefault: true },
+    { title: "[보조자료] TOEFL Speaking Templates & Tips (12 pages)", count: "[12]", isNew: true, isDefault: true }
   ],
   "Practice Test": [
     { title: "[Flashcards] SAT Vocabulary Set 1 (100 cards)", count: "[15]", isNew: true, isDefault: true },
@@ -284,8 +284,8 @@ export const INTERNATIONAL_CONTENT_BY_SUBJECT_AND_CATEGORY = {
       "Past Papers": [
         { title: "[AP Calculus BC] 2023 Official Exam - Full Test (90 questions)", count: "[35]", isNew: false, isDefault: true }
       ],
-      "1타 강사님들": [
-        { title: "[Dr. James Wilson T] AP Calculus BC Complete Mastery Course (24 lectures)", count: "[24]", isNew: true, isDefault: true }
+      "보조자료": [
+        { title: "[보조자료] AP Calculus BC 핵심 공식 & 개념 정리 (24페이지)", count: "[24]", isNew: true, isDefault: true }
       ],
       "Practice Test": [
         { title: "[Flashcards] AP Calculus BC Formula Sheet (80 cards)", count: "[15]", isNew: true, isDefault: true }
@@ -304,8 +304,8 @@ export const INTERNATIONAL_CONTENT_BY_SUBJECT_AND_CATEGORY = {
       "Past Papers": [
         { title: "[AP Biology] 2023 Official Exam - Complete Test (118 questions)", count: "[42]", isNew: false, isDefault: true }
       ],
-      "1타 강사님들": [
-        { title: "[Dr. Sarah Chen T] AP Biology Mastery - Evolution & Ecology (18 lectures)", count: "[18]", isNew: true, isDefault: true }
+      "보조자료": [
+        { title: "[보조자료] AP Biology 진화 & 생태학 핵심 정리 (18페이지)", count: "[18]", isNew: true, isDefault: true }
       ],
       "Practice Test": [
         { title: "[Flashcards] AP Biology Key Terms Set 1 (120 cards)", count: "[18]", isNew: true, isDefault: true }
@@ -324,8 +324,8 @@ export const INTERNATIONAL_CONTENT_BY_SUBJECT_AND_CATEGORY = {
       "Past Papers": [
         { title: "[AP Chemistry] 2023 Official Exam - Full Test (150 questions)", count: "[48]", isNew: false, isDefault: true }
       ],
-      "1타 강사님들": [
-        { title: "[Prof. Michael Park T] AP Chemistry Complete Course (22 lectures)", count: "[22]", isNew: true, isDefault: true }
+      "보조자료": [
+        { title: "[보조자료] AP Chemistry 핵심 반응식 & 개념 정리 (22페이지)", count: "[22]", isNew: true, isDefault: true }
       ],
       "Practice Test": [
         { title: "[Flashcards] AP Chemistry Formulas & Equations (95 cards)", count: "[16]", isNew: true, isDefault: true }
@@ -344,8 +344,8 @@ export const INTERNATIONAL_CONTENT_BY_SUBJECT_AND_CATEGORY = {
       "Past Papers": [
         { title: "[AP Physics 1] 2023 Official Exam - Complete Test (100 questions)", count: "[38]", isNew: false, isDefault: true }
       ],
-      "1타 강사님들": [
-        { title: "[Dr. David Kim T] AP Physics 1 Problem Solving Mastery (20 lectures)", count: "[20]", isNew: true, isDefault: true }
+      "보조자료": [
+        { title: "[보조자료] AP Physics 1 핵심 공식 & 문제풀이 전략 (20페이지)", count: "[20]", isNew: true, isDefault: true }
       ],
       "Practice Test": [
         { title: "[Flashcards] AP Physics 1 Formula Sheet (70 cards)", count: "[14]", isNew: true, isDefault: true }
@@ -364,8 +364,8 @@ export const INTERNATIONAL_CONTENT_BY_SUBJECT_AND_CATEGORY = {
       "Past Papers": [
         { title: "[AP Physics C] 2023 Official Exam - Mechanics & E&M (140 questions)", count: "[45]", isNew: false, isDefault: true }
       ],
-      "1타 강사님들": [
-        { title: "[Prof. Robert Zhang T] AP Physics C Advanced Problem Solving (25 lectures)", count: "[25]", isNew: true, isDefault: true }
+      "보조자료": [
+        { title: "[보조자료] AP Physics C 미적분 기반 역학 핵심 정리 (25페이지)", count: "[25]", isNew: true, isDefault: true }
       ],
       "Practice Test": [
         { title: "[Flashcards] AP Physics C Essential Formulas (85 cards)", count: "[15]", isNew: true, isDefault: true }
@@ -384,8 +384,8 @@ export const INTERNATIONAL_CONTENT_BY_SUBJECT_AND_CATEGORY = {
       "Past Papers": [
         { title: "[AP Statistics] 2023 Official Exam - Full Test (92 questions)", count: "[32]", isNew: false, isDefault: true }
       ],
-      "1타 강사님들": [
-        { title: "[Dr. Lisa Wang T] AP Statistics Complete Course (16 lectures)", count: "[16]", isNew: true, isDefault: true }
+      "보조자료": [
+        { title: "[보조자료] AP Statistics 확률 & 분포 핵심 정리 (16페이지)", count: "[16]", isNew: true, isDefault: true }
       ],
       "Practice Test": [
         { title: "[Flashcards] AP Statistics Key Concepts (65 cards)", count: "[12]", isNew: true, isDefault: true }
@@ -404,8 +404,8 @@ export const INTERNATIONAL_CONTENT_BY_SUBJECT_AND_CATEGORY = {
       "Past Papers": [
         { title: "[AP CS A] 2023 Official Exam - Complete Test (104 questions)", count: "[36]", isNew: false, isDefault: true }
       ],
-      "1타 강사님들": [
-        { title: "[Prof. Kevin Lee T] AP Computer Science A Java Mastery (19 lectures)", count: "[19]", isNew: true, isDefault: true }
+      "보조자료": [
+        { title: "[보조자료] AP CS A Java 핵심 메서드 & 클래스 정리 (19페이지)", count: "[19]", isNew: true, isDefault: true }
       ],
       "Practice Test": [
         { title: "[Flashcards] AP CS A Java Methods & Classes (75 cards)", count: "[13]", isNew: true, isDefault: true }
@@ -424,8 +424,8 @@ export const INTERNATIONAL_CONTENT_BY_SUBJECT_AND_CATEGORY = {
       "Past Papers": [
         { title: "[AP Lit] 2023 Official Exam - Full Test (116 questions)", count: "[40]", isNew: false, isDefault: true }
       ],
-      "1타 강사님들": [
-        { title: "[Prof. Emily Johnson T] AP Literature Essay Writing Mastery (15 lectures)", count: "[15]", isNew: true, isDefault: true }
+      "보조자료": [
+        { title: "[보조자료] AP Literature 문학 장치 & 분석 기법 정리 (15페이지)", count: "[15]", isNew: true, isDefault: true }
       ],
       "Practice Test": [
         { title: "[Flashcards] AP Lit Literary Terms & Devices (90 cards)", count: "[16]", isNew: true, isDefault: true }
@@ -444,8 +444,8 @@ export const INTERNATIONAL_CONTENT_BY_SUBJECT_AND_CATEGORY = {
       "Past Papers": [
         { title: "[AP US History] 2023 Official Exam - Complete Test (124 questions)", count: "[44]", isNew: false, isDefault: true }
       ],
-      "1타 강사님들": [
-        { title: "[Prof. Thomas Anderson T] AP US History Comprehensive Course (21 lectures)", count: "[21]", isNew: true, isDefault: true }
+      "보조자료": [
+        { title: "[보조자료] AP US History 시대별 핵심 사건 정리 (21페이지)", count: "[21]", isNew: true, isDefault: true }
       ],
       "Practice Test": [
         { title: "[Flashcards] AP US History Timeline & Key Figures (110 cards)", count: "[19]", isNew: true, isDefault: true }
@@ -464,8 +464,8 @@ export const INTERNATIONAL_CONTENT_BY_SUBJECT_AND_CATEGORY = {
       "Past Papers": [
         { title: "[AP World History] 2023 Official Exam - Full Test (120 questions)", count: "[43]", isNew: false, isDefault: true }
       ],
-      "1타 강사님들": [
-        { title: "[Dr. Maria Rodriguez T] AP World History Thematic Analysis (18 lectures)", count: "[18]", isNew: true, isDefault: true }
+      "보조자료": [
+        { title: "[보조자료] AP World History 주제별 문명 & 교역 정리 (18페이지)", count: "[18]", isNew: true, isDefault: true }
       ],
       "Practice Test": [
         { title: "[Flashcards] AP World History Key Events & Concepts (105 cards)", count: "[17]", isNew: true, isDefault: true }
@@ -484,8 +484,8 @@ export const INTERNATIONAL_CONTENT_BY_SUBJECT_AND_CATEGORY = {
       "Past Papers": [
         { title: "[AP Psychology] 2023 Official Exam - Complete Test (200 questions)", count: "[52]", isNew: false, isDefault: true }
       ],
-      "1타 강사님들": [
-        { title: "[Dr. Jennifer Lee T] AP Psychology Comprehensive Course (17 lectures)", count: "[17]", isNew: true, isDefault: true }
+      "보조자료": [
+        { title: "[보조자료] AP Psychology 인지 & 행동 이론 핵심 정리 (17페이지)", count: "[17]", isNew: true, isDefault: true }
       ],
       "Practice Test": [
         { title: "[Flashcards] AP Psychology Key Terms & Theories (88 cards)", count: "[14]", isNew: true, isDefault: true }
@@ -504,8 +504,8 @@ export const INTERNATIONAL_CONTENT_BY_SUBJECT_AND_CATEGORY = {
       "Past Papers": [
         { title: "[AP Economics] 2023 Official Exam - Macro & Micro (132 questions)", count: "[46]", isNew: false, isDefault: true }
       ],
-      "1타 강사님들": [
-        { title: "[Prof. Daniel Kim T] AP Economics Problem Solving Course (16 lectures)", count: "[16]", isNew: true, isDefault: true }
+      "보조자료": [
+        { title: "[보조자료] AP Economics 수���공급 & 모델 핵심 정리 (16페이지)", count: "[16]", isNew: true, isDefault: true }
       ],
       "Practice Test": [
         { title: "[Flashcards] AP Economics Graphs & Models (72 cards)", count: "[13]", isNew: true, isDefault: true }
@@ -514,11 +514,11 @@ export const INTERNATIONAL_CONTENT_BY_SUBJECT_AND_CATEGORY = {
   }
 };
 
-export const KOREAN_SCHOOL_TABS = ["국어", "전체보기", "단원별 요약", "3일의 기적", "모의고사", "past papers", "1타 강사님들"];
+export const KOREAN_SCHOOL_TABS = ["국어", "교과서 뽀개기", "BS 에이아이", "단원별 요약", "모의고사", "직전 대비", "우리학교 기출", "보조자료", "Voca"];
 
-export const INTERNATIONAL_SCHOOL_TABS = ["Subject", "전체보기", "Key Notes", "Exam Questions", "Practice Test", "Past Papers", "1타 강사님들"];
+export const INTERNATIONAL_SCHOOL_TABS = ["Subject", "전체보기", "Key Notes", "Exam Questions", "Practice Test", "Past Papers", "보조자료"];
 
-export const CERTIFICATION_TABS = ["전체보기", "Practice Tests", "Mock Exams", "Past Papers", "1타 강사님들"];
+export const CERTIFICATION_TABS = ["전체보기", "Practice Tests", "Mock Exams", "Past Papers", "보조자료"];
 
 export const CERTIFICATION_CONTENT_BY_TAB = {
   "전체보기": [
@@ -640,23 +640,23 @@ export const CERTIFICATION_CONTENT_BY_TAB = {
     { title: "[IELTS] Listening Strategies Guide (20 strategies)", count: "[12]", isNew: true, isDefault: true },
     { title: "[IELTS] Academic Vocabulary List (400 words)", count: "[20]", isNew: true, isDefault: true }
   ],
-  "1타 강사님들": [
-    // TOEFL 강사진
-    { title: "[Sarah Johnson T] TOEFL Reading Strategy Master Course (18 lectures)", count: "[18]", isNew: true, isDefault: true },
-    { title: "[Kevin Park T] TOEFL Speaking Perfect Score Course (15 lectures)", count: "[15]", isNew: true, isDefault: true },
-    { title: "[Emily Chen T] TOEFL Writing Advanced Course (12 lectures)", count: "[12]", isNew: true, isDefault: true },
+  "보조자료": [
+    // TOEFL 보조자료
+    { title: "[보조자료] TOEFL Reading 전략 핵심 요약 (18페이지)", count: "[18]", isNew: true, isDefault: true },
+    { title: "[보조자료] TOEFL Speaking 템플릿 모음 (15페이지)", count: "[15]", isNew: true, isDefault: true },
+    { title: "[보조자료] TOEFL Writing 고급 표현 정리 (12페이지)", count: "[12]", isNew: true, isDefault: true },
     
-    // SAT 강사진
-    { title: "[Robert Kim T] SAT Math Complete Strategy (25 lectures)", count: "[25]", isNew: true, isDefault: true },
-    { title: "[Lisa Wang T] SAT Reading & Writing Mastery (20 lectures)", count: "[20]", isNew: true, isDefault: true },
+    // SAT 보조자료
+    { title: "[보조자료] SAT Math 핵심 공식 & 전략 (25페이지)", count: "[25]", isNew: true, isDefault: true },
+    { title: "[보조자료] SAT Reading & Writing 빈출 유형 정리 (20페이지)", count: "[20]", isNew: true, isDefault: true },
     
-    // ACT 강사진
-    { title: "[James Miller T] ACT Science Reasoning Course (14 lectures)", count: "[14]", isNew: true, isDefault: true },
-    { title: "[Anna Lee T] ACT English Grammar Intensive (16 lectures)", count: "[16]", isNew: true, isDefault: true },
+    // ACT 보조자료
+    { title: "[보조자료] ACT Science 추론 전략 가이드 (14페이지)", count: "[14]", isNew: true, isDefault: true },
+    { title: "[보조자료] ACT English 문법 핵심 정리 (16페이지)", count: "[16]", isNew: true, isDefault: true },
     
-    // IELTS 강사진
-    { title: "[Daniel Smith T] IELTS Speaking Band 9 Course (10 lectures)", count: "[10]", isNew: true, isDefault: true },
-    { title: "[Sophie Kim T] IELTS Writing Task 1&2 Master Course (18 lectures)", count: "[18]", isNew: true, isDefault: true }
+    // IELTS 보조자료
+    { title: "[보조자료] IELTS Speaking Band 9 표현 모음 (10페이지)", count: "[10]", isNew: true, isDefault: true },
+    { title: "[보조자료] IELTS Writing Task 1&2 템플릿 (18페이지)", count: "[18]", isNew: true, isDefault: true }
   ]
 };
 
@@ -1189,4 +1189,4 @@ export const CERTIFICATION_CONTENT_BY_SUBJECT_AND_CATEGORY = {
   }
 };
 
-export const DEFAULT_TABS = ["전체보기", "단원별 요약", "3일의 기적", "모의고사", "past papers", "1타 강사님들"];
+export const DEFAULT_TABS = ["전체보기", "단원별 요약", "모의고사", "직전 대비", "우리학교 기출", "보조자료"];

@@ -5,7 +5,7 @@ const API_BASE = `https://${projectId}.supabase.co/functions/v1/make-server-7db3
 
 interface VocaWord {
   id: string;
-  exam: 'TOEFL' | 'SAT' | 'IELTS' | 'ACT' | 'TOEIC';
+  exam: string; // 인증시험: 'TOEFL'|'SAT' 등, 한국학교: 'KR-중등영어' 등
   day: number;
   english: string;
   korean: string;

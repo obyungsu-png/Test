@@ -1,3 +1,4 @@
+import { BrandLogo } from "./BrandLogo";
 import { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { Menu, X, Home } from "lucide-react";
@@ -101,11 +102,10 @@ export function Header({ selectedSubject, onSubjectChange, onUploadClick, onHome
   return (
     <div className="bg-white border-b border-gray-200">
       {/* Main header */}
-      <div className="px-3 sm:px-4 lg:px-8 py-3 sm:py-4 flex items-center justify-between">
+      <div className="px-3 sm:px-4 lg:px-8 py-4 sm:py-4 flex items-center justify-between">
         {/* Logo */}
         <div className="flex items-center">
-          <span className="text-cyan-500 font-bold text-xl sm:text-2xl lg:text-3xl mr-1 sm:mr-2">N</span>
-          <span className="text-gray-900 font-bold text-xl sm:text-2xl lg:text-3xl">Study Hub</span>
+          <BrandLogo size="lg" />
           {userRole && (
             <span className="ml-2 px-2 py-1 bg-gradient-to-r from-cyan-100 to-blue-100 text-cyan-700 text-xs rounded-full font-medium">
               {userRole === 'student' ? '학생' : '선생님'}
@@ -113,13 +113,18 @@ export function Header({ selectedSubject, onSubjectChange, onUploadClick, onHome
           )}
         </div>
         
-        {/* Mobile menu button */}
-        <button
-          className="md:hidden p-2 sm:p-3 rounded-lg hover:bg-gray-100 transition-colors min-w-10 min-h-10 sm:min-w-12 sm:min-h-12 flex items-center justify-center"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-        >
-          {mobileMenuOpen ? <X className="w-6 h-6 sm:w-7 sm:h-7" /> : <Menu className="w-6 h-6 sm:w-7 sm:h-7" />}
-        </button>
+        {/* Mobile: current subject badge + menu button */}
+        <div className="md:hidden flex items-center gap-2">
+          <span className="px-3 py-1.5 bg-cyan-50 text-cyan-700 text-base font-bold rounded-full border border-cyan-200">
+            {selectedSubject}
+          </span>
+          <button
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors min-w-10 min-h-10 flex items-center justify-center"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+        </div>
         
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-3 lg:space-x-5 xl:space-x-7 flex-1 justify-center">
@@ -201,7 +206,7 @@ export function Header({ selectedSubject, onSubjectChange, onUploadClick, onHome
 
       {/* Banner Section */}
       <div 
-        className="relative h-16 sm:h-19 lg:h-24 bg-cover bg-center overflow-hidden"
+        className="relative hidden sm:block h-16 sm:h-19 lg:h-24 bg-cover bg-center overflow-hidden"
         style={{ backgroundImage: `url('${imgRectangle3}')` }}
       >
         {/* Banner Text - positioned left */}

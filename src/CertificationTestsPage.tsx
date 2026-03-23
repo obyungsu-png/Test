@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { motion } from "motion/react";
-import { Search, ChevronRight, ArrowLeft, BookCheck, Languages, GraduationCap, Globe2 } from "lucide-react";
+import { Search, ChevronRight, ArrowLeft, BookCheck, Languages, GraduationCap, Globe2, Target, Clock, BarChart2, Zap } from "lucide-react";
 import { LoginModal } from "./components/auth/LoginModal";
 import { SignupModal } from "./components/auth/SignupModal";
+import MobileAdBanner from "./components/MobileAdBanner";
+import { BrandLogo } from "./components/BrandLogo";
 
 interface CertificationTestsPageProps {
   onBack: () => void;
@@ -23,15 +25,15 @@ export default function CertificationTestsPage({ onBack, onTestSelect }: Certifi
       {/* Header */}
       <header className="bg-white/95 backdrop-blur-sm border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex items-center justify-between h-14 sm:h-16">
             {/* Left side */}
-            <div className="flex items-center space-x-8">
+            <div className="flex items-center space-x-4 sm:space-x-8">
               <button 
                 onClick={onBack}
-                className="text-cyan-600 hover:text-cyan-700 font-medium flex items-center space-x-1"
+                className="text-cyan-600 hover:text-cyan-700 font-medium flex items-center space-x-1 text-sm sm:text-base"
               >
                 <ArrowLeft className="w-4 h-4" />
-                <span>Back</span>
+                <span className="hidden sm:inline">Back</span>
               </button>
               
               <div className="relative hidden md:block">
@@ -48,10 +50,7 @@ export default function CertificationTestsPage({ onBack, onTestSelect }: Certifi
 
             {/* Center - Logo */}
             <div className="flex items-center">
-              <div className="w-8 h-8 bg-cyan-500 rounded-full flex items-center justify-center mr-2">
-                <span className="text-white font-bold text-lg">N</span>
-              </div>
-              <span className="text-gray-900 font-bold text-xl">Study Hub</span>
+              <BrandLogo size="md" />
             </div>
 
             {/* Right side */}
@@ -103,16 +102,19 @@ export default function CertificationTestsPage({ onBack, onTestSelect }: Certifi
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-20">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-12 lg:py-20 pb-20 sm:pb-12">
+        {/* Top Ad Banner */}
+        <MobileAdBanner page="certification" position="top" />
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center">
           {/* Left side - Text content and image collage */}
-          <div className="space-y-8">
+          <div className="hidden sm:block space-y-6 sm:space-y-8">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">
                 Ace your certification tests!
               </h1>
             </motion.div>
@@ -122,18 +124,18 @@ export default function CertificationTestsPage({ onBack, onTestSelect }: Certifi
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
             >
-              <p className="text-lg text-gray-600 leading-relaxed mb-8">
+              <p className="text-base sm:text-lg text-gray-600 leading-relaxed mb-6 sm:mb-8">
                 SAT, ACT, TOEFL, IELTS 인증시험을 위한 체계적인 학습 자료<br />
                 전문적인 문제 분석과 효과적인 학습 전략으로 목표 점수 달성을 지원합니다
               </p>
             </motion.div>
 
-            {/* Image collage section */}
+            {/* Image collage section - hidden on mobile */}
             <motion.div
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.3 }}
-              className="relative max-w-md mx-auto lg:mx-0"
+              className="relative max-w-md mx-auto lg:mx-0 hidden sm:block"
             >
               <div className="relative">
                 {/* Background decorative shapes */}
@@ -223,10 +225,16 @@ export default function CertificationTestsPage({ onBack, onTestSelect }: Certifi
               transition={{ duration: 0.6, delay: 0.2 }}
               className="text-center lg:text-left"
             >
-              <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
+              {/* Mobile compact title */}
+              <div className="sm:hidden mb-2">
+                <h1 className="text-2xl font-bold text-gray-900 mb-1">인증시험</h1>
+                <p className="text-sm text-gray-500">SAT, TOEFL, ACT, IELTS 준비</p>
+              </div>
+
+              <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2 hidden sm:block">
                 Choose your certification test
               </h2>
-              <p className="text-gray-600">
+              <p className="text-gray-600 hidden sm:block">
                 Select the test you want to prepare for
               </p>
             </motion.div>
@@ -235,7 +243,7 @@ export default function CertificationTestsPage({ onBack, onTestSelect }: Certifi
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
-              className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+              className="grid grid-cols-2 sm:grid-cols-2 gap-3 sm:gap-4"
             >
               {/* SAT */}
               <motion.button
@@ -246,19 +254,16 @@ export default function CertificationTestsPage({ onBack, onTestSelect }: Certifi
                   boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)'
                 }}
                 whileTap={{ scale: 0.97 }}
-                className="bg-white border border-gray-200 rounded-xl p-5 flex items-start gap-5 text-left transition-all hover:border-gray-400"
+                className="bg-white border border-gray-200 rounded-xl p-3 sm:p-5 flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-5 text-center sm:text-left transition-all hover:border-gray-400"
               >
-                {/* Icon Box - Blue */}
-                <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 bg-blue-200 border border-black/5">
-                  <BookCheck className="w-6 h-6 text-gray-900" />
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center flex-shrink-0 bg-blue-200 border border-black/5">
+                  <BookCheck className="w-5 h-5 sm:w-6 sm:h-6 text-gray-900" />
                 </div>
-                
-                {/* Content */}
-                <div className="flex-1 pt-1">
-                  <h3 className="text-lg font-bold text-gray-900 mb-1.5">
+                <div className="flex-1 sm:pt-1">
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900 sm:mb-1.5">
                     SAT
                   </h3>
-                  <p className="text-[15px] text-gray-600 leading-relaxed">
+                  <p className="text-xs sm:text-[15px] text-gray-600 leading-relaxed">
                     미국 대학입학시험
                   </p>
                 </div>
@@ -273,19 +278,16 @@ export default function CertificationTestsPage({ onBack, onTestSelect }: Certifi
                   boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)'
                 }}
                 whileTap={{ scale: 0.97 }}
-                className="bg-white border border-gray-200 rounded-xl p-5 flex items-start gap-5 text-left transition-all hover:border-gray-400"
+                className="bg-white border border-gray-200 rounded-xl p-3 sm:p-5 flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-5 text-center sm:text-left transition-all hover:border-gray-400"
               >
-                {/* Icon Box - Purple */}
-                <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 bg-purple-200 border border-black/5">
-                  <Languages className="w-6 h-6 text-gray-900" />
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center flex-shrink-0 bg-purple-200 border border-black/5">
+                  <Languages className="w-5 h-5 sm:w-6 sm:h-6 text-gray-900" />
                 </div>
-                
-                {/* Content */}
-                <div className="flex-1 pt-1">
-                  <h3 className="text-lg font-bold text-gray-900 mb-1.5">
+                <div className="flex-1 sm:pt-1">
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900 sm:mb-1.5">
                     TOEFL
                   </h3>
-                  <p className="text-[15px] text-gray-600 leading-relaxed">
+                  <p className="text-xs sm:text-[15px] text-gray-600 leading-relaxed">
                     영어능력평가시험
                   </p>
                 </div>
@@ -296,26 +298,21 @@ export default function CertificationTestsPage({ onBack, onTestSelect }: Certifi
                 onClick={() => {}}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.99 }}
-                className="bg-white border border-gray-200 rounded-xl p-5 flex items-start gap-5 text-left transition-all opacity-60 cursor-not-allowed relative"
+                className="bg-white border border-gray-200 rounded-xl p-3 sm:p-5 flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-5 text-center sm:text-left transition-all opacity-60 cursor-not-allowed relative"
               >
-                {/* Icon Box - Green */}
-                <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 bg-green-200 border border-black/5">
-                  <GraduationCap className="w-6 h-6 text-gray-900" />
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center flex-shrink-0 bg-green-200 border border-black/5">
+                  <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6 text-gray-900" />
                 </div>
-                
-                {/* Content */}
-                <div className="flex-1 pt-1">
-                  <h3 className="text-lg font-bold text-gray-900 mb-1.5">
+                <div className="flex-1 sm:pt-1">
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900 sm:mb-1.5">
                     ACT
                   </h3>
-                  <p className="text-[15px] text-gray-600 leading-relaxed">
+                  <p className="text-xs sm:text-[15px] text-gray-600 leading-relaxed">
                     미국 대학입학시험
                   </p>
                 </div>
-
-                {/* Coming Soon Badge */}
-                <div className="absolute top-2 right-2 bg-orange-100 text-orange-600 text-xs px-2 py-1 rounded-full font-medium">
-                  Coming Soon
+                <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 bg-orange-100 text-orange-600 text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full font-medium">
+                  Soon
                 </div>
               </motion.button>
 
@@ -324,31 +321,26 @@ export default function CertificationTestsPage({ onBack, onTestSelect }: Certifi
                 onClick={() => {}}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.99 }}
-                className="bg-white border border-gray-200 rounded-xl p-5 flex items-start gap-5 text-left transition-all opacity-60 cursor-not-allowed relative"
+                className="bg-white border border-gray-200 rounded-xl p-3 sm:p-5 flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-5 text-center sm:text-left transition-all opacity-60 cursor-not-allowed relative"
               >
-                {/* Icon Box - Cyan */}
-                <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 bg-cyan-200 border border-black/5">
-                  <Globe2 className="w-6 h-6 text-gray-900" />
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center flex-shrink-0 bg-cyan-200 border border-black/5">
+                  <Globe2 className="w-5 h-5 sm:w-6 sm:h-6 text-gray-900" />
                 </div>
-                
-                {/* Content */}
-                <div className="flex-1 pt-1">
-                  <h3 className="text-lg font-bold text-gray-900 mb-1.5">
+                <div className="flex-1 sm:pt-1">
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900 sm:mb-1.5">
                     IELTS
                   </h3>
-                  <p className="text-[15px] text-gray-600 leading-relaxed">
+                  <p className="text-xs sm:text-[15px] text-gray-600 leading-relaxed">
                     국제 영어시험
                   </p>
                 </div>
-
-                {/* Coming Soon Badge */}
-                <div className="absolute top-2 right-2 bg-orange-100 text-orange-600 text-xs px-2 py-1 rounded-full font-medium">
-                  Coming Soon
+                <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 bg-orange-100 text-orange-600 text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full font-medium">
+                  Soon
                 </div>
               </motion.button>
             </motion.div>
             
-            <div className="mt-6">
+            <div className="mt-6 hidden sm:block">
               <p className="text-sm text-gray-600 text-center lg:text-left">
                 Need help choosing the right test?{" "}
                 <button className="text-cyan-600 hover:text-cyan-700 hover:underline">
@@ -363,18 +355,21 @@ export default function CertificationTestsPage({ onBack, onTestSelect }: Certifi
             </div>
           </div>
         </div>
+
+        {/* Middle Ad Banner */}
+        <MobileAdBanner page="certification" position="middle" />
+
+        {/* Bottom Ad Banner */}
+        <MobileAdBanner page="certification" position="bottom" />
       </main>
 
       {/* Footer */}
-      <footer className="bg-gradient-to-r from-gray-50 to-emerald-50/40 border-t border-gray-200 mt-20">
+      <footer className="hidden md:block bg-gradient-to-r from-gray-50 to-emerald-50/40 border-t border-gray-200 mt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div className="space-y-4">
               <div className="flex items-center">
-                <div className="w-6 h-6 bg-cyan-500 rounded-full flex items-center justify-center mr-2">
-                  <span className="text-white font-bold text-sm">N</span>
-                </div>
-                <span className="text-gray-900 font-bold">Study Hub</span>
+                <BrandLogo size="xs" />
               </div>
               <p className="text-gray-600 text-sm">
                 Empowering test takers worldwide with comprehensive preparation.
@@ -413,7 +408,7 @@ export default function CertificationTestsPage({ onBack, onTestSelect }: Certifi
           
           <div className="border-t border-gray-200 mt-8 pt-8 text-center">
             <p className="text-gray-500 text-sm">
-              © 2025 N Study Hub. All rights reserved.
+              © 2025 AllMyExam. All rights reserved.
             </p>
           </div>
         </div>

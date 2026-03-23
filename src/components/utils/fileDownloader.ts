@@ -97,7 +97,7 @@ export const downloadAsWord = async (
 
 export const downloadDefaultFile = (materialTitle: string) => {
   // For default materials without actual files, create a text file with material info
-  const content = `${materialTitle}\n\n이 자료는 N Study Hub에서 제공되는 교육 자료입니다.\n다운로드 날짜: ${new Date().toLocaleDateString('ko-KR')}\n\n실제 학습 자료는 별도로 제공될 예정입니다.`;
+  const content = `${materialTitle}\n\n이 자료는 All My Exam에서 제공되는 교육 자료입니다.\n다운로드 날짜: ${new Date().toLocaleDateString('ko-KR')}\n\n실제 학습 자료는 별도로 제공될 예정입니다.`;
   
   const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
   const url = URL.createObjectURL(blob);

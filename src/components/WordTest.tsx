@@ -1,35 +1,70 @@
 import React from 'react';
 import { Button } from './ui/button';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, X, Eye } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 
 // 사운드 효과 함수
 const playSound = (isCorrect: boolean) => {
   try {
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
     
     if (isCorrect) {
       // 정답: 밝은 2음 (C5 -> E5)
-      oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
-      oscillator.frequency.setValueAtTime(659.25, audioContext.currentTime + 0.1); // E5
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime);
+      oscillator.frequency.setValueAtTime(659.25, audioContext.currentTime + 0.1);
       gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
       gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-      
       oscillator.start(audioContext.currentTime);
       oscillator.stop(audioContext.currentTime + 0.3);
     } else {
-      // 오답: 낮은 단음
-      oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+      // 오답: 큰 전기 버저 소리 (삐~)
+      const duration = 0.6;
       
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.4);
+      // 메인 버저 (높은 주파수 사각파)
+      const osc1 = audioContext.createOscillator();
+      const gain1 = audioContext.createGain();
+      osc1.type = 'square';
+      osc1.frequency.setValueAtTime(440, audioContext.currentTime);
+      osc1.frequency.setValueAtTime(380, audioContext.currentTime + 0.15);
+      osc1.frequency.setValueAtTime(320, audioContext.currentTime + 0.3);
+      gain1.gain.setValueAtTime(0.5, audioContext.currentTime);
+      gain1.gain.setValueAtTime(0.55, audioContext.currentTime + 0.1);
+      gain1.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+      osc1.connect(gain1);
+      gain1.connect(audioContext.destination);
+      osc1.start(audioContext.currentTime);
+      osc1.stop(audioContext.currentTime + duration);
+      
+      // 노이즈 레이어 (전기 느낌)
+      const osc2 = audioContext.createOscillator();
+      const gain2 = audioContext.createGain();
+      osc2.type = 'sawtooth';
+      osc2.frequency.setValueAtTime(180, audioContext.currentTime);
+      osc2.frequency.setValueAtTime(150, audioContext.currentTime + 0.2);
+      gain2.gain.setValueAtTime(0.35, audioContext.currentTime);
+      gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+      osc2.connect(gain2);
+      gain2.connect(audioContext.destination);
+      osc2.start(audioContext.currentTime);
+      osc2.stop(audioContext.currentTime + duration);
+      
+      // 고주파 찌릿 레이어
+      const osc3 = audioContext.createOscillator();
+      const gain3 = audioContext.createGain();
+      osc3.type = 'square';
+      osc3.frequency.setValueAtTime(880, audioContext.currentTime);
+      osc3.frequency.setValueAtTime(660, audioContext.currentTime + 0.15);
+      gain3.gain.setValueAtTime(0.15, audioContext.currentTime);
+      gain3.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.35);
+      osc3.connect(gain3);
+      gain3.connect(audioContext.destination);
+      osc3.start(audioContext.currentTime);
+      osc3.stop(audioContext.currentTime + 0.35);
     }
   } catch (error) {
     console.log('Audio playback not supported:', error);
@@ -64,6 +99,7 @@ interface WordTestProps {
   setIncorrectQuestions: (questions: number[] | ((prev: number[]) => number[])) => void;
   testType: 'multiple' | 'subjective' | 'mixed';
   onBackToDownload: () => void;
+  multipleChoiceFormat?: 'engToKor' | 'korToEng' | 'defToEng';
 }
 
 export function WordTest({
@@ -84,22 +120,49 @@ export function WordTest({
   incorrectQuestions,
   setIncorrectQuestions,
   testType,
-  onBackToDownload
+  onBackToDownload,
+  multipleChoiceFormat = 'engToKor'
 }: WordTestProps) {
   
   const [showHint, setShowHint] = React.useState(false);
+  const [feedbackOverlay, setFeedbackOverlay] = React.useState<'correct' | 'wrong' | null>(null);
+  
+  // 오답 재시험 모드
+  const [retryMode, setRetryMode] = React.useState(false);
+  const [retryIndices, setRetryIndices] = React.useState<number[]>([]);
+  const [retryPosition, setRetryPosition] = React.useState(0);
+  
+  // 리뷰 화면 닫기 추적 (해당 인덱스 문제를 건너뛰지 않도록)
+  const [dismissedReviews, setDismissedReviews] = React.useState<Set<number>>(new Set());
   
   // Reset hint when moving to next question
   React.useEffect(() => {
     setShowHint(false);
   }, [currentWordIndex]);
+
+  // 오답 재시험 모드: retryPosition이 변경되면 해당 인덱스로 이동
+  React.useEffect(() => {
+    if (retryMode && retryIndices.length > 0 && retryPosition < retryIndices.length) {
+      const targetIdx = retryIndices[retryPosition];
+      if (currentWordIndex !== targetIdx) {
+        setCurrentWordIndex(targetIdx);
+      }
+    }
+  }, [retryPosition, retryMode]);
+  
+  // Show feedback overlay when answer is given
+  const showFeedback = (isCorrect: boolean) => {
+    playSound(isCorrect);
+    setFeedbackOverlay(isCorrect ? 'correct' : 'wrong');
+    setTimeout(() => setFeedbackOverlay(null), 1200);
+  };
   
   // Calculate total questions and type based on testType
   const totalQuestions = testType === 'mixed' 
     ? selectedWordList.words.length * 2 // Each word twice: multiple choice + subjective
     : selectedWordList.words.length; // Each word once
     
-  const shouldShowReview = currentWordIndex % 10 === 0 && currentWordIndex !== 0 && currentWordIndex < totalQuestions && !showTestResult[currentWordIndex];
+  const shouldShowReview = !retryMode && currentWordIndex % 10 === 0 && currentWordIndex !== 0 && currentWordIndex < totalQuestions && !showTestResult[currentWordIndex] && !dismissedReviews.has(currentWordIndex);
   
   // Determine if current question is multiple choice based on testType
   let isMultipleChoice: boolean;
@@ -117,6 +180,24 @@ export function WordTest({
   }
   
   const currentWord = selectedWordList.words[wordIdx];
+  
+  // Helper function to get the correct word index for a given question index
+  const getWordIdx = (questionIdx: number): number => {
+    if (testType === 'mixed') {
+      return Math.floor(questionIdx / 20) * 10 + (questionIdx % 10);
+    }
+    return questionIdx;
+  };
+
+  // 실시간 점수 계산
+  const answeredCount = Object.keys(showTestResult).length;
+  const correctCount = Object.keys(showTestResult).filter(idx => {
+    const qWordIdx = getWordIdx(Number(idx));
+    const word = selectedWordList.words[qWordIdx];
+    return testAnswers[Number(idx)] === word?.word;
+  }).length;
+  const wrongCount = answeredCount - correctCount;
+  const currentAccuracy = answeredCount > 0 ? Math.round((correctCount / answeredCount) * 100) : 0;
   
   // Review Screen
   if (shouldShowReview) {
@@ -156,12 +237,7 @@ export function WordTest({
           <div className="space-y-3 mb-6">
             {Array.from({ length: 10 }).map((_, idx) => {
               const questionIdx = roundStart + idx;
-              let qWordIdx: number;
-              if (testType === 'mixed') {
-                qWordIdx = Math.floor(questionIdx / 20) * 10 + (questionIdx % 10);
-              } else {
-                qWordIdx = questionIdx;
-              }
+              const qWordIdx = getWordIdx(questionIdx);
               const word = selectedWordList.words[qWordIdx];
               
               if (!word) return null;
@@ -180,8 +256,8 @@ export function WordTest({
           <div className="flex justify-end">
             <Button
               onClick={() => {
-                // Move to next question - don't mark current as answered
-                handleNextWord();
+                // 리뷰 닫고 해당 인덱스의 문제를 정상 표시 (문제를 건너뛰지 않음)
+                setDismissedReviews(prev => new Set([...prev, currentWordIndex]));
               }}
               className="px-8 py-3 rounded-lg text-white hover:opacity-90 transition-colors"
               style={{ backgroundColor: '#4F46E5' }}
@@ -198,7 +274,7 @@ export function WordTest({
   if (!currentWord || currentWordIndex >= totalQuestions) {
     // Calculate results
     const correctAnswers = Object.keys(showTestResult).filter(idx => {
-      const qWordIdx = Math.floor(Number(idx) / 20) * 10 + (Number(idx) % 10);
+      const qWordIdx = getWordIdx(Number(idx));
       const word = selectedWordList.words[qWordIdx];
       return testAnswers[Number(idx)] === word?.word;
     }).length;
@@ -274,6 +350,7 @@ export function WordTest({
                   setShowTestResult({});
                   setSubjectiveAnswer('');
                   setIncorrectQuestions([]);
+                  setDismissedReviews(new Set());
                   toast.success("테스트를 처음부터 다시 시작합니다!");
                 }}
                 className="w-full px-6 py-3 rounded-lg bg-cyan-600 text-white hover:bg-cyan-700 transition-colors flex items-center justify-center gap-2"
@@ -292,9 +369,11 @@ export function WordTest({
                     return;
                   }
                   
-                  // 틀린 문제만 필터링하여 새로운 테스트 시작
-                  const firstIncorrectIndex = Math.min(...incorrectQuestions);
-                  setCurrentWordIndex(firstIncorrectIndex);
+                  // 오답 재시험 모드 활성화
+                  const sortedRetryIndices = [...incorrectQuestions].sort((a, b) => a - b);
+                  setRetryIndices(sortedRetryIndices);
+                  setRetryPosition(0);
+                  setRetryMode(true);
                   
                   // 틀린 문제의 답안만 초기화
                   const newAnswers = { ...testAnswers };
@@ -305,8 +384,13 @@ export function WordTest({
                   });
                   setTestAnswers(newAnswers);
                   setShowTestResult(newResults);
+                  setIncorrectQuestions([]);
                   
-                  toast.success(`틀린 ${incorrectQuestions.length}개 문제를 다시 풀어보세요!`);
+                  // 첫 번째 틀린 문제로 이동
+                  setCurrentWordIndex(sortedRetryIndices[0]);
+                  setSubjectiveAnswer('');
+                  
+                  toast.success(`틀린 ${sortedRetryIndices.length}개 문제를 다시 풀어보세요!`);
                 }}
                 className="w-full px-6 py-3 rounded-lg bg-orange-600 text-white hover:bg-orange-700 transition-colors flex items-center justify-center gap-2"
                 disabled={incorrectQuestions.length === 0}
@@ -314,7 +398,7 @@ export function WordTest({
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
-                틀린것만 보기 ({incorrectQuestions.length})
+                틀린것만 다시 풀기 ({incorrectQuestions.length})
               </Button>
             </div>
             
@@ -350,296 +434,373 @@ export function WordTest({
   
   // Regular Question
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="max-w-3xl mx-auto p-4 md:p-8 pb-20 md:pb-8">
       {/* Header */}
-      <div className="flex justify-between items-center mb-8">
-        <h2 className="text-xl">학습하기</h2>
+      <div className="flex justify-between items-center mb-4">
+        <div>
+          <h2 className="text-2xl font-bold text-[#1E3A8A]">{selectedWordList.title}</h2>
+          {retryMode && (
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">
+                오답 재시험 ({retryPosition + 1}/{retryIndices.length})
+              </span>
+              <button
+                onClick={() => {
+                  setRetryMode(false);
+                  setRetryIndices([]);
+                  setRetryPosition(0);
+                  setCurrentWordIndex(totalQuestions);
+                }}
+                className="text-xs text-gray-500 hover:text-red-500 underline"
+              >
+                재시험 종료
+              </button>
+            </div>
+          )}
+        </div>
         <button 
           onClick={onBackToDownload}
           className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
         >
-          <ChevronLeft className="w-6 h-6 text-gray-600" />
+          <X className="w-6 h-6 text-gray-600" />
         </button>
       </div>
 
       {/* Progress Bar */}
       <div className="mb-8">
-        <div className="flex items-center gap-2">
-          <div className="flex-1 flex gap-1">
-            {Array.from({ length: totalQuestions }).map((_, idx) => {
-              const isAnswered = showTestResult[idx];
-              const qWordIdx = Math.floor(idx / 20) * 10 + (idx % 10);
-              const isCorrect = isAnswered && testAnswers[idx] === selectedWordList.words[qWordIdx]?.word;
-              
-              return (
-                <div
-                  key={idx}
-                  className={`flex-1 h-3 rounded-full transition-all relative ${
-                    isCorrect
-                      ? 'bg-green-500'
-                      : isAnswered
-                      ? 'bg-orange-500'
-                      : idx === currentWordIndex
-                      ? 'bg-gray-400'
-                      : 'bg-gray-200'
-                  }`}
-                >
-                  {idx === currentWordIndex && (
-                    <div className="absolute -top-7 left-1/2 transform -translate-x-1/2 bg-gray-700 text-white text-xs px-2 py-1 rounded-full">
-                      {idx + 1}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          <span className="text-sm text-gray-600 ml-2">
-            {totalQuestions}
-          </span>
+        <div className="flex items-center justify-between mb-1">
+          {retryMode ? (
+            <>
+              <span className="text-sm text-orange-600">오답 재시험 {retryPosition + 1} / {retryIndices.length}</span>
+              <span className="text-sm text-orange-600 font-medium">{Math.round(((retryPosition + 1) / retryIndices.length) * 100)}%</span>
+            </>
+          ) : (
+            <>
+              <span className="text-sm text-gray-600">문제 {currentWordIndex + 1} / {totalQuestions}</span>
+              <span className="text-sm text-[#1E3A8A] font-medium">{Math.round(((currentWordIndex + 1) / totalQuestions) * 100)}%</span>
+            </>
+          )}
+        </div>
+        <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
+          <div 
+            className={`h-full rounded-full transition-all duration-300 ${retryMode ? 'bg-orange-500' : 'bg-[#1E3A8A]'}`}
+            style={{ width: retryMode 
+              ? `${((retryPosition + 1) / retryIndices.length) * 100}%` 
+              : `${((currentWordIndex + 1) / totalQuestions) * 100}%` 
+            }}
+          />
         </div>
       </div>
 
+      {/* 실시간 점수 표시 */}
+      {answeredCount > 0 && (
+        <div className="mb-6 flex items-center justify-center gap-6 bg-white border border-gray-200 rounded-xl py-2.5 px-6 shadow-sm">
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm text-gray-500">정답률</span>
+            <span className={`text-lg font-bold ${currentAccuracy >= 80 ? 'text-green-600' : currentAccuracy >= 50 ? 'text-yellow-600' : 'text-red-500'}`}>{currentAccuracy}%</span>
+          </div>
+          <div className="w-px h-5 bg-gray-200" />
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
+            <span className="text-sm text-gray-600">{correctCount}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+            <span className="text-sm text-gray-600">{wrongCount}</span>
+          </div>
+          <div className="w-px h-5 bg-gray-200" />
+          <span className="text-xs text-gray-400">{answeredCount}/{totalQuestions}</span>
+        </div>
+      )}
+      
       {/* Test Card - Multiple Choice */}
       {isMultipleChoice ? (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 mb-6">
-          {/* Word Definition */}
-          <div className="mb-8">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-sm text-gray-600">뜻</span>
-            </div>
-            <p className="text-xl text-gray-800 leading-relaxed">
-              {currentWord?.definition}
-            </p>
+        <div className="bg-gray-50 rounded-2xl p-6 md:p-10 mb-6">
+          {/* Question prompt */}
+          <p className="text-lg md:text-xl font-semibold text-[#1E3A8A] mb-6">
+            {multipleChoiceFormat === 'engToKor'
+              ? '다음 영어 단어의 한글 뜻을 고르세요:'
+              : multipleChoiceFormat === 'korToEng'
+              ? '다음 한글 뜻에 해당하는 영어 단어를 고르세요:'
+              : '다음 영영풀이에 해당하는 영어 단어를 고르세요:'}
+          </p>
+
+          {/* Word display box */}
+          <div className="border-2 border-[#1E3A8A] rounded-xl p-6 mb-8 bg-white text-center">
+            <span className="text-2xl md:text-3xl font-bold text-gray-800">
+              {multipleChoiceFormat === 'engToKor'
+                ? currentWord?.word
+                : multipleChoiceFormat === 'korToEng'
+                ? currentWord?.definition
+                : (currentWord?.context || currentWord?.definition)}
+            </span>
+            {multipleChoiceFormat === 'defToEng' && currentWord?.context && (
+              <p className="text-sm text-gray-500 mt-2">(영영풀이)</p>
+            )}
           </div>
 
-          {/* Answer Options */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <p className={`text-sm ${
-                showTestResult[currentWordIndex] && testAnswers[currentWordIndex] === currentWord?.word
-                  ? 'text-green-600'
-                  : showTestResult[currentWordIndex] && testAnswers[currentWordIndex] !== currentWord?.word
-                  ? 'text-orange-600'
-                  : 'text-gray-600'
-              }`}>
-                {showTestResult[currentWordIndex] && testAnswers[currentWordIndex] === currentWord?.word
-                  ? ['잘했어요!', '훌륭해요!', '정답입니다'][currentWordIndex % 3]
-                  : showTestResult[currentWordIndex] && testAnswers[currentWordIndex] !== currentWord?.word
-                  ? '걱정하지 마세요, 아직 배우고 있잖아요!'
-                  : '정답을 고르세요'}
-              </p>
-              {/* Retry button for incorrect answers */}
-              {showTestResult[currentWordIndex] && testAnswers[currentWordIndex] !== currentWord?.word && (
+          {/* Answer Options - Vertical list */}
+          <div className="space-y-3">
+            {generateTestOptions(
+              currentWord?.definition,
+              selectedWordList.words,
+              wordIdx
+            ).map((option, idx) => {
+              const isSelected = testAnswers[currentWordIndex] === option;
+              const isCorrect = option === currentWord?.word;
+              const showResult = showTestResult[currentWordIndex];
+              const isWrongAnswer = showResult && testAnswers[currentWordIndex] !== currentWord?.word;
+              // Display based on format
+              const optionWord = selectedWordList.words.find(w => w.word === option);
+              const optionDisplay = multipleChoiceFormat === 'engToKor'
+                ? (optionWord?.definition || option)
+                : option; // korToEng, defToEng: show English word directly
+              
+              return (
                 <button
-                  onClick={() => handleRetryQuestion(currentWordIndex)}
-                  className="text-sm text-orange-600 hover:underline"
+                  key={idx}
+                  onClick={() => {
+                    handleTestAnswer(currentWordIndex, option, currentWord?.word);
+                    showFeedback(isCorrect);
+                  }}
+                  disabled={showResult}
+                  className={`w-full p-4 text-left rounded-xl transition-all ${
+                    showResult && isSelected && isCorrect
+                      ? 'border-2 border-green-500 bg-green-50'
+                      : showResult && isSelected && !isCorrect
+                      ? 'border-2 border-red-500 bg-red-50'
+                      : showResult
+                      ? 'border-2 border-gray-200 bg-white opacity-60'
+                      : isSelected
+                      ? 'border-2 border-[#1E3A8A] bg-blue-50'
+                      : 'border-2 border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                  }`}
                 >
-                  다시 해봅시다
+                  <div className="flex items-center gap-3">
+                    <span className={`text-sm font-medium ${
+                      showResult && isSelected && isCorrect ? 'text-green-600'
+                      : showResult && isSelected && !isCorrect ? 'text-red-600'
+                      : 'text-gray-500'
+                    }`}>
+                      {idx + 1}.
+                    </span>
+                    <span className="text-base text-gray-800">{optionDisplay}</span>
+                  </div>
                 </button>
+              );
+            })}
+          </div>
+
+          {/* Feedback */}
+          {showTestResult[currentWordIndex] && (
+            <div className="mt-5 md:block hidden">
+              {testAnswers[currentWordIndex] === currentWord?.word ? (
+                <p className="text-green-600 font-medium text-center text-lg">{['잘했어요!', '훌륭해요!', '정답입니다!'][currentWordIndex % 3]}</p>
+              ) : (
+                <div className="mt-3 p-4 bg-gray-100 rounded-xl border border-gray-200">
+                  <p className="text-red-600 font-semibold text-center mb-2">오답입니다</p>
+                  <div className="text-center">
+                    <span className="text-sm text-gray-500">정답: </span>
+                    <span className="text-base font-bold text-[#1E3A8A]">
+                      {multipleChoiceFormat === 'engToKor' ? currentWord?.definition : currentWord?.word}
+                    </span>
+                    {multipleChoiceFormat === 'engToKor' && (
+                      <span className="text-sm text-gray-400 ml-2">({currentWord?.word})</span>
+                    )}
+                    {multipleChoiceFormat !== 'engToKor' && (
+                      <span className="text-sm text-gray-400 ml-2">({currentWord?.definition})</span>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              {generateTestOptions(
-                currentWord?.definition,
-                selectedWordList.words,
-                wordIdx
-              ).map((option, idx) => {
-                const isSelected = testAnswers[currentWordIndex] === option;
-                const isCorrect = option === currentWord?.word;
-                const showResult = showTestResult[currentWordIndex];
-                
-                return (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      handleTestAnswer(currentWordIndex, option, currentWord?.word);
-                    }}
-                    disabled={showResult}
-                    className={`p-4 text-left rounded-lg transition-all relative ${
-                      showResult && isCorrect
-                        ? 'border-2 border-green-500 bg-white'
-                        : showResult && isSelected && !isCorrect
-                        ? 'border-2 border-orange-500 bg-white'
-                        : showResult && !isSelected && isCorrect
-                        ? 'border-2 border-dashed border-green-500 bg-white'
-                        : 'border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                    }`}
-                    style={showResult && !isSelected && isCorrect ? { borderStyle: 'dashed' } : {}}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-start gap-2 flex-1">
-                        <span className={`text-sm ${
-                          showResult && isCorrect
-                            ? 'text-green-600'
-                            : showResult && isSelected && !isCorrect
-                            ? 'text-orange-600'
-                            : 'text-gray-500'
-                        }`}>
-                          {showResult && isCorrect
-                            ? '✓'
-                            : showResult && isSelected && !isCorrect
-                            ? 'X'
-                            : idx + 1}
-                        </span>
-                        <span className="text-gray-800">{option}</span>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          )}
         </div>
       ) : (
         /* Subjective Question */
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 mb-6">
-          {/* Word Type */}
-          <div className="flex items-center gap-2 mb-6">
-            <span className="text-sm text-gray-600">뜻</span>
-          </div>
-
-          {/* Definition */}
-          <p className="text-xl text-gray-800 leading-relaxed mb-12">
-            {currentWord?.definition}
+        <div className="bg-gray-50 rounded-2xl p-6 md:p-10 mb-6">
+          <p className="text-lg md:text-xl font-semibold text-[#1E3A8A] mb-6">
+            다음 한글 뜻에 해당하는 영어 단어를 입력하세요:
           </p>
 
-          {/* Feedback and Answer */}
+          {/* Definition display box */}
+          <div className="border-2 border-[#1E3A8A] rounded-xl p-6 mb-8 bg-white text-center">
+            <span className="text-2xl md:text-3xl font-bold text-gray-800">
+              {currentWord?.definition}
+            </span>
+          </div>
+
           {showTestResult[currentWordIndex] ? (
             <>
               {testAnswers[currentWordIndex] === currentWord?.word ? (
-                // Correct Answer
-                <>
-                  <p className="text-green-600 text-sm mb-4">
-                    {['잘했어요!', '훌륭해요!', '정답입니다'][currentWordIndex % 3]}
-                  </p>
-                  
-                  {/* Correct Answer */}
-                  <div className="p-4 rounded-lg border-2 border-green-500 bg-white">
-                    <div className="flex items-center gap-2">
-                      <span className="text-green-600">✓</span>
-                      <span className="text-gray-800">{currentWord?.word}</span>
-                    </div>
+                <div className="text-center">
+                  <div className="p-4 rounded-xl border-2 border-green-500 bg-green-50 mb-3">
+                    <span className="text-green-600 mr-2">✓</span>
+                    <span className="text-gray-800 font-medium">{currentWord?.word}</span>
                   </div>
-                </>
+                  <p className="text-green-600 font-medium">{['잘했어요!', '훌륭해요!', '정답입니다!'][currentWordIndex % 3]}</p>
+                </div>
               ) : (
-                // Wrong Answer
-                <>
-                  <div className="flex items-center justify-between mb-4">
-                    <p className="text-orange-600 text-sm">
-                      걱정하지 마세요, 아직 배우고 있잖아요!
-                    </p>
-                    {/* Retry button for incorrect answers */}
-                    <button
-                      onClick={() => handleRetryQuestion(currentWordIndex)}
-                      className="text-sm text-orange-600 hover:underline"
-                    >
-                      다시 해봅시다
-                    </button>
+                <div className="space-y-3">
+                  <div className="p-4 rounded-xl border-2 border-red-500 bg-red-50">
+                    <span className="text-red-600 mr-2">✕</span>
+                    <span className="text-gray-800 line-through">{testAnswers[currentWordIndex]}</span>
                   </div>
-                  
-                  {/* Wrong Answer */}
-                  <div className="mb-4 p-4 rounded-lg border-2 border-orange-500 bg-white">
-                    <div className="flex items-center gap-2">
-                      <span className="text-orange-600">✕</span>
-                      <span className="text-gray-800">{testAnswers[currentWordIndex]}</span>
+                  <div className="p-4 bg-gray-100 rounded-xl border border-gray-200">
+                    <p className="text-red-600 font-semibold text-center mb-1">오답입니다</p>
+                    <div className="text-center">
+                      <span className="text-sm text-gray-500">정답: </span>
+                      <span className="text-base font-bold text-[#1E3A8A]">{currentWord?.word}</span>
                     </div>
                   </div>
-
-                  {/* Correct Answer Label */}
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm text-green-600">정답</h3>
-                  </div>
-
-                  {/* Correct Answer */}
-                  <div className="p-4 rounded-lg border-2 border-dashed border-green-500 bg-white">
-                    <div className="flex items-center gap-2">
-                      <span className="text-green-600">✓</span>
-                      <span className="text-gray-800">{currentWord?.word}</span>
-                    </div>
-                  </div>
-                </>
+                </div>
               )}
             </>
           ) : (
             <>
-              {/* Answer Input Section */}
-              <div className="mb-6">
-                <h3 className="text-sm text-gray-600 mb-3">당신의 답</h3>
+              <div className="mb-4">
                 <input
                   type="text"
                   value={subjectiveAnswer}
                   onChange={(e) => setSubjectiveAnswer(e.target.value)}
-                  placeholder="정답을 입력하세요"
-                  className="w-full p-4 border-2 border-blue-400 rounded-lg text-gray-800 placeholder-gray-400 focus:outline-none focus:border-blue-500"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && subjectiveAnswer.trim()) {
+                      handleTestAnswer(currentWordIndex, subjectiveAnswer.trim(), currentWord?.word);
+                      showFeedback(subjectiveAnswer.trim() === currentWord?.word);
+                      setShowHint(false);
+                    }
+                  }}
+                  placeholder="답을 입력하세요"
+                  className="w-full p-4 border-2 border-gray-200 rounded-xl text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20"
                 />
+                {showHint && (
+                  <div className="mt-2 text-sm text-gray-500 pl-2">
+                    힌트: <span className="font-mono font-medium text-[#1E3A8A]">{currentWord?.word?.slice(0, (currentWord?.word?.length || 0) < 6 ? Math.min(2, (currentWord?.word?.length || 1) - 1) : Math.min(3, currentWord?.word?.length || 0))}___</span>
+                  </div>
+                )}
               </div>
-
-              {/* Hint and Submit Section */}
-              <div className="flex items-center justify-between mb-6">
-                {/* Hint Button and Hint Display */}
-                <div className="flex items-center gap-3">
-                  <button 
-                    onClick={() => setShowHint(!showHint)}
-                    className="px-4 py-2 text-sm text-blue-600 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
-                  >
-                    힌트 보기
-                  </button>
-                  
-                  {/* Hint Display - Show inline next to button */}
-                  {showHint && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-400">&gt;</span>
-                      <span className="text-sm text-gray-600">
-                        {currentWord?.word?.slice(0, Math.min(4, currentWord?.word?.length || 0))}___
-                      </span>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Right side: Submit button */}
-                <div className="flex items-center gap-3">
-                  {/* Submit Button - Only show when answer is entered */}
-                  {subjectiveAnswer.trim() && (
-                    <Button
-                      onClick={() => {
-                        handleTestAnswer(currentWordIndex, subjectiveAnswer.trim(), currentWord?.word);
-                        setShowHint(false); // Reset hint when submitting
-                      }}
-                      className="px-5 py-2 text-sm rounded-full text-white hover:opacity-90 transition-colors"
-                      style={{ backgroundColor: '#1E40AF' }}
-                    >
-                      답하기
-                    </Button>
-                  )}
-                </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setShowHint(!showHint)}
+                  className="flex items-center gap-2 px-5 py-3 text-sm text-gray-700 bg-white border-2 border-gray-200 rounded-xl hover:bg-gray-50 transition-colors font-medium"
+                >
+                  <Eye className="w-4 h-4" />
+                  힌트
+                </button>
+                <button
+                  onClick={() => {
+                    if (subjectiveAnswer.trim()) {
+                      handleTestAnswer(currentWordIndex, subjectiveAnswer.trim(), currentWord?.word);
+                      showFeedback(subjectiveAnswer.trim() === currentWord?.word);
+                      setShowHint(false);
+                    }
+                  }}
+                  className={`flex-1 py-3 rounded-xl font-medium transition-colors text-center ${
+                    subjectiveAnswer.trim()
+                      ? 'bg-[#1E3A8A] text-white hover:bg-[#1E3A8A]/90'
+                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  }`}
+                  disabled={!subjectiveAnswer.trim()}
+                >
+                  답변 제출
+                </button>
               </div>
             </>
           )}
         </div>
       )}
 
-      {/* Continue Button and Message */}
-      {showTestResult[currentWordIndex] && (
-        <div className="flex justify-between items-center mt-4">
-          <p className="text-sm text-gray-600">
-            정답을 클릭하거나 이동 키나 놓고 계속하세요
-          </p>
-          <Button
-            onClick={() => {
+      {/* Navigation Buttons - 이전 / 다음 */}
+      <div className="flex justify-between items-center mt-6 gap-3">
+        <button
+          onClick={() => {
+            if (retryMode) {
+              if (retryPosition > 0) {
+                setRetryPosition(retryPosition - 1);
+                setSubjectiveAnswer('');
+              }
+            } else {
+              if (currentWordIndex > 0) {
+                setCurrentWordIndex(currentWordIndex - 1);
+                setSubjectiveAnswer('');
+              }
+            }
+          }}
+          disabled={retryMode ? retryPosition === 0 : currentWordIndex === 0}
+          className={`px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl border-2 font-medium transition-colors text-sm sm:text-base min-w-[80px] sm:min-w-[100px] ${
+            (retryMode ? retryPosition === 0 : currentWordIndex === 0) 
+              ? 'border-gray-200 text-gray-400 cursor-not-allowed' 
+              : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+          }`}
+        >
+          &lt; 이전
+        </button>
+        <button
+          onClick={() => {
+            if (retryMode) {
+              if (retryPosition < retryIndices.length - 1) {
+                setRetryPosition(retryPosition + 1);
+                setSubjectiveAnswer('');
+              } else {
+                // 오답 재시험 완료 → 결과 화면으로
+                setRetryMode(false);
+                setRetryIndices([]);
+                setRetryPosition(0);
+                setCurrentWordIndex(totalQuestions);
+              }
+            } else {
               if (currentWordIndex < totalQuestions - 1) {
                 handleNextWord();
               } else {
-                // Test complete - will show complete screen
                 setCurrentWordIndex(totalQuestions);
               }
+            }
+          }}
+          disabled={!showTestResult[currentWordIndex]}
+          className={`px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 text-sm sm:text-base min-w-[80px] sm:min-w-[100px] ${
+            !showTestResult[currentWordIndex]
+              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              : retryMode
+              ? 'bg-orange-600 text-white hover:bg-orange-700'
+              : 'bg-[#1E3A8A] text-white hover:bg-[#1E3A8A]/90'
+          }`}
+        >
+          {retryMode && retryPosition >= retryIndices.length - 1 ? '완료' : '다음'} &gt;
+        </button>
+      </div>
+
+      {/* Feedback Overlay - Big Circle with X or Checkmark */}
+      {feedbackOverlay && (
+        <div className="fixed inset-0 flex items-center justify-center z-[100] pointer-events-none">
+          <div
+            className={`w-32 h-32 md:w-40 md:h-40 rounded-full flex items-center justify-center shadow-2xl ${
+              feedbackOverlay === 'correct' ? 'bg-[#4CAF50]' : 'bg-[#EF4444]'
+            }`}
+            style={{
+              animation: 'feedbackPop 1.2s ease-out forwards',
             }}
-            className="px-6 py-2.5 text-white rounded-lg hover:opacity-90 transition-colors text-sm"
-            style={{ backgroundColor: '#1E40AF' }}
           >
-            계속
-          </Button>
+            {feedbackOverlay === 'correct' ? (
+              <svg className="w-20 h-20 md:w-24 md:h-24 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
+              <svg className="w-20 h-20 md:w-24 md:h-24 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            )}
+          </div>
         </div>
       )}
+      <style>{`
+        @keyframes feedbackPop {
+          0% { transform: scale(0.3); opacity: 0; }
+          20% { transform: scale(1.15); opacity: 1; }
+          40% { transform: scale(0.95); opacity: 1; }
+          60% { transform: scale(1); opacity: 1; }
+          100% { transform: scale(1); opacity: 0; }
+        }
+      `}</style>
     </div>
   );
 }

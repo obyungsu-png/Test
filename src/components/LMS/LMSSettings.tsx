@@ -7,7 +7,7 @@ import { toast } from "sonner@2.0.3";
 import { Settings, Edit2, Save, RotateCcw, Globe } from "lucide-react";
 
 export default function LMSSettings() {
-  const [tabNames, setTabNames] = useState(["전체보기", "단월별 학습", "3일의 기적", "모의고사", "콘텐츠소개"]);
+  const [tabNames, setTabNames] = useState(["교과서 뽀개기", "단월별 학습", "모의고사", "직전 대비", "콘텐츠소개"]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editValue, setEditValue] = useState("");
 
@@ -51,7 +51,7 @@ export default function LMSSettings() {
 
   const handleReset = () => {
     if (confirm("모든 탭 이름을 기본값으로 되돌리시겠습니까?")) {
-      const defaultTabs = ["전체보기", "단월별 학습", "3일의 기적", "모의고사", "콘텐츠소개"];
+      const defaultTabs = ["교과서 뽀개기", "단월별 학습", "모의고사", "직전 대비", "콘텐츠소개"];
       setTabNames(defaultTabs);
       localStorage.removeItem('customTabNames');
       setEditingIndex(null);
@@ -60,7 +60,7 @@ export default function LMSSettings() {
     }
   };
 
-  const defaultTabNames = ["전체보기", "단월별 학습", "3일의 기적", "모의고사", "콘텐츠소개"];
+  const defaultTabNames = ["교과서 뽀개기", "단월별 학습", "모의고사", "직전 대비", "콘텐츠소개"];
   const isCustomized = JSON.stringify(tabNames) !== JSON.stringify(defaultTabNames);
 
   return (

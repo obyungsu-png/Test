@@ -1,120 +1,163 @@
 import { useState } from "react";
-import { ArrowLeft, Search, ChevronDown } from "lucide-react";
+import { ArrowLeft, BookOpen, FileText, Headphones, Mic, PenTool, BarChart3, Clock, Target, ChevronRight } from "lucide-react";
 
 interface ToeflAppProps {
-  onBack: () => void;
+  onClose: () => void;
 }
 
-// 탭 목록
-const tabs = [
-  { id: "all", label: "전체보기", count: 0 },
-  { id: "practice", label: "Practice Tests", count: 0 },
-  { id: "mock", label: "Mock Exams", count: 0 },
-  { id: "past", label: "Past Papers", count: 0 },
-  { id: "instructors", label: "1타 강사님들", count: 0 },
-];
+type ToeflPage = 'home' | 'reading' | 'listening' | 'speaking' | 'writing' | 'practice' | 'analytics';
 
-export default function ToeflApp({ onBack }: ToeflAppProps) {
-  const [activeTab, setActiveTab] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterCategory, setFilterCategory] = useState("전체");
+export default function ToeflApp({ onClose }: ToeflAppProps) {
+  const [currentPage, setCurrentPage] = useState<ToeflPage>('home');
+
+  const sections = [
+    { id: 'reading' as ToeflPage, title: 'Reading', subtitle: '독해 영역', icon: BookOpen, color: 'bg-blue-500', lightColor: 'bg-blue-50 text-blue-700', count: 0 },
+    { id: 'listening' as ToeflPage, title: 'Listening', subtitle: '듣기 영역', icon: Headphones, color: 'bg-purple-500', lightColor: 'bg-purple-50 text-purple-700', count: 0 },
+    { id: 'speaking' as ToeflPage, title: 'Speaking', subtitle: '말하기 영역', icon: Mic, color: 'bg-green-500', lightColor: 'bg-green-50 text-green-700', count: 0 },
+    { id: 'writing' as ToeflPage, title: 'Writing', subtitle: '쓰기 영역', icon: PenTool, color: 'bg-orange-500', lightColor: 'bg-orange-50 text-orange-700', count: 0 },
+  ];
+
+  const quickActions = [
+    { title: 'Past Papers', subtitle: '기출문제 모음', icon: FileText, color: 'text-cyan-600' },
+    { title: '1타 강사님들', subtitle: '인기 강사 목록', icon: Target, color: 'text-cyan-600' },
+    { title: 'Practice Test', subtitle: '모의고사', icon: Clock, color: 'text-cyan-600' },
+    { title: 'Score Analytics', subtitle: '성적 분석', icon: BarChart3, color: 'text-cyan-600' },
+  ];
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Back button */}
-      <div className="border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-4 py-3">
+    <div className="fixed inset-0 bg-gray-50 z-50 flex flex-col overflow-hidden">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex items-center justify-between flex-shrink-0">
+        <div className="flex items-center gap-3">
           <button
-            onClick={onBack}
-            className="flex items-center gap-1.5 text-gray-600 hover:text-cyan-600 transition-colors text-sm font-medium"
+            onClick={currentPage === 'home' ? onClose : () => setCurrentPage('home')}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" />
-            <span>돌아가기</span>
+            <ArrowLeft className="w-5 h-5 text-gray-600" />
           </button>
+          <div>
+            <h1 className="text-lg font-bold text-gray-900">TOEFL VIP 콘텐츠룸</h1>
+            <p className="text-xs text-gray-500 font-extrabold tracking-tight">AllMyExam</p>
+          </div>
         </div>
-      </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs bg-cyan-100 text-cyan-700 px-2 py-1 rounded-full font-medium">VIP</span>
+        </div>
+      </header>
 
-      {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="flex items-center gap-6 overflow-x-auto">
-            {tabs.map((tab) => (
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto">
+        {currentPage === 'home' && (
+          <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
+            {/* Welcome Banner */}
+            <div className="bg-gradient-to-r from-cyan-500 to-blue-600 rounded-2xl p-6 text-white">
+              <h2 className="text-xl sm:text-2xl font-bold mb-2">TOEFL iBT 완벽 대비</h2>
+              <p className="text-cyan-100 text-sm sm:text-base">Reading, Listening, Speaking, Writing 4개 영역 통합 학습</p>
+              <div className="flex gap-4 mt-4">
+                <div className="bg-white/20 rounded-lg px-3 py-2 text-center">
+                  <div className="text-lg font-bold">120</div>
+                  <div className="text-xs text-cyan-100">만점</div>
+                </div>
+                <div className="bg-white/20 rounded-lg px-3 py-2 text-center">
+                  <div className="text-lg font-bold">3h</div>
+                  <div className="text-xs text-cyan-100">시험시간</div>
+                </div>
+                <div className="bg-white/20 rounded-lg px-3 py-2 text-center">
+                  <div className="text-lg font-bold">4</div>
+                  <div className="text-xs text-cyan-100">영역</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Section Cards */}
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 mb-3">영역별 학습</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {sections.map((section) => (
+                  <button
+                    key={section.id}
+                    onClick={() => setCurrentPage(section.id)}
+                    className="bg-white rounded-xl p-4 border border-gray-200 hover:border-cyan-300 hover:shadow-md transition-all text-left flex items-center gap-4 group"
+                  >
+                    <div className={`w-12 h-12 ${section.color} rounded-xl flex items-center justify-center flex-shrink-0`}>
+                      <section.icon className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-bold text-gray-900">{section.title}</h4>
+                        <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded-full font-medium">{section.count}</span>
+                      </div>
+                      <p className="text-sm text-gray-500">{section.subtitle}</p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-cyan-500 transition-colors" />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 mb-3">빠른 메뉴</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {quickActions.map((action) => (
+                  <button
+                    key={action.title}
+                    className="bg-white rounded-xl p-4 border border-gray-200 hover:border-cyan-300 hover:shadow-md transition-all text-center space-y-2"
+                  >
+                    <div className="w-10 h-10 bg-cyan-50 rounded-lg flex items-center justify-center mx-auto">
+                      <action.icon className={`w-5 h-5 ${action.color}`} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">{action.title}</p>
+                      <p className="text-xs text-gray-500">{action.subtitle}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Placeholder notice */}
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-center">
+              <p className="text-sm text-yellow-700">
+                TOEFL 콘텐츠가 통합되면 이 자리에 실제 학습 자료가 표시됩니다.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Sub pages - placeholder for now */}
+        {currentPage !== 'home' && (
+          <div className="max-w-4xl mx-auto p-4 sm:p-6">
+            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center space-y-4">
+              {(() => {
+                const section = sections.find(s => s.id === currentPage);
+                if (section) {
+                  return (
+                    <>
+                      <div className={`w-16 h-16 ${section.color} rounded-2xl flex items-center justify-center mx-auto`}>
+                        <section.icon className="w-8 h-8 text-white" />
+                      </div>
+                      <h2 className="text-2xl font-bold text-gray-900">{section.title}</h2>
+                      <p className="text-gray-500">{section.subtitle} 콘텐츠가 여기에 표시됩니다</p>
+                    </>
+                  );
+                }
+                return (
+                  <>
+                    <h2 className="text-2xl font-bold text-gray-900">{currentPage}</h2>
+                    <p className="text-gray-500">콘텐츠 준비 중입니다</p>
+                  </>
+                );
+              })()}
               <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`relative py-4 text-sm font-medium whitespace-nowrap transition-colors ${
-                  activeTab === tab.id
-                    ? "text-gray-900 border-b-2 border-cyan-500"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
+                onClick={() => setCurrentPage('home')}
+                className="mt-4 px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors"
               >
-                {tab.label}
-                <span className="ml-1.5 text-xs text-red-500 font-semibold align-super">
-                  {tab.count}
-                </span>
+                홈으로 돌아가기
               </button>
-            ))}
+            </div>
           </div>
-        </div>
-      </div>
-
-      {/* Subject Section */}
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* Subject header with VIP button */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <h2 className="text-2xl font-bold text-gray-900">Subject</h2>
-            <span className="bg-cyan-100 text-cyan-700 px-3 py-1 text-sm rounded-full font-medium">
-              총 0개
-            </span>
-          </div>
-          <button className="bg-cyan-500 hover:bg-cyan-600 text-white px-5 py-2.5 rounded-lg font-medium transition-colors text-sm">
-            VIP 콘텐츠룸
-          </button>
-        </div>
-
-        {/* Search bar */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className="relative">
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2.5 pr-8 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-            >
-              <option>전체</option>
-              <option>Reading</option>
-              <option>Listening</option>
-              <option>Speaking</option>
-              <option>Writing</option>
-            </select>
-            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-          </div>
-          <div className="flex-1 flex items-center border border-gray-300 rounded-lg overflow-hidden">
-            <input
-              type="text"
-              placeholder="Subject 검색어를 입력해 주세요."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1 px-4 py-2.5 text-sm text-gray-700 placeholder-gray-400 focus:outline-none"
-            />
-            <button className="px-5 py-2.5 text-sm text-gray-600 hover:text-gray-900 border-l border-gray-300 font-medium transition-colors">
-              검색
-            </button>
-          </div>
-        </div>
-
-        {/* Table header */}
-        <div className="border border-gray-200 rounded-lg">
-          <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200 rounded-t-lg">
-            <span className="text-sm font-medium text-gray-700">제목</span>
-            <span className="text-sm font-medium text-gray-700">자료관리</span>
-          </div>
-
-          {/* Empty state */}
-          <div className="flex items-center justify-center py-16 text-gray-400 text-sm">
-            등록된 콘텐츠가 없습니다.
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );

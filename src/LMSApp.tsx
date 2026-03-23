@@ -18,9 +18,10 @@ export interface User {
 
 interface LMSAppProps {
   initialSelectedMenu?: string;
+  onExitClick?: () => void;
 }
 
-export default function LMSApp({ initialSelectedMenu = "dashboard" }: LMSAppProps) {
+export default function LMSApp({ initialSelectedMenu = "dashboard", onExitClick }: LMSAppProps) {
   const [selectedMenu, setSelectedMenu] = useState(initialSelectedMenu);
   const [selectedSubject, setSelectedSubject] = useState("국어");
 
@@ -31,7 +32,7 @@ export default function LMSApp({ initialSelectedMenu = "dashboard" }: LMSAppProp
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <LMSHeader />
+      <LMSHeader onExitClick={onExitClick} />
       
       <div className="flex-1 flex">
         <LMSSidebar 

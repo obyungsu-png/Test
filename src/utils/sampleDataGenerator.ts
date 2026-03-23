@@ -151,7 +151,7 @@ function generateSampleContent(subject: string, level: string, contentType: stri
 
 🎯 샘플 콘텐츠
 
-이 파일은 N Study Hub LMS 시스템의 샘플 자료입니다.
+이 파일은 All My Exam LMS 시스템의 샘플 자료입니다.
 실제 사용을 위해서는 직접 콘텐츠를 업로드하거나
 시험지 작성 도구를 활용하여 새로운 자료를 생성하세요.
 
@@ -190,7 +190,7 @@ function generateSampleContent(subject: string, level: string, contentType: stri
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🌟 N Study Hub - 학습을 더 스마트하게!
+🌟 All My Exam - 학습을 더 스마트하게!
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 `;

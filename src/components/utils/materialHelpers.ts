@@ -105,7 +105,7 @@ export const getFilteredMaterials = async (
     
     // Filter by content type (tab)
     const filteredUploads = uploadedMaterials.filter(upload => {
-      return upload.contentType === originalTabName || originalTabName === "전체보기" || originalTabName === "국어" || originalTabName === "Subject";
+      return upload.contentType === originalTabName || originalTabName === "교과서 뽀개기" || originalTabName === "전체보기" || originalTabName === "국어" || originalTabName === "Subject";
     });
 
     // Convert uploaded materials to display format

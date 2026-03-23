@@ -6,7 +6,9 @@ import { motion, AnimatePresence } from "motion/react";
 import { getVocaWords, VocaWord, getMaxDay, getDayNames } from "./VocaManagement";
 import { Input } from "./ui/input";
 import { WordTest } from "./WordTest";
-import { downloadHackersVocaPDF, downloadHackersVocaWord, downloadHackersVocaHWP } from "../utils/downloadHelpers";
+import { FlashCard } from "./FlashCard";
+import { VocabStudy } from "./VocabStudy";
+import { downloadHackersVocaPDF, downloadHackersVocaWord } from "../utils/downloadHelpers";
 
 interface DaySelection {
   [key: number]: boolean;
@@ -39,13 +41,28 @@ export function VocaPage() {
   
   // 테스트 관련 state
   const [showTestMode, setShowTestMode] = useState(false);
+  const [showFlashCardMode, setShowFlashCardMode] = useState(false);
+  const [showVocabStudyMode, setShowVocabStudyMode] = useState(false);
   const [testType, setTestType] = useState<'multiple' | 'subjective' | 'mixed'>('multiple');
-  const [showTestDialog, setShowTestDialog] = useState(false);
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [testAnswers, setTestAnswers] = useState<{[key: number]: string}>({});
   const [showTestResult, setShowTestResult] = useState<{[key: number]: boolean}>({});
   const [subjectiveAnswer, setSubjectiveAnswer] = useState('');
   const [incorrectQuestions, setIncorrectQuestions] = useState<number[]>([]);
+  
+  // showTestMode가 변경될 때 이벤트 발생 (모바일 footer 숨김 제어)
+  useEffect(() => {
+    if (showTestMode) {
+      window.dispatchEvent(new Event('vocaTestStart'));
+    } else {
+      window.dispatchEvent(new Event('vocaTestEnd'));
+    }
+  }, [showTestMode]);
+  
+  // 시험 유형 선택 모달 상태
+  const [showQuizTypeModal, setShowQuizTypeModal] = useState(false);
+  const [selectedQuizType, setSelectedQuizType] = useState<'multiple' | 'subjective' | 'mixed'>('multiple');
+  const [multipleChoiceFormat, setMultipleChoiceFormat] = useState<'engToKor' | 'korToEng' | 'defToEng'>('engToKor');
 
   const exams = ["TOEFL", "SAT", "IELTS", "ACT", "TOEIC"];
   
@@ -211,46 +228,36 @@ export function VocaPage() {
     setShowStep2Modal(true);
   };
 
+  // 선택된 Day 범위 텍스트
+  const getSelectedDayRange = (): string => {
+    const selectedDayNums = Object.keys(daySelections).filter(k => daySelections[Number(k)]).map(Number).sort((a, b) => a - b);
+    if (selectedDayNums.length === 0) return '전체';
+    if (selectedDayNums.length === 1) return `Day ${selectedDayNums[0]}`;
+    return `Day ${selectedDayNums[0]}~${selectedDayNums[selectedDayNums.length - 1]}`;
+  };
+
   // 다운로드 함수들
   const handleDownloadPDF = () => {
     const selectedWords = getAvailableWords().filter(w => wordSelections[w.id]);
-    
-    // PDF 생성 시뮬레이션 (실제 PDF 라이브러리 필요)
-    const content = `단어 시험지\n\n교재: ${selectedExam}\n총 문제수: ${getTotalQuestions()}개\n\n영어→한글 뜻 쓰기 (표제어 ${engToKorHeadwordCount}, 동의어 ${engToKorSynonymCount})\n한글 뜻→영어 쓰기 (표제어 ${korToEngHeadwordCount}, 동의어 ${korToEngSynonymCount})\n\n\n출제 단어:\n${selectedWords.map((word, i) => `${i + 1}. ${word.english} - ${word.korean}`).join('\n')}`;
-    
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `단어시험지_${selectedExam}_${new Date().toISOString().split('T')[0]}.txt`;
-    link.click();
-    toast.success("PDF 파일로 다운로드되었습니다!");
+    if (selectedWords.length === 0) {
+      toast.error("다운로드할 단어를 선택해주세요.");
+      return;
+    }
+    downloadHackersVocaPDF(selectedWords, selectedExam, getSelectedDayRange());
+    toast.success("PDF 인쇄 창이 열렸습니다! 'PDF로 저장'을 선택하세요.");
   };
 
   const handleDownloadWord = () => {
     const selectedWords = getAvailableWords().filter(w => wordSelections[w.id]);
-    
-    const content = `단어 시험지\n\n교재: ${selectedExam}\n출제일: ${new Date().toLocaleDateString('ko-KR')}\n총 문제수: ${getTotalQuestions()}개\n\n[영어→한글 뜻 쓰기]\n표제어: ${engToKorHeadwordCount}문제\n동의어: ${engToKorSynonymCount}문제\n\n[한글 뜻→영어 쓰기]\n표제어: ${korToEngHeadwordCount}문제\n동의어: ${korToEngSynonymCount}문제\n\n\n=== 시험 문제 ===\n\n${selectedWords.map((word, i) => `${i + 1}. ${word.english}\n   답: _____________________\n`).join('\n')}\n\n\n=== ���답 ===\n\n${selectedWords.map((word, i) => `${i + 1}. ${word.korean} (유의어: ${word.synonyms || '없음'})`).join('\n')}`;
-    
-    const blob = new Blob([content], { type: 'application/msword;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `단어시험지_${selectedExam}_${new Date().toISOString().split('T')[0]}.doc`;
-    link.click();
+    if (selectedWords.length === 0) {
+      toast.error("다운로드할 단어를 선택해주세요.");
+      return;
+    }
+    downloadHackersVocaWord(selectedWords, selectedExam, getSelectedDayRange());
     toast.success("워드 파일로 다운로드되었습니다!");
   };
 
-  const handleDownloadHWP = () => {
-    const selectedWords = getAvailableWords().filter(w => wordSelections[w.id]);
-    
-    const content = `단어 시험지\n\n교재: ${selectedExam}\n출제일: ${new Date().toLocaleDateString('ko-KR')}\n총 문제수: ${getTotalQuestions()}개\n\n━━━━━━━━━━━━━━━━━━━━━━\n\n[영어→한글 뜻 쓰기]\n표제어: ${engToKorHeadwordCount}문제 | 동의어: ${engToKorSynonymCount}문제\n\n[한글 뜻→영어 쓰]\n표제어: ${korToEngHeadwordCount}문제 | 동의어: ${korToEngSynonymCount}문제\n\n━━━━━━━━━━━━━━━━━━━━━━\n\n\n【 시험 문제 】\n\n${selectedWords.map((word, i) => `${i + 1}. ${word.english}\n\n   뜻: _________________________________\n`).join('\n')}\n\n\n━━━━━━━━━━━━━━━━━━━━━━\n\n\n【 정답 및 해설 】\n\n${selectedWords.map((word, i) => `${i + 1}. ${word.english}\n   정답: ${word.korean}\n   유의어: ${word.synonyms || '없음'}\n`).join('\n')}`;
-    
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `단어시험지_${selectedExam}_${new Date().toISOString().split('T')[0]}.hwp.txt`;
-    link.click();
-    toast.success("한글 파일로 다운로드되었습니다!");
-  };
+
 
   // 테스트 관련 핸들러 함수들
   const handleStartTest = (type: 'multiple' | 'subjective' | 'mixed') => {
@@ -325,39 +332,7 @@ export function VocaPage() {
         return prev;
       });
     }
-    
-    // Play sound - 정답/오답 모두 사운드 재생
-    try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-      
-      if (answer === correctAnswer) {
-        // 정답: 밝은 2음 (C5 -> E5)
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
-        oscillator.frequency.setValueAtTime(659.25, audioContext.currentTime + 0.1); // E5
-        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-        
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.3);
-      } else {
-        // 오답: 낮은 단음
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
-        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
-        
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.4);
-      }
-    } catch (error) {
-      console.log('Audio playback failed:', error);
-    }
+    // Sound is handled by WordTest component's showFeedback
   };
 
   const handleRetryQuestion = (questionIndex: number) => {
@@ -902,76 +877,79 @@ export function VocaPage() {
               className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden"
             >
               {/* 헤더 */}
-              <div className="bg-gradient-to-r from-teal-500 to-cyan-500 p-6 text-white">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold">
-                    단어 시험 출제하기 (단어 시험지 · 답안지 제작)
-                  </h2>
+              <div className="bg-gradient-to-r from-teal-500 to-cyan-500 px-4 py-3 sm:p-6 text-white">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 className="text-base sm:text-2xl font-bold leading-tight">단어 시험 출제하기</h2>
+                    <p className="text-[11px] sm:text-sm text-white/80 mt-0.5">(단어 시험지 · 답안지 제작)</p>
+                  </div>
                   <button
                     onClick={() => setShowStep1Modal(false)}
-                    className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                    className="p-1.5 sm:p-2 hover:bg-white/20 rounded-lg transition-colors flex-shrink-0"
                   >
-                    <X className="w-6 h-6" />
+                    <X className="w-5 h-5 sm:w-6 sm:h-6" />
                   </button>
                 </div>
               </div>
 
               {/* 컨텐츠 */}
-              <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
-                <div className="mb-6">
-                  <h3 className="text-xl font-semibold text-teal-600 mb-4">
+              <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(90vh-120px)] sm:max-h-[calc(90vh-180px)]">
+                <div className="mb-4 sm:mb-6">
+                  <h3 className="text-base sm:text-xl font-semibold text-teal-600 mb-3 sm:mb-4">
                     Step 1. 출제 단어 확인 및 선택
                   </h3>
                   
                   {/* 탭 */}
-                  <div className="flex gap-2 mb-4">
-                    <button
-                      onClick={() => setActiveTab("engToKor")}
-                      className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                        activeTab === "engToKor"
-                          ? "bg-teal-500 text-white"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}
-                    >
-                      영어→한글
-                    </button>
-                    <button
-                      onClick={() => setActiveTab("korToEng")}
-                      className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                        activeTab === "korToEng"
-                          ? "bg-blue-500 text-white"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}
-                    >
-                      한글→영어
-                    </button>
-                    {selectedExam === "SAT" && (
+                  <div className="space-y-2 sm:space-y-0 sm:flex sm:gap-2 mb-4">
+                    <div className="flex gap-1.5 sm:gap-2 flex-wrap">
                       <button
-                        onClick={() => setActiveTab("defToEng")}
-                        className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                          activeTab === "defToEng"
-                            ? "bg-purple-500 text-white"
+                        onClick={() => setActiveTab("engToKor")}
+                        className={`px-3 sm:px-6 py-1.5 sm:py-2 rounded-lg text-xs sm:text-base font-medium transition-colors ${
+                          activeTab === "engToKor"
+                            ? "bg-teal-500 text-white"
                             : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                         }`}
                       >
-                        영영 풀이→영어
+                        영어→한글
                       </button>
-                    )}
-                    <div className="flex-1" />
-                    <div className="text-sm text-gray-600 flex items-center gap-2">
-                      <span>영단어 첫 글자 보이기</span>
-                      <button className="px-4 py-2 rounded-lg bg-green-100 text-green-700 font-medium">ON</button>
-                      <button className="px-4 py-2 rounded-lg bg-gray-200 text-gray-600">OFF</button>
+                      <button
+                        onClick={() => setActiveTab("korToEng")}
+                        className={`px-3 sm:px-6 py-1.5 sm:py-2 rounded-lg text-xs sm:text-base font-medium transition-colors ${
+                          activeTab === "korToEng"
+                            ? "bg-blue-500 text-white"
+                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        }`}
+                      >
+                        한글→영어
+                      </button>
+                      {selectedExam === "SAT" && (
+                        <button
+                          onClick={() => setActiveTab("defToEng")}
+                          className={`px-3 sm:px-6 py-1.5 sm:py-2 rounded-lg text-xs sm:text-base font-medium transition-colors ${
+                            activeTab === "defToEng"
+                              ? "bg-purple-500 text-white"
+                              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                          }`}
+                        >
+                          영영풀이→영어
+                        </button>
+                      )}
+                    </div>
+                    <div className="hidden sm:block flex-1" />
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <span className="text-[11px] sm:text-sm text-gray-600 whitespace-nowrap">영단어 첫 글자 보이기</span>
+                      <button className="px-2.5 sm:px-4 py-1 sm:py-2 rounded-lg bg-green-100 text-green-700 font-medium text-[11px] sm:text-sm">ON</button>
+                      <button className="px-2.5 sm:px-4 py-1 sm:py-2 rounded-lg bg-gray-200 text-gray-600 text-[11px] sm:text-sm">OFF</button>
                     </div>
                   </div>
                 </div>
 
                 {/* 단어 리스트 */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                   {/* 전체 리스트 */}
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="font-semibold text-gray-800">전체 리스트</h4>
+                  <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
+                    <div className="flex items-center justify-between mb-3 sm:mb-4">
+                      <h4 className="font-semibold text-gray-800 text-sm sm:text-base">전체 리스트</h4>
                       <button className="text-teal-600 text-sm flex items-center gap-1">
                         <span>정렬 초기화</span>
                       </button>
@@ -991,20 +969,20 @@ export function VocaPage() {
                           key={word.id}
                           className="bg-white p-3 rounded-lg border border-gray-200 hover:border-teal-300 transition-colors"
                         >
-                          <div className="grid grid-cols-12 gap-2 items-center text-sm">
-                            <div className="col-span-3 font-medium text-gray-800">
+                          <div className="flex items-center gap-2 text-xs sm:text-sm">
+                            <div className="w-16 sm:w-20 font-medium text-gray-800 flex-shrink-0 truncate">
                               {activeTab === "engToKor" ? word.english : activeTab === "korToEng" ? word.korean : word.definition || word.english}
                             </div>
-                            <div className="col-span-3 text-gray-600">
+                            <div className="w-14 sm:w-20 text-gray-600 flex-shrink-0 truncate">
                               {activeTab === "engToKor" ? word.korean : word.english}
                             </div>
-                            <div className="col-span-3 text-gray-500 text-xs">
+                            <div className="flex-1 text-gray-500 text-[10px] sm:text-xs truncate min-w-0">
                               {word.synonyms || "-"}
                             </div>
-                            <div className="col-span-2 text-gray-500 text-xs">
+                            <div className="text-gray-400 text-[10px] sm:text-xs flex-shrink-0 hidden xs:block">
                               표제어
                             </div>
-                            <div className="col-span-1 flex justify-end">
+                            <div className="flex-shrink-0">
                               <button
                                 onClick={() => {
                                   setWordSelections(prev => ({
@@ -1024,25 +1002,25 @@ export function VocaPage() {
                   </div>
 
                   {/* 출제 리스트 */}
-                  <div className="bg-teal-50 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="font-semibold text-gray-800">
+                  <div className="bg-teal-50 rounded-lg p-3 sm:p-4">
+                    <div className="flex items-center justify-between mb-3 sm:mb-4">
+                      <h4 className="font-semibold text-gray-800 text-sm sm:text-base">
                         출제 리스트 <span className="text-teal-600">총 {getSelectedWordsCount()}개</span>
                       </h4>
-                      <button className="text-teal-600 text-sm flex items-center gap-1">
+                      <button className="text-teal-600 text-xs sm:text-sm flex items-center gap-1">
                         <span>정렬 초기화</span>
                       </button>
                     </div>
-                    <div className="mb-4">
-                      <div className="flex gap-2">
-                        <button className="px-4 py-2 bg-white rounded-lg text-sm font-medium border border-gray-200">
-                          전체(총 {getSelectedWordsCount()}개)
+                    <div className="mb-3 sm:mb-4">
+                      <div className="flex gap-1.5 sm:gap-2 flex-wrap">
+                        <button className="px-2.5 sm:px-4 py-1.5 sm:py-2 bg-white rounded-lg text-xs sm:text-sm font-medium border border-gray-200">
+                          전체({getSelectedWordsCount()}개)
                         </button>
-                        <button className="px-4 py-2 bg-teal-500 text-white rounded-lg text-sm font-medium">
-                          한글 뜻 쓰기({engToKorHeadwordCount + engToKorSynonymCount}문제)
+                        <button className="px-2.5 sm:px-4 py-1.5 sm:py-2 bg-teal-500 text-white rounded-lg text-xs sm:text-sm font-medium">
+                          한글 뜻 쓰기({engToKorHeadwordCount + engToKorSynonymCount})
                         </button>
-                        <button className="px-4 py-2 bg-gray-200 text-gray-600 rounded-lg text-sm font-medium">
-                          영어 쓰기({korToEngHeadwordCount + korToEngSynonymCount}문제)
+                        <button className="px-2.5 sm:px-4 py-1.5 sm:py-2 bg-gray-200 text-gray-600 rounded-lg text-xs sm:text-sm font-medium">
+                          영어 쓰기({korToEngHeadwordCount + korToEngSynonymCount})
                         </button>
                       </div>
                     </div>
@@ -1052,17 +1030,17 @@ export function VocaPage() {
                           key={word.id}
                           className="bg-white p-3 rounded-lg border border-teal-200"
                         >
-                          <div className="grid grid-cols-12 gap-2 items-center text-sm">
-                            <div className="col-span-3 font-medium text-gray-800">
+                          <div className="flex items-center gap-2 text-xs sm:text-sm">
+                            <div className="w-16 sm:w-20 font-medium text-gray-800 flex-shrink-0 truncate">
                               {activeTab === "engToKor" ? word.english : word.korean}
                             </div>
-                            <div className="col-span-3 text-gray-600">
+                            <div className="w-14 sm:w-20 text-gray-600 flex-shrink-0 truncate">
                               {activeTab === "engToKor" ? word.korean : word.english}
                             </div>
-                            <div className="col-span-3 text-gray-500 text-xs">
+                            <div className="flex-1 text-gray-500 text-[10px] sm:text-xs truncate min-w-0">
                               {word.synonyms || "-"}
                             </div>
-                            <div className="col-span-2 text-gray-500 text-xs">
+                            <div className="text-gray-400 text-[10px] sm:text-xs flex-shrink-0 hidden xs:block">
                               표제어
                             </div>
                             <div className="col-span-1 flex justify-end">
@@ -1085,37 +1063,36 @@ export function VocaPage() {
                   </div>
                 </div>
 
+                {/* 출제하기 버튼 - 출제 리스트 바로 아래 */}
+                <div className="mt-4 sm:mt-6">
+                  <Button
+                    onClick={handleProceedToStep2}
+                    className="w-full bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white py-3 sm:py-4 text-base sm:text-lg font-semibold rounded-full"
+                  >
+                    출제하기
+                  </Button>
+                </div>
+
                 {/* 하단 옵션 */}
-                <div className="mt-6 flex items-center justify-between bg-gray-50 p-4 rounded-lg">
-                  <div className="flex gap-4">
-                    <label className="flex items-center gap-2">
-                      <input type="checkbox" className="w-4 h-4 text-teal-600" />
-                      <span className="text-sm">영어→한글 뜻 쓰기</span>
+                <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between bg-gray-50 p-3 sm:p-4 rounded-lg gap-3 pb-6">
+                  <div className="flex flex-wrap gap-x-4 gap-y-2">
+                    <label className="flex items-center gap-1.5 sm:gap-2">
+                      <input type="checkbox" className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-teal-600" />
+                      <span className="text-xs sm:text-sm">영어→한글 뜻 쓰기</span>
                     </label>
-                    <label className="flex items-center gap-2">
-                      <input type="checkbox" className="w-4 h-4 text-blue-600" />
-                      <span className="text-sm">한글 뜻→영어 쓰기</span>
+                    <label className="flex items-center gap-1.5 sm:gap-2">
+                      <input type="checkbox" className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600" />
+                      <span className="text-xs sm:text-sm">한글 뜻→영어 쓰기</span>
                     </label>
-                    <label className="flex items-center gap-2">
-                      <input type="checkbox" className="w-4 h-4 text-gray-600" />
-                      <span className="text-sm">선택안함</span>
+                    <label className="flex items-center gap-1.5 sm:gap-2">
+                      <input type="checkbox" className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-600" />
+                      <span className="text-xs sm:text-sm">선택안함</span>
                     </label>
                   </div>
-                  <p className="text-sm text-gray-600">
-                    * 출제 리스트에서 유형별 출제 단어 확인 후,
-                    오른쪽의 [출제하기] 버튼을 클릭하세요.
+                  <p className="text-[11px] sm:text-sm text-gray-500">
+                    * 출제 리스트에서 유형별 출제 단어 확인 후, [출제하기] 버튼을 클릭하세요.
                   </p>
                 </div>
-              </div>
-
-              {/* 푸터 */}
-              <div className="border-t border-gray-200 p-6 bg-gray-50">
-                <Button
-                  onClick={handleProceedToStep2}
-                  className="w-full bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white py-4 text-lg font-semibold rounded-full"
-                >
-                  출제하기
-                </Button>
               </div>
             </motion.div>
           </motion.div>
@@ -1140,58 +1117,69 @@ export function VocaPage() {
               className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden"
             >
               {/* 헤더 */}
-              <div className="bg-gradient-to-r from-teal-500 to-cyan-500 p-6 text-white">
+              <div className="bg-gradient-to-r from-teal-500 to-cyan-500 p-4 sm:p-6 text-white">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 sm:gap-4 min-w-0">
                     <button
                       onClick={() => {
                         setShowStep2Modal(false);
                         setShowStep1Modal(true);
                       }}
-                      className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                      className="p-1.5 sm:p-2 hover:bg-white/20 rounded-lg transition-colors flex-shrink-0"
                     >
-                      <ChevronLeft className="w-6 h-6" />
+                      <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
                     </button>
-                    <h2 className="text-2xl font-bold">Step 2. 저장 및 다운로드</h2>
+                    <h2 className="text-base sm:text-2xl font-bold truncate">Step 2. 저장 및 다운로드</h2>
                   </div>
                   <button
                     onClick={() => setShowStep2Modal(false)}
-                    className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                    className="p-1.5 sm:p-2 hover:bg-white/20 rounded-lg transition-colors flex-shrink-0"
                   >
-                    <X className="w-6 h-6" />
+                    <X className="w-5 h-5 sm:w-6 sm:h-6" />
                   </button>
                 </div>
               </div>
 
               {/* 컨텐츠 */}
-              <div className="p-8 overflow-y-auto max-h-[calc(90vh-200px)]">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="p-4 sm:p-8 overflow-y-auto max-h-[calc(90vh-80px)]">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
                   {/* 왼쪽: 출제 결과 */}
-                  <div className="bg-gray-50 rounded-lg p-6">
-                    <h3 className="font-semibold text-gray-800 mb-4">출제 결과</h3>
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-3 bg-white p-4 rounded-lg">
-                        <span className="text-sm text-gray-600">영어 →</span>
-                        <span className="px-3 py-1 bg-green-100 text-green-700 rounded text-sm font-medium">
+                  <div className="bg-gray-50 rounded-lg p-4 sm:p-6">
+                    <h3 className="font-semibold text-gray-800 mb-3 sm:mb-4 text-sm sm:text-base">출제 결과</h3>
+                    <div className="space-y-2 sm:space-y-3">
+                      <div className="flex items-center gap-2 sm:gap-3 bg-white p-3 sm:p-4 rounded-lg">
+                        <span className="text-xs sm:text-sm text-gray-600 flex-shrink-0">영어 →</span>
+                        <span className="px-2 sm:px-3 py-0.5 sm:py-1 bg-green-100 text-green-700 rounded text-xs sm:text-sm font-medium flex-shrink-0">
                           한글 뜻 쓰기
                         </span>
-                        <span className="text-xl font-bold text-gray-800 ml-auto">
+                        <span className="text-base sm:text-xl font-bold text-gray-800 ml-auto">
                           {engToKorHeadwordCount + engToKorSynonymCount}문제
                         </span>
                       </div>
-                      <div className="flex items-center gap-3 bg-white p-4 rounded-lg">
-                        <span className="text-sm text-gray-600">한글 뜻 →</span>
-                        <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm font-medium">
+                      <div className="flex items-center gap-2 sm:gap-3 bg-white p-3 sm:p-4 rounded-lg">
+                        <span className="text-xs sm:text-sm text-gray-600 flex-shrink-0">한글 뜻 →</span>
+                        <span className="px-2 sm:px-3 py-0.5 sm:py-1 bg-blue-100 text-blue-700 rounded text-xs sm:text-sm font-medium flex-shrink-0">
                           영어 쓰기
                         </span>
-                        <span className="text-xl font-bold text-gray-800 ml-auto">
+                        <span className="text-base sm:text-xl font-bold text-gray-800 ml-auto">
                           {korToEngHeadwordCount + korToEngSynonymCount}문제
                         </span>
                       </div>
-                      <div className="bg-teal-50 p-4 rounded-lg border-2 border-teal-200 mt-4">
+                      {selectedExam === "SAT" && (defToEngHeadwordCount + defToEngSynonymCount > 0) && (
+                        <div className="flex items-center gap-2 sm:gap-3 bg-white p-3 sm:p-4 rounded-lg">
+                          <span className="text-xs sm:text-sm text-gray-600 flex-shrink-0">영영 풀이 →</span>
+                          <span className="px-2 sm:px-3 py-0.5 sm:py-1 bg-purple-100 text-purple-700 rounded text-xs sm:text-sm font-medium flex-shrink-0">
+                            영어 쓰기
+                          </span>
+                          <span className="text-base sm:text-xl font-bold text-gray-800 ml-auto">
+                            {defToEngHeadwordCount + defToEngSynonymCount}문제
+                          </span>
+                        </div>
+                      )}
+                      <div className="bg-teal-50 p-3 sm:p-4 rounded-lg border-2 border-teal-200 mt-3 sm:mt-4">
                         <div className="text-center">
-                          <span className="text-sm text-gray-600">총 문항수</span>
-                          <div className="text-3xl font-bold text-teal-600 mt-2">
+                          <span className="text-xs sm:text-sm text-gray-600">총 문항수</span>
+                          <div className="text-2xl sm:text-3xl font-bold text-teal-600 mt-1 sm:mt-2">
                             {getTotalQuestions()} 문제
                           </div>
                         </div>
@@ -1200,57 +1188,27 @@ export function VocaPage() {
                   </div>
 
                   {/* 오른쪽: 테스트 정보 설정 */}
-                  <div className="space-y-4">
-                    <h3 className="font-semibold text-gray-800">테스트 정보 설정</h3>
-                    
+                  <div className="space-y-3 sm:space-y-4">
+                    <h3 className="font-semibold text-gray-800 text-sm sm:text-base">테스트 정보 설정</h3>
                     <div>
                       <label className="text-sm text-gray-600 mb-2 block">• 시험일자</label>
-                      <Input type="date" defaultValue="2025-11-16" />
+                      <Input type="date" defaultValue={new Date().toISOString().split('T')[0]} />
                     </div>
-
                     <div>
-                      <label className="flex items-center gap-2 mb-2">
-                        <input type="checkbox" className="w-4 h-4 text-teal-600" defaultChecked />
-                        <span className="text-sm text-gray-600">시험</span>
-                      </label>
-                    </div>
-
-                    <div>
-                      <label className="text-sm text-gray-600 mb-2 block">
-                        • 테스트명 (시험지 제목)
-                      </label>
+                      <label className="text-sm text-gray-600 mb-2 block">• 테스트명 (시험지 제목)</label>
                       <Input placeholder="테스트명 (시험지 제목)을 입력하세요." />
                     </div>
-
                     <div>
-                      <label className="text-sm text-gray-600 mb-2 block">
-                        • 학교/학원/클래스명
-                      </label>
+                      <label className="text-sm text-gray-600 mb-2 block">• 학교/학원/클래스명</label>
                       <Input placeholder="교실기관명을 입력하세요." />
                     </div>
-
                     <div>
                       <label className="text-sm text-gray-600 mb-2 block">
-                        • 학교/학원 로고
-                        <span className="text-xs text-gray-500 ml-2">*파일형식 jpg, png, gif (1MB 이하)</span>
+                        • 학교/학원 로고 <span className="text-xs text-gray-500 ml-2">*파일형식 jpg, png, gif (1MB 이하)</span>
                       </label>
                       <div className="flex gap-2">
                         <Input placeholder="파일명 파일 없음" disabled className="flex-1" />
                         <Button variant="outline">파일 선택</Button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-sm text-gray-600 mb-2 block">
-                        • 해커스북 로고 (시험지 하단 노출)
-                      </label>
-                      <div className="flex gap-4">
-                        <button className="px-4 py-2 bg-teal-500 text-white rounded-lg text-sm">
-                          ON
-                        </button>
-                        <button className="px-4 py-2 bg-gray-200 text-gray-600 rounded-lg text-sm">
-                          OFF
-                        </button>
                       </div>
                     </div>
                   </div>
@@ -1258,123 +1216,112 @@ export function VocaPage() {
 
                 {/* 다운로드 섹션 */}
                 <div className="mt-8 pt-8 border-t border-gray-200">
-                  <h3 className="text-xl font-semibold text-teal-600 mb-4 text-center">
-                    단어 시험지 · 답안지 다운로드
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <h3 className="text-xl font-semibold text-teal-600 mb-4 text-center">단어 시험지 · 답안지 다운로드</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Button className="bg-teal-500 hover:bg-teal-600 text-white py-6 text-lg rounded-full" onClick={handleDownloadPDF}>
-                      <Download className="w-5 h-5 mr-2" />
-                      PDF 파일로 다운로드
+                      <Download className="w-5 h-5 mr-2" />PDF 파일로 다운로드
                     </Button>
                     <Button className="bg-teal-500 hover:bg-teal-600 text-white py-6 text-lg rounded-full" onClick={handleDownloadWord}>
-                      <Download className="w-5 h-5 mr-2" />
-                      워드 파일로 다운로드
-                    </Button>
-                    <Button className="bg-teal-500 hover:bg-teal-600 text-white py-6 text-lg rounded-full" onClick={handleDownloadHWP}>
-                      <Download className="w-5 h-5 mr-2" />
-                      한글 파일로 다운로드
+                      <Download className="w-5 h-5 mr-2" />워드 파일로 다운로드
                     </Button>
                   </div>
                 </div>
 
-                {/* 테스트 섹션 */}
+                {/* 온라인 학습 섹션 */}
                 <div className="mt-8 pt-8 border-t border-gray-200">
-                  <h3 className="text-xl font-semibold text-gray-800 mb-4 text-center">
-                    온라인 테스트
-                  </h3>
-                  <div className="relative">
-                    <Button 
-                      className="w-full bg-gradient-to-r from-gray-800 to-gray-900 hover:from-black hover:to-gray-800 text-white py-6 text-lg rounded-full transition-all duration-300 hover:shadow-2xl hover:scale-105 hover:-translate-y-1"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        console.log('테스트 시작하기 버튼 클릭됨, 현재 showTestDialog:', showTestDialog);
+                  <h3 className="text-xl font-semibold text-gray-800 mb-4 text-center">온라인 학습</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div className="relative">
+                      <Button
+                        className="w-full bg-gradient-to-r from-gray-800 to-gray-900 hover:from-black hover:to-gray-800 text-white py-6 text-lg rounded-full transition-all duration-300 hover:shadow-xl hover:scale-105"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const selectedWords = getAvailableWords().filter(w => wordSelections[w.id]);
+                          if (selectedWords.length === 0) { toast.error("단어를 선택해주세요."); return; }
+                          setShowQuizTypeModal(true);
+                        }}
+                      >
+                        학습하기
+                      </Button>
+                    </div>
+                    <Button
+                      className="w-full bg-gradient-to-r from-indigo-500 to-indigo-700 hover:from-indigo-600 hover:to-indigo-800 text-white py-6 text-lg rounded-full transition-all duration-300 hover:shadow-xl hover:scale-105"
+                      onClick={() => {
                         const selectedWords = getAvailableWords().filter(w => wordSelections[w.id]);
-                        console.log('선택된 단어 개수:', selectedWords.length);
-                        setShowTestDialog(!showTestDialog);
+                        if (selectedWords.length === 0) { toast.error("단어를 선택해주세요."); return; }
+                        setShowFlashCardMode(true);
                       }}
                     >
-                      테스트 시작하기
+                      플래시 카드
                     </Button>
-                    
-                    {/* 테스트 옵션 다이얼로그 */}
-                    {showTestDialog && (
-                      <>
-                        <div 
-                          className="fixed inset-0 bg-black/20 z-[60]" 
-                          onClick={() => setShowTestDialog(false)}
-                        />
-                        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-2xl border border-gray-200 p-6 z-[70] min-w-max">
-                          <div className="text-center mb-4">
-                            <h3 className="text-lg font-semibold text-gray-800">테스트 유형을 선택하세요</h3>
-                          </div>
-                          <div className="flex gap-4">
-                            {/* 객관식 버튼 */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                console.log('객관식 버튼 클릭됨');
-                                handleStartTest('multiple');
-                                setShowTestDialog(false);
-                              }}
-                              className="group flex flex-col items-center gap-3 px-8 py-6 rounded-xl bg-white hover:bg-gray-50 transition-all duration-300 border-2 border-gray-200 hover:border-gray-900 hover:shadow-xl cursor-pointer"
-                            >
-                              <div className="w-16 h-16 rounded-full bg-gray-700 group-hover:bg-gray-900 transition-colors duration-300 flex items-center justify-center">
-                                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                              </div>
-                              <div className="text-center">
-                                <div className="font-bold text-gray-800 group-hover:text-gray-900 text-base transition-colors">객관식</div>
-                                <div className="text-xs text-gray-500 mt-1">4지선다</div>
-                              </div>
-                            </button>
-                            
-                            {/* 주관식 버튼 */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                console.log('주관식 버튼 클릭됨');
-                                handleStartTest('subjective');
-                                setShowTestDialog(false);
-                              }}
-                              className="group flex flex-col items-center gap-3 px-8 py-6 rounded-xl bg-white hover:bg-gray-50 transition-all duration-300 border-2 border-gray-200 hover:border-gray-900 hover:shadow-xl cursor-pointer"
-                            >
-                              <div className="w-16 h-16 rounded-full bg-gray-600 group-hover:bg-gray-800 transition-colors duration-300 flex items-center justify-center">
-                                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                </svg>
-                              </div>
-                              <div className="text-center">
-                                <div className="font-bold text-gray-800 group-hover:text-gray-900 text-base transition-colors">주관식</div>
-                                <div className="text-xs text-gray-500 mt-1">직접 입력</div>
-                              </div>
-                            </button>
-                            
-                            {/* 혼합 버튼 */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                console.log('혼합 버튼 클릭됨');
-                                handleStartTest('mixed');
-                                setShowTestDialog(false);
-                              }}
-                              className="group flex flex-col items-center gap-3 px-8 py-6 rounded-xl bg-white hover:bg-gray-50 transition-all duration-300 border-2 border-gray-200 hover:border-gray-900 hover:shadow-xl cursor-pointer"
-                            >
-                              <div className="w-16 h-16 rounded-full bg-gray-500 group-hover:bg-gray-700 transition-colors duration-300 flex items-center justify-center">
-                                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                                </svg>
-                              </div>
-                              <div className="text-center">
-                                <div className="font-bold text-gray-800 group-hover:text-gray-900 text-base transition-colors">혼합</div>
-                                <div className="text-xs text-gray-500 mt-1">객관식+주관식</div>
-                              </div>
-                            </button>
-                          </div>
-                        </div>
-                      </>
-                    )}
+                    <Button
+                      className="w-full bg-gradient-to-r from-teal-500 to-teal-700 hover:from-teal-600 hover:to-teal-800 text-white py-6 text-lg rounded-full transition-all duration-300 hover:shadow-xl hover:scale-105"
+                      onClick={() => {
+                        const selectedWords = getAvailableWords().filter(w => wordSelections[w.id]);
+                        if (selectedWords.length === 0) { toast.error("단어를 선택해주세요."); return; }
+                        setShowVocabStudyMode(true);
+                      }}
+                    >
+                      어휘 학습
+                    </Button>
                   </div>
+
+                  {/* 시험 유형 선택 모달 */}
+                  {showQuizTypeModal && (
+                    <>
+                      <div className="fixed inset-0 bg-black/40 z-[60]" onClick={() => setShowQuizTypeModal(false)} />
+                      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl shadow-2xl z-[70] w-full max-w-lg p-8">
+                        <h3 className="text-2xl font-bold text-[#1E3A8A] mb-6">시험 유형 선택</h3>
+                        <div className="space-y-3">
+                          {/* 객관식 */}
+                          <button
+                            onClick={() => { setSelectedQuizType('multiple'); }}
+                            className={`w-full text-left p-5 rounded-xl border-2 transition-all ${selectedQuizType === 'multiple' ? 'border-[#1E3A8A] bg-blue-50 shadow-md' : 'border-gray-200 hover:border-gray-300'}`}
+                          >
+                            <div className="font-bold text-gray-900 text-lg">객관식</div>
+                            <div className="text-sm text-gray-500 mb-3">4지선다 형식</div>
+                            {selectedQuizType === 'multiple' && (
+                              <div className="mt-2 pl-2 space-y-2">
+                                <div className="text-sm font-medium text-gray-700 mb-1">문제 형식:</div>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                  <input type="radio" name="mcFormatCert" checked={multipleChoiceFormat === 'engToKor'} onChange={() => setMultipleChoiceFormat('engToKor')} className="w-4 h-4 text-[#1E3A8A]" />
+                                  <span className="text-sm text-gray-700">영어 → 한글</span>
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                  <input type="radio" name="mcFormatCert" checked={multipleChoiceFormat === 'korToEng'} onChange={() => setMultipleChoiceFormat('korToEng')} className="w-4 h-4 text-[#1E3A8A]" />
+                                  <span className="text-sm text-gray-700">한글 → 영어</span>
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                  <input type="radio" name="mcFormatCert" checked={multipleChoiceFormat === 'defToEng'} onChange={() => setMultipleChoiceFormat('defToEng')} className="w-4 h-4 text-[#1E3A8A]" />
+                                  <span className="text-sm text-gray-700">영영풀이 → 영어</span>
+                                </label>
+                              </div>
+                            )}
+                          </button>
+                          {/* 주관식 */}
+                          <button
+                            onClick={() => setSelectedQuizType('subjective')}
+                            className={`w-full text-left p-5 rounded-xl border-2 transition-all ${selectedQuizType === 'subjective' ? 'border-[#1E3A8A] bg-blue-50 shadow-md' : 'border-gray-200 hover:border-gray-300'}`}
+                          >
+                            <div className="font-bold text-gray-900 text-lg">주관식</div>
+                            <div className="text-sm text-gray-500">직접 답을 입력</div>
+                          </button>
+                          {/* 혼합형 */}
+                          <button
+                            onClick={() => setSelectedQuizType('mixed')}
+                            className={`w-full text-left p-5 rounded-xl border-2 transition-all ${selectedQuizType === 'mixed' ? 'border-[#1E3A8A] bg-blue-50 shadow-md' : 'border-gray-200 hover:border-gray-300'}`}
+                          >
+                            <div className="font-bold text-gray-900 text-lg">혼합형</div>
+                            <div className="text-sm text-gray-500">객관식과 주관식 혼합</div>
+                          </button>
+                        </div>
+                        <div className="flex gap-3 mt-6">
+                          <button onClick={() => setShowQuizTypeModal(false)} className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-gray-700 font-medium hover:bg-gray-50 transition-colors">취소</button>
+                          <button onClick={() => { handleStartTest(selectedQuizType); setShowQuizTypeModal(false); }} className="flex-1 py-3 rounded-xl bg-[#1E3A8A] text-white font-medium hover:bg-[#1E3A8A]/90 transition-colors">시작하기</button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </motion.div>
@@ -1411,6 +1358,38 @@ export function VocaPage() {
             setIncorrectQuestions={setIncorrectQuestions}
             testType={testType}
             onBackToDownload={handleBackToDownload}
+            multipleChoiceFormat={multipleChoiceFormat}
+          />
+        </div>
+      )}
+
+      {/* 플래시 카드 모드 - Full Screen */}
+      {showFlashCardMode && (
+        <div className="fixed inset-0 bg-white z-50 overflow-y-auto">
+          <FlashCard
+            words={getAvailableWords().filter(w => wordSelections[w.id]).map(w => ({
+              word: w.english,
+              definition: w.korean,
+              engDefinition: w.definition,
+              context: w.synonyms
+            }))}
+            title={`${selectedExam} 플래시 카드`}
+            onClose={() => setShowFlashCardMode(false)}
+          />
+        </div>
+      )}
+
+      {/* 어휘 학습 모드 - Full Screen */}
+      {showVocabStudyMode && (
+        <div className="fixed inset-0 bg-white z-50 overflow-y-auto">
+          <VocabStudy
+            words={getAvailableWords().filter(w => wordSelections[w.id]).map(w => ({
+              word: w.english,
+              definition: w.korean,
+              context: w.synonyms
+            }))}
+            title={`${selectedExam} 어휘 학습`}
+            onClose={() => setShowVocabStudyMode(false)}
           />
         </div>
       )}

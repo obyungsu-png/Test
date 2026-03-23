@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { toast } from "sonner@2.0.3";
-import { Globe, Settings, Palette, Layout, ExternalLink, Save, RefreshCw } from "lucide-react";
+import { Globe, Settings, Palette, Layout, ExternalLink, Save, RefreshCw, MessageCircle, Send, Upload, Trash2, QrCode } from "lucide-react";
 
 interface SiteSettings {
   siteName: string;
@@ -33,7 +33,7 @@ export default function LMSSiteManagement() {
   });
 
   const [tabSettings, setTabSettings] = useState([
-    "전체보기", "단원별 학습", "3일의 기적", "모의고사", "콘텐츠소개"
+    "교과서 뽀개기", "단원별 학습", "모의고사", "직전 대비", "콘텐츠소개"
   ]);
 
   const [newTabName, setNewTabName] = useState("");
@@ -43,6 +43,11 @@ export default function LMSSiteManagement() {
     totalPageViews: 45123,
     bounceRate: 23.5
   });
+
+  // QR 코드 관리
+  const [qrImages, setQrImages] = useState<{ wechat: string; telegram: string }>({ wechat: '', telegram: '' });
+  const wechatFileRef = useRef<HTMLInputElement>(null);
+  const telegramFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     // Load site settings from localStorage
@@ -62,7 +67,40 @@ export default function LMSSiteManagement() {
     if (!contentTypes) {
       localStorage.setItem('contentTypes', JSON.stringify(tabSettings));
     }
+
+    // Load QR images
+    const savedQR = localStorage.getItem('contact_qr_images');
+    if (savedQR) {
+      setQrImages(JSON.parse(savedQR));
+    }
   }, []);
+
+  const handleQRUpload = (type: 'wechat' | 'telegram', e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 500 * 1024) {
+      toast.error('이미지 크기는 500KB 이하로 업로드해주세요');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const updated = { ...qrImages, [type]: reader.result as string };
+      setQrImages(updated);
+      localStorage.setItem('contact_qr_images', JSON.stringify(updated));
+      window.dispatchEvent(new Event('qrImagesUpdated'));
+      toast.success(`${type === 'wechat' ? 'WeChat' : 'Telegram'} QR 코드가 등록되었습니다`);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleQRDelete = (type: 'wechat' | 'telegram') => {
+    const updated = { ...qrImages, [type]: '' };
+    setQrImages(updated);
+    localStorage.setItem('contact_qr_images', JSON.stringify(updated));
+    window.dispatchEvent(new Event('qrImagesUpdated'));
+    toast.success(`${type === 'wechat' ? 'WeChat' : 'Telegram'} QR 코드가 삭제되었습니다`);
+  };
 
   const handleSaveSettings = () => {
     localStorage.setItem('site_settings', JSON.stringify(siteSettings));
@@ -120,7 +158,7 @@ export default function LMSSiteManagement() {
         allowRegistration: true
       };
       
-      const defaultTabs = ["전체보기", "단원별 학습", "3일의 기적", "모의고사", "콘텐츠소개"];
+      const defaultTabs = ["교과서 뽀개기", "단원별 학습", "모의고사", "직전 대비", "콘텐츠소개"];
       
       setSiteSettings(defaultSettings);
       setTabSettings(defaultTabs);
@@ -166,7 +204,7 @@ export default function LMSSiteManagement() {
         <Card>
           <CardContent className="p-4">
             <div className="text-2xl text-blue-600">{stats.totalVisitors.toLocaleString()}</div>
-            <p className="text-sm text-gray-600">총 방문자</p>
+            <p className="text-sm text-gray-600">총 방자</p>
           </CardContent>
         </Card>
         <Card>
@@ -399,6 +437,111 @@ export default function LMSSiteManagement() {
                 <li>• 변경사항은 서준01 사이트에 즉시 반영됩니다</li>
                 <li>• 최소 1개의 탭은 유지되어야 합니다</li>
                 <li>• 업로드된 자료의 콘텐츠 타입도 함께 업데이트됩니다</li>
+              </ul>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* QR 코드 관리 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span className="flex items-center">
+              <QrCode className="w-5 h-5 mr-2" />
+              QR 코드 관리
+            </span>
+            <span className="text-sm text-gray-500">실시간 동기화</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start">
+                <div className="bg-blue-100 rounded-full p-2 mr-3">
+                  <Globe className="w-4 h-4 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-sm text-blue-900 mb-1">서준01 사이트 연동</h3>
+                  <p className="text-xs text-blue-700">
+                    여기서 변경한 QR 코드들이 서준01 메인 사이트에 실시간으로 반영됩니다.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* WeChat QR */}
+              <div className="p-4 bg-gray-50 rounded-xl border space-y-3">
+                <div className="flex items-center gap-2">
+                  <MessageCircle className="w-4 h-4 text-green-600" />
+                  <span className="text-sm font-medium text-gray-800">WeChat (微信)</span>
+                  {qrImages.wechat && <span className="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full">등록됨</span>}
+                </div>
+                <input type="file" ref={wechatFileRef} onChange={(e) => handleQRUpload('wechat', e)} accept="image/*" className="hidden" />
+                {qrImages.wechat ? (
+                  <div className="relative w-36 h-36 mx-auto bg-white rounded-lg border overflow-hidden">
+                    <img src={qrImages.wechat} alt="WeChat QR" className="w-full h-full object-contain" />
+                  </div>
+                ) : (
+                  <div className="w-36 h-36 mx-auto bg-white rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
+                    <span className="text-xs text-gray-400">미등록</span>
+                  </div>
+                )}
+                <div className="flex gap-2 justify-center">
+                  <Button onClick={() => wechatFileRef.current?.click()} size="sm" variant="outline" className="text-green-600 border-green-300 hover:bg-green-50">
+                    <Upload className="w-3.5 h-3.5 mr-1" />
+                    {qrImages.wechat ? '변경' : '업로드'}
+                  </Button>
+                  {qrImages.wechat && (
+                    <Button onClick={() => handleQRDelete('wechat')} size="sm" variant="outline" className="text-red-500 border-red-200 hover:bg-red-50">
+                      <Trash2 className="w-3.5 h-3.5 mr-1" />
+                      삭제
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Telegram QR */}
+              <div className="p-4 bg-gray-50 rounded-xl border space-y-3">
+                <div className="flex items-center gap-2">
+                  <Send className="w-4 h-4 text-blue-500" />
+                  <span className="text-sm font-medium text-gray-800">Telegram</span>
+                  {qrImages.telegram && <span className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full">등록됨</span>}
+                </div>
+                <input type="file" ref={telegramFileRef} onChange={(e) => handleQRUpload('telegram', e)} accept="image/*" className="hidden" />
+                {qrImages.telegram ? (
+                  <div className="relative w-36 h-36 mx-auto bg-white rounded-lg border overflow-hidden">
+                    <img src={qrImages.telegram} alt="Telegram QR" className="w-full h-full object-contain" />
+                  </div>
+                ) : (
+                  <div className="w-36 h-36 mx-auto bg-white rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
+                    <span className="text-xs text-gray-400">미등록</span>
+                  </div>
+                )}
+                <div className="flex gap-2 justify-center">
+                  <Button onClick={() => telegramFileRef.current?.click()} size="sm" variant="outline" className="text-blue-500 border-blue-300 hover:bg-blue-50">
+                    <Upload className="w-3.5 h-3.5 mr-1" />
+                    {qrImages.telegram ? '변경' : '업로드'}
+                  </Button>
+                  {qrImages.telegram && (
+                    <Button onClick={() => handleQRDelete('telegram')} size="sm" variant="outline" className="text-red-500 border-red-200 hover:bg-red-50">
+                      <Trash2 className="w-3.5 h-3.5 mr-1" />
+                      삭제
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <p className="text-sm text-gray-600 mb-2">
+                <strong>사용법:</strong>
+              </p>
+              <ul className="text-xs text-gray-500 space-y-1">
+                <li>• QR 코드를 업로드하여 서준01 사이트에 반영할 수 있습니다</li>
+                <li>• 변경사항은 서준01 사이트에 즉시 반영됩니다</li>
+                <li>• 이미지 크기는 500KB 이하로 업로드해주세요</li>
               </ul>
             </div>
           </div>

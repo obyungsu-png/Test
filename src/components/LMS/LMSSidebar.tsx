@@ -9,7 +9,10 @@ import {
   Globe,
   Upload,
   Download,
-  Tags
+  Tags,
+  Smartphone,
+  GraduationCap,
+  Languages
 } from "lucide-react";
 
 interface LMSSidebarProps {
@@ -22,10 +25,12 @@ export default function LMSSidebar({ selectedMenu, onMenuSelect }: LMSSidebarPro
     { id: "dashboard", label: "대시보드", icon: LayoutDashboard },
     { id: "users", label: "회원 관리", icon: Users },
     { id: "content", label: "콘텐츠 관리", icon: BookOpen },
+    { id: "textbook-mastery", label: "뽀개기 관리", icon: GraduationCap },
+    { id: "voca", label: "Voca 관리", icon: Languages },
     { id: "categories", label: "카테고리 관리", icon: Tags },
     { id: "site-management", label: "사이트 관리", icon: Globe },
-    { id: "upload", label: "자료 업로드", icon: Upload },
     { id: "downloads", label: "다운로드 관리", icon: Download },
+    { id: "ads", label: "모바일 광고 관리", icon: Smartphone },
     { id: "reports", label: "리포트", icon: BarChart3 },
     { id: "schedule", label: "일정 관리", icon: Calendar },
     { id: "notices", label: "공지사항", icon: FileText },

@@ -2,6 +2,10 @@
 import * as lmsApi from '../../utils/lmsApi';
 import { generateSampleMaterials } from '../../utils/sampleDataGenerator';
 
+// In-flight promise deduplication — prevents concurrent calls from hammering the server
+let materialsInflight: Promise<UploadedMaterial[]> | null = null;
+let categoriesInflight: Promise<CategoryData[]> | null = null;
+
 export interface CategoryData {
   id: string;
   originalName: string;
@@ -37,13 +41,24 @@ export interface UploadedMaterial {
 
 // 카테고리 이름 관리 - Supabase 통합
 export const getCategoryCustomNames = async (): Promise<CategoryData[]> => {
-  try {
-    return await lmsApi.fetchCategories();
-  } catch (error) {
-    console.error('Failed to fetch categories from server, using localStorage fallback:', error);
-    const stored = localStorage.getItem('categoryCustomNames');
-    return stored ? JSON.parse(stored) : [];
+  if (categoriesInflight) {
+    return categoriesInflight;
   }
+  
+  categoriesInflight = new Promise(async (resolve, reject) => {
+    try {
+      const categories = await lmsApi.fetchCategories();
+      resolve(categories);
+    } catch (error) {
+      console.error('Failed to fetch categories from server, using localStorage fallback:', error);
+      const stored = localStorage.getItem('categoryCustomNames');
+      resolve(stored ? JSON.parse(stored) : []);
+    } finally {
+      categoriesInflight = null;
+    }
+  });
+  
+  return categoriesInflight;
 };
 
 export const setCategoryCustomName = async (
@@ -97,39 +112,49 @@ export const getCategoryCustomName = async (
 
 // 업로드된 자료 관리 - Supabase 통합
 export const getUploadedMaterials = async (): Promise<UploadedMaterial[]> => {
-  try {
-    const serverMaterials = await lmsApi.fetchMaterials();
-    
-    // 서버에 데이터가 없으면 샘플 데이터 자동 생성
-    if (serverMaterials.length === 0) {
-      console.log('📦 No materials found on server, generating sample data...');
-      const sampleMaterials = generateSampleMaterials();
-      await lmsApi.saveMaterials(sampleMaterials);
-      console.log(`✅ Generated and saved ${sampleMaterials.length} sample materials`);
+  if (materialsInflight) {
+    return materialsInflight;
+  }
+  
+  materialsInflight = new Promise(async (resolve, reject) => {
+    try {
+      const serverMaterials = await lmsApi.fetchMaterials();
+      
+      // 서버에 데이터가 없으면 샘플 데이터 자동 생성
+      if (serverMaterials.length === 0) {
+        console.log('📦 No materials found on server, generating sample data...');
+        const sampleMaterials = generateSampleMaterials();
+        await lmsApi.saveMaterials(sampleMaterials);
+        console.log(`✅ Generated and saved ${sampleMaterials.length} sample materials`);
+        
+        // 로컬에도 백업 저장
+        localStorage.setItem('uploads', JSON.stringify(sampleMaterials));
+        
+        return resolve(sampleMaterials);
+      }
       
       // 로컬에도 백업 저장
-      localStorage.setItem('uploads', JSON.stringify(sampleMaterials));
+      localStorage.setItem('uploads', JSON.stringify(serverMaterials));
       
-      return sampleMaterials;
+      resolve(serverMaterials);
+    } catch (error) {
+      console.warn('[DataManager] Server fetch failed, using localStorage fallback:', (error as Error)?.message || error);
+      const stored = localStorage.getItem('uploads');
+      
+      // localStorage도 비어있으면 샘플 생성
+      if (!stored || JSON.parse(stored).length === 0) {
+        const sampleMaterials = generateSampleMaterials();
+        localStorage.setItem('uploads', JSON.stringify(sampleMaterials));
+        return resolve(sampleMaterials);
+      }
+      
+      resolve(stored ? JSON.parse(stored) : []);
+    } finally {
+      materialsInflight = null;
     }
-    
-    // 로컬에도 백업 저장
-    localStorage.setItem('uploads', JSON.stringify(serverMaterials));
-    
-    return serverMaterials;
-  } catch (error) {
-    console.error('Failed to fetch materials from server, using localStorage fallback:', error);
-    const stored = localStorage.getItem('uploads');
-    
-    // localStorage도 비어있으면 샘플 생성
-    if (!stored || JSON.parse(stored).length === 0) {
-      const sampleMaterials = generateSampleMaterials();
-      localStorage.setItem('uploads', JSON.stringify(sampleMaterials));
-      return sampleMaterials;
-    }
-    
-    return stored ? JSON.parse(stored) : [];
-  }
+  });
+  
+  return materialsInflight;
 };
 
 export const addUploadedMaterial = async (material: UploadedMaterial) => {
@@ -196,22 +221,27 @@ export const deleteUploadedMaterial = async (id: string) => {
 export const getSubjectStructure = (schoolType: 'korean' | 'international' | 'certification') => {
   const koreanSubjects = {
     "국어": {
+      "초등국어": ["초등국어1-1", "초등국어1-2", "초등국어2-1", "초등국어2-2", "초등국어3-1", "초등국어3-2", "초등국어4-1", "초등국어4-2", "초등국어5-1", "초등국어5-2", "초등국어6-1", "초등국어6-2"],
       "중등국어": ["중등국어1-1(개정)", "중등국어1-2(개정)", "중등국어2-1", "중등국어2-2", "중등국어3-1", "중등국어3-2"],
       "고등국어": ["공통국어1(개정)", "공통국어2(개정)", "문학(출판사별)", "언어와매체", "문학(작품별감상)"]
     },
     "영어": {
+      "초등영어": ["초등영어1-1", "초등영어1-2", "초등영어2-1", "초등영어2-2", "초등영어3-1", "초등영어3-2", "초등영어4-1", "초등영어4-2", "초등영어5-1", "초등영어5-2", "초등영어6-1", "초등영어6-2"],
       "중등영어": ["중등영어1-1", "중등영어1-2", "중등영어2-1", "중등영어2-2", "중등영어3-1", "중등영어3-2"],
-      "고등영어": ["영어I", "영어II", "영어회화", "영어독해와작문", "실용영어"]
+      "고등영어": ["고등영어1-1", "고등영어1-2", "고등영어2-1", "고등영어2-2", "고등영어3-1", "고등영어3-2"]
     },
     "수학": {
+      "초등수학": ["초등수학1-1", "초등수학1-2", "초등수학2-1", "초등수학2-2", "초등수학3-1", "초등수학3-2", "초등수학4-1", "초등수학4-2", "초등수학5-1", "초등수학5-2", "초등수학6-1", "초등수학6-2"],
       "중등수학": ["중등수학1-1", "중등수학1-2", "중등수학2-1", "중등수학2-2", "중등수학3-1", "중등수학3-2"],
       "고등수학": ["수학", "수학I", "수학II", "미적분", "확률과통계", "기하"]
     },
     "과학": {
+      "초등과학": ["초등과학1-1", "초등과학1-2", "초등과학2-1", "초등과학2-2", "초등과학3-1", "초등과학3-2", "초등과학4-1", "초등과학4-2", "초등과학5-1", "초등과학5-2", "초등과학6-1", "초등과학6-2"],
       "중등과학": ["중등과학1", "중등과학2", "중등과학3", "통합과학"],
       "고등과학": ["물리학I", "물리학II", "화학I", "화학II", "생명과학I", "생명과학II", "지구과학I", "지구과학II"]
     },
     "사회": {
+      "초등사회": ["초등사회1-1", "초등사회1-2", "초등사회2-1", "초등사회2-2", "초등사회3-1", "초등사회3-2", "초등사회4-1", "초등사회4-2", "초등사회5-1", "초등사회5-2", "초등사회6-1", "초등사회6-2"],
       "중등사회": ["중등사회1", "중등사회2", "중등역사1", "중등역사2"],
       "고등사회": ["한국지리", "세계지리", "한국사", "세계사", "정치와법", "경제", "사회문화"]
     },

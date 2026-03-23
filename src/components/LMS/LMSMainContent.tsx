@@ -4,12 +4,14 @@ import LMSUserManagement from "./LMSUserManagement";
 import LMSContentManagement from "./LMSContentManagement";
 import LMSCategoryManagement from "./LMSCategoryManagement";
 import LMSSiteManagement from "./LMSSiteManagement";
-import LMSUpload from "./LMSUpload";
 import LMSDownloadManagement from "./LMSDownloadManagement";
 import LMSReports from "./LMSReports";
 import LMSSchedule from "./LMSSchedule";
 import LMSNotices from "./LMSNotices";
 import LMSSettings from "./LMSSettings";
+import LMSAdManagement from "./LMSAdManagement";
+import LMSTextbookMastery from "./LMSTextbookMastery";
+import { VocaManagement } from "../VocaManagement";
 
 interface LMSMainContentProps {
   selectedMenu: string;
@@ -32,17 +34,18 @@ export default function LMSMainContent({
         return <LMSUserManagement />;
       case "content":
         return <LMSContentManagement selectedSubject={selectedSubject} onSubjectSelect={onSubjectSelect} />;
+      case "textbook-mastery":
+        return <LMSTextbookMastery />;
+      case "voca":
+        return <VocaManagement />;
       case "categories":
         return <LMSCategoryManagement />;
       case "site-management":
         return <LMSSiteManagement />;
-      case "upload":
-        return <LMSUpload 
-          selectedSubject={selectedSubject} 
-          onNavigateToContent={() => onMenuSelect?.('content')}
-        />;
       case "downloads":
         return <LMSDownloadManagement />;
+      case "ads":
+        return <LMSAdManagement />;
       case "reports":
         return <LMSReports />;
       case "schedule":
