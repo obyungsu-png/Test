@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { FileText, BookOpen, GraduationCap, Search, Trash2, X, ChevronLeft, Download, Languages, Layers, Baby, Plus, Save, RotateCcw, Settings, GripVertical, Filter, Lock, Edit2 } from "lucide-react";
+import { FileText, BookOpen, GraduationCap, Search, Trash2, X, ChevronLeft, Download, Languages, Layers, Baby, Plus, Save, RotateCcw, Settings, GripVertical, Filter, Lock, Edit2, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner@2.0.3";
 import { getVocaWords, VocaWord, getMaxDay, getDayNames, saveDayNames } from "./VocaManagement";
@@ -8,6 +8,8 @@ import { WordTest } from "./WordTest";
 import { FlashCard } from "./FlashCard";
 import { VocabStudy } from "./VocabStudy";
 import { downloadHackersVocaPDF, downloadHackersVocaWord } from "../utils/downloadHelpers";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/tabs";
+import { useIsMobile } from "./ui/use-mobile";
 
 // 한국학교 전용 교재 목록 (접두사 "KR-"로 인증시험 데이터와 분리)
 const KOREAN_EXAM_PREFIX = "KR-";
@@ -238,10 +240,18 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
   // 한국학교 단어만 필터 (KR- 접두사)
   const koreanWords = allWords.filter(w => w.exam.startsWith(KOREAN_EXAM_PREFIX));
 
-  // 학년-학기 모드 상태
-  // 사이드바에서 학년-학기가 이미 선택되었으면 DAY 모드로 표시
-  const isGSMode = !hasSidebarGradeSemester && isGradeSemesterExam(selectedMainExam);
-  const gsOptions = isGSMode ? getGradeSemesterOptions(selectedMainExam) : [];
+  // 학년-학기 모드 상태 (모바일 대응)
+  const isMobile = useIsMobile();
+  const [internalGrade, setInternalGrade] = useState<number | null>(null);
+  const [internalSemester, setInternalSemester] = useState<number | null>(null);
+
+  const effectiveGrade = sidebarGrade || internalGrade;
+  const effectiveSemester = sidebarSemester || internalSemester;
+  const hasEffectiveGS = effectiveGrade !== null && effectiveSemester !== null;
+
+  // 사이드바나 내부 선택을 통해 학년-학기가 결정되지 않았으면 GS 선택 모드
+  const isGSMode = !hasEffectiveGS && isGradeSemesterExam(selectedMainExam);
+  const gsOptions = isGradeSemesterExam(selectedMainExam) ? getGradeSemesterOptions(selectedMainExam) : [];
 
   // DAY 관리 상태
   const [showAddDayModal, setShowAddDayModal] = useState(false);
@@ -249,7 +259,7 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
   const [dayNameInput, setDayNameInput] = useState("");
   
   // 커스텀 최대 DAY 수 (localStorage에 저장)
-  const customMaxDayKey = `customMaxDay_${selectedMainExam}_${sidebarGrade ?? ''}_${sidebarSemester ?? ''}`;
+  const customMaxDayKey = `customMaxDay_${selectedMainExam}_${effectiveGrade ?? ''}_${effectiveSemester ?? ''}`;
   const [customMaxDays, setCustomMaxDays] = useState<{ [key: string]: number }>(() => {
     try {
       const raw = localStorage.getItem('koreanVoca_customMaxDays');
@@ -257,13 +267,13 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
     } catch { return {}; }
   });
 
-  // 사이드바에서 학년-학기가 결정된 경우: 해당 학년-학기에 속하는 단어들의 DAY를 기준으로 표시
-  const wordsForCurrentGS = hasSidebarGradeSemester 
+  // 선택된 학년-학기에 속하는 단어들의 DAY를 기준으로 표시
+  const wordsForCurrentGS = hasEffectiveGS 
     ? koreanWords.filter(w => {
         if (w.exam !== selectedMainExam) return false;
         if (selectedTextbook && w.textbook && w.textbook !== selectedTextbook) return false;
         if (w.grade !== undefined && w.semester !== undefined) {
-          return w.grade === sidebarGrade && w.semester === sidebarSemester;
+          return w.grade === effectiveGrade && w.semester === effectiveSemester;
         }
         return false;
       })
@@ -273,7 +283,7 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
   const maxDay = selectedMainExam 
     ? (isGSMode 
         ? gsOptions.length 
-        : (hasSidebarGradeSemester 
+        : (hasEffectiveGS 
             ? Math.max(customDayCount, ...wordsForCurrentGS.map(w => w.day || 0))
             : Math.max(customDayCount, getMaxDay(koreanWords.filter(w => w.exam === selectedMainExam) as any[], selectedMainExam))))
     : 30;
@@ -319,6 +329,8 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
     setSelectedTextbook("");
     setDaySelections({});
     setSelectAll(false);
+    setInternalGrade(null);
+    setInternalSemester(null);
     setEngToKorHeadwordCount(0);
     setEngToKorSynonymCount(0);
     setKorToEngHeadwordCount(0);
@@ -350,10 +362,10 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
       if (word.exam !== selectedMainExam) return false;
       if (selectedTextbook && word.textbook && word.textbook !== selectedTextbook) return false;
       
-      if (hasSidebarGradeSemester) {
-        // 사이드바에서 학년-학기가 이미 결정됨 → grade+semester로 1차 필터, day로 2차 필터
+      if (hasEffectiveGS) {
+        // 학년-학기가 결정됨 (사이드바 또는 내부 선택)
         if (word.grade !== undefined && word.semester !== undefined) {
-          if (word.grade !== sidebarGrade || word.semester !== sidebarSemester) return false;
+          if (word.grade !== effectiveGrade || word.semester !== effectiveSemester) return false;
         } else {
           return false; // grade/semester 정보 없는 단어는 제외
         }
@@ -414,8 +426,8 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
   const getSelectedDayRange = (): string => {
     const selectedDayNums = Object.keys(daySelections).filter(k => daySelections[Number(k)]).map(Number).sort((a, b) => a - b);
     if (selectedDayNums.length === 0) return '전체';
-    if (hasSidebarGradeSemester) {
-      const gsLabel = `${sidebarGrade}-${sidebarSemester}`;
+    if (hasEffectiveGS) {
+      const gsLabel = `${effectiveGrade}-${effectiveSemester}`;
       if (selectedDayNums.length === 1) return `${gsLabel} Day ${selectedDayNums[0]}`;
       return `${gsLabel} Day ${selectedDayNums[0]}~${selectedDayNums[selectedDayNums.length - 1]}`;
     }
@@ -433,8 +445,8 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
 
   const getExamDisplayName = () => {
     const baseName = KOREAN_EXAMS.find(e => e.id === selectedMainExam)?.name || selectedMainExam;
-    if (hasSidebarGradeSemester) {
-      return `${baseName} ${sidebarGrade}-${sidebarSemester}`;
+    if (hasEffectiveGS) {
+      return `${baseName} ${effectiveGrade}-${effectiveSemester}`;
     }
     return baseName;
   };
@@ -649,6 +661,8 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
       setSelectedTextbook("");
       setDaySelections({});
       setSelectAll(false);
+      setInternalGrade(null);
+      setInternalSemester(null);
       setEngToKorHeadwordCount(0);
       setEngToKorSynonymCount(0);
       setKorToEngHeadwordCount(0);
@@ -824,28 +838,98 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
             <div className="bg-white rounded-lg p-4 sm:p-6 shadow-sm">
               <div className="mb-4">
                 <h3 className="font-semibold text-gray-800 mb-2">출제범위</h3>
-                {hasSidebarGradeSemester ? (
-                  <p className="text-sm text-gray-600">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-cyan-50 text-cyan-700 rounded-lg font-medium text-xs border border-cyan-200">
-                      {sidebarGrade}학년 {sidebarSemester}학기
-                    </span>
-                    <span className="ml-2">출제할 DAY를 선택하세요.</span>
-                  </p>
+                {hasEffectiveGS ? (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm text-gray-600 flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-cyan-50 text-cyan-700 rounded-lg font-medium text-xs border border-cyan-200">
+                        {effectiveGrade}학년 {effectiveSemester}학기
+                      </span>
+                      {!hasSidebarGradeSemester && internalGrade && (
+                        <button 
+                          onClick={() => { 
+                            setInternalGrade(null); 
+                            setInternalSemester(null); 
+                            setDaySelections({}); 
+                          }}
+                          className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 hover:text-cyan-600 rounded-md hover:bg-cyan-50 transition-colors border border-gray-100"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          <span>변경</span>
+                        </button>
+                      )}
+                      <span className="ml-1">출제할 DAY를 선택하세요.</span>
+                    </p>
+                  </div>
                 ) : (
-                  <p className="text-sm text-gray-600">
-                    {isGSMode 
-                      ? '* 출제할 학년-학기를 선택하세요.' 
-                      : '* 출제범위 No.를 입력하세요. (예시: 1, 3-5, 7-8)'}
-                  </p>
+                  <div className="space-y-4">
+                    <p className="text-sm text-gray-600">
+                      {isGSMode 
+                        ? '* 출제할 학년-학기를 선택하세요.' 
+                        : '* 출제범위 No.를 입력하세요. (예시: 1, 3-5, 7-8)'}
+                    </p>
+                    
+                    {isGSMode && (
+                      <div className="space-y-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">학년 선택</label>
+                          <div className="flex flex-wrap gap-2">
+                            {getGradeRangeForExam(selectedMainExam).map(g => (
+                              <button
+                                key={g}
+                                onClick={() => {
+                                  setInternalGrade(g);
+                                  setInternalSemester(null);
+                                }}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                                  internalGrade === g 
+                                    ? "bg-cyan-600 text-white shadow-md scale-105" 
+                                    : "bg-white text-gray-600 border border-gray-200 hover:border-cyan-200 hover:bg-cyan-50/30"
+                                }`}
+                              >
+                                {g}학년
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        
+                        {internalGrade && (
+                          <motion.div 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="space-y-2 pt-2 border-t border-gray-200"
+                          >
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">학기 선택</label>
+                            <div className="flex gap-2">
+                              {[1, 2].map(s => (
+                                <button
+                                  key={s}
+                                  onClick={() => setInternalSemester(s)}
+                                  className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+                                    internalSemester === s 
+                                      ? "bg-orange-500 text-white shadow-md" 
+                                      : "bg-white text-gray-700 border border-gray-200 hover:border-orange-200 hover:bg-orange-50/30"
+                                  }`}
+                                >
+                                  {s}학기
+                                  <ChevronRight className="w-4 h-4" />
+                                </button>
+                              ))}
+                            </div>
+                          </motion.div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
 
               <div className="flex gap-2 mb-4 flex-wrap">
                 <button
                   onClick={handleSelectAllToggle}
+                  disabled={isGSMode}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     selectAll ? "bg-cyan-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}
+                  } ${isGSMode ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
                   {selectAll ? "선택 해제" : "전체선택"}
                 </button>
@@ -862,31 +946,32 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
 
               {/* DAY 목록 (학년-학기 모드 or Day 모드) */}
               <div className="max-h-[540px] overflow-y-auto border border-gray-200 rounded-lg p-4 space-y-2">
-                {days.map((day) => {
-                  const gsOpt = isGSMode ? gsOptions.find(o => o.day === day) : null;
+                {isGSMode && !hasEffectiveGS ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center space-y-3">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                      <Layers className="w-8 h-8 text-gray-400" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-gray-500 font-medium">학년과 학기를 먼저 선택해주세요.</p>
+                      <p className="text-xs text-gray-400">선택한 범위의 DAY 목록이 여기에 표시됩니다.</p>
+                    </div>
+                  </div>
+                ) : days.map((day) => {
                   const wordsInDay = allWords.filter(w => {
                     if (w.exam !== selectedMainExam) return false;
                     if (selectedTextbook && w.textbook && w.textbook !== selectedTextbook) return false;
-                    if (hasSidebarGradeSemester) {
+                    if (hasEffectiveGS) {
                       if (w.grade !== undefined && w.semester !== undefined) {
-                        if (w.grade !== sidebarGrade || w.semester !== sidebarSemester) return false;
+                        if (w.grade !== effectiveGrade || w.semester !== effectiveSemester) return false;
                       } else {
                         return false;
-                      }
-                      return w.day === day;
-                    }
-                    if (isGSMode && gsOpt) {
-                      if (w.grade !== undefined && w.semester !== undefined) {
-                        return w.grade === gsOpt.grade && w.semester === gsOpt.semester;
                       }
                       return w.day === day;
                     }
                     return w.day === day;
                   }).length;
                   const isCustomDay = !isGSMode && day > 30;
-                  const dayLabel = isGSMode && gsOpt
-                    ? `${gsOpt.label} (${gsOpt.fullLabel})`
-                    : getDayName(selectedMainExam, day);
+                  const dayLabel = getDayName(selectedMainExam, day);
                   return (
                     <div
                       key={day}
