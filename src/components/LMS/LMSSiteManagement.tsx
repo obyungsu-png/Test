@@ -57,7 +57,7 @@ export default function LMSSiteManagement() {
     }
 
     // Load tab names from localStorage (customTabNames for site display)
-    const savedTabs = localStorage.getItem('customTabNames');
+    const savedTabs = localStorage.getItem('customTabNames_korean');
     if (savedTabs) {
       setTabSettings(JSON.parse(savedTabs));
     }
@@ -111,7 +111,7 @@ export default function LMSSiteManagement() {
     if (newTabName.trim() && !tabSettings.includes(newTabName.trim())) {
       const updatedTabs = [...tabSettings, newTabName.trim()];
       setTabSettings(updatedTabs);
-      localStorage.setItem('customTabNames', JSON.stringify(updatedTabs));
+      localStorage.setItem('customTabNames_korean', JSON.stringify(updatedTabs));
       localStorage.setItem('contentTypes', JSON.stringify(updatedTabs));
       setNewTabName("");
       toast.success('새 탭이 추가되었습니다.');
@@ -128,7 +128,7 @@ export default function LMSSiteManagement() {
 
     const updatedTabs = tabSettings.filter(tab => tab !== tabName);
     setTabSettings(updatedTabs);
-    localStorage.setItem('customTabNames', JSON.stringify(updatedTabs));
+    localStorage.setItem('customTabNames_korean', JSON.stringify(updatedTabs));
     localStorage.setItem('contentTypes', JSON.stringify(updatedTabs));
     toast.success('탭이 삭제되었습니다.');
   };
@@ -137,7 +137,7 @@ export default function LMSSiteManagement() {
     if (newName.trim() && newName !== oldName) {
       const updatedTabs = tabSettings.map(tab => tab === oldName ? newName.trim() : tab);
       setTabSettings(updatedTabs);
-      localStorage.setItem('customTabNames', JSON.stringify(updatedTabs));
+      localStorage.setItem('customTabNames_korean', JSON.stringify(updatedTabs));
       localStorage.setItem('contentTypes', JSON.stringify(updatedTabs));
       toast.success('탭 이름이 변경되었습니다.');
     }
@@ -164,7 +164,7 @@ export default function LMSSiteManagement() {
       setTabSettings(defaultTabs);
       
       localStorage.setItem('site_settings', JSON.stringify(defaultSettings));
-      localStorage.removeItem('customTabNames');
+      localStorage.removeItem('customTabNames_korean');
       localStorage.setItem('contentTypes', JSON.stringify(defaultTabs));
       
       toast.success('모든 설정이 초기값으로 되돌려졌습니다.');

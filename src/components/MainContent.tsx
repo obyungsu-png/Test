@@ -98,6 +98,9 @@ function CategoryCard({ category, index, onClick }: { category: any; index: numb
 export function MainContent({ selectedSubject, selectedCategory, selectedSubCategory, schoolType, isCertificationMode, onActiveTabChange, onComponent3Click, onComponent4Click, onComponent5Click }: MainContentProps) {
   const defaultTabs = isCertificationMode ? CERTIFICATION_TABS : 
                     (schoolType === 'international' ? INTERNATIONAL_SCHOOL_TABS : KOREAN_SCHOOL_TABS);
+  // school-type 별 localStorage 키 (다른 학교 유형의 커스텀 탭이 섞이지 않도록)
+  const customTabNamesKey = isCertificationMode ? 'customTabNames_certification' :
+                            (schoolType === 'international' ? 'customTabNames_international' : 'customTabNames_korean');
   // 서류전형 과목에서는 "교과서 뽀개기" → "합격 예측" 으로 탭 이름 변경
   // 영어 과목이 아닌 경우 Voca 탭 숨기기
   const adjustedTabs = (() => {
@@ -162,7 +165,7 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
     // Use empty array since we're now using the new data management system
     setUploadedMaterials([]);
     
-    const customTabs = JSON.parse(localStorage.getItem('customTabNames') || 'null');
+    const customTabs = JSON.parse(localStorage.getItem(customTabNamesKey) || 'null');
     if (customTabs) {
       setTabs(customTabs);
     } else {
@@ -231,7 +234,7 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
       // Force re-render by setting a timestamp
       setUploadedMaterials([]);
       
-      const customTabs = JSON.parse(localStorage.getItem('customTabNames') || 'null');
+      const customTabs = JSON.parse(localStorage.getItem(customTabNamesKey) || 'null');
       if (customTabs) {
         setTabs(customTabs);
       } else {
