@@ -13,7 +13,7 @@ export default function LMSSettings() {
 
   // Load custom tab names from localStorage
   useEffect(() => {
-    const customTabs = JSON.parse(localStorage.getItem('customTabNames') || 'null');
+    const customTabs = JSON.parse(localStorage.getItem('customTabNames_korean') || 'null');
     if (customTabs) {
       setTabNames(customTabs);
     }
@@ -36,7 +36,7 @@ export default function LMSSettings() {
     newTabNames[editingIndex] = editValue.trim();
     
     setTabNames(newTabNames);
-    localStorage.setItem('customTabNames', JSON.stringify(newTabNames));
+    localStorage.setItem('customTabNames_korean', JSON.stringify(newTabNames));
     
     setEditingIndex(null);
     setEditValue("");
@@ -53,7 +53,7 @@ export default function LMSSettings() {
     if (confirm("모든 탭 이름을 기본값으로 되돌리시겠습니까?")) {
       const defaultTabs = ["교과서 뽀개기", "단월별 학습", "모의고사", "직전 대비", "콘텐츠소개"];
       setTabNames(defaultTabs);
-      localStorage.removeItem('customTabNames');
+      localStorage.removeItem('customTabNames_korean');
       setEditingIndex(null);
       setEditValue("");
       toast.success("탭 이름이 기본값으로 초기화되었습니다!");

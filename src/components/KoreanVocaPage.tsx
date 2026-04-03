@@ -249,6 +249,11 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
   const effectiveSemester = sidebarSemester || internalSemester;
   const hasEffectiveGS = effectiveGrade !== null && effectiveSemester !== null;
 
+  // 학년-학기가 결정된 경우 DAY 이름을 학년-학기별로 독립 관리하기 위해 복합 키 사용
+  const effectiveExamKey = hasEffectiveGS
+    ? `${selectedMainExam}_${effectiveGrade}_${effectiveSemester}`
+    : selectedMainExam;
+
   // 사이드바나 내부 선택을 통해 학년-학기가 결정되지 않았으면 GS 선택 모드
   const isGSMode = !hasEffectiveGS && isGradeSemesterExam(selectedMainExam);
   const gsOptions = isGradeSemesterExam(selectedMainExam) ? getGradeSemesterOptions(selectedMainExam) : [];
@@ -271,7 +276,7 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
   const wordsForCurrentGS = hasEffectiveGS 
     ? koreanWords.filter(w => {
         if (w.exam !== selectedMainExam) return false;
-        if (selectedTextbook && w.textbook && w.textbook !== selectedTextbook) return false;
+        if (selectedTextbook && w.textbook !== selectedTextbook) return false;
         if (w.grade !== undefined && w.semester !== undefined) {
           return w.grade === effectiveGrade && w.semester === effectiveSemester;
         }
@@ -360,7 +365,7 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
     const selectedDays = getSelectedDays();
     return allWords.filter(word => {
       if (word.exam !== selectedMainExam) return false;
-      if (selectedTextbook && word.textbook && word.textbook !== selectedTextbook) return false;
+      if (selectedTextbook && word.textbook !== selectedTextbook) return false;
       
       if (hasEffectiveGS) {
         // 학년-학기가 결정됨 (사이드바 또는 내부 선택)
@@ -619,12 +624,12 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
   const handleSaveDayName = async () => {
     if (editingDayName === null) return;
     const newDayNames = { ...dayNames };
-    if (!newDayNames[selectedMainExam]) newDayNames[selectedMainExam] = {};
+    if (!newDayNames[effectiveExamKey]) newDayNames[effectiveExamKey] = {};
     const trimmed = dayNameInput.trim();
     if (trimmed && trimmed !== `Day ${editingDayName}`) {
-      newDayNames[selectedMainExam][editingDayName] = trimmed;
+      newDayNames[effectiveExamKey][editingDayName] = trimmed;
     } else {
-      delete newDayNames[selectedMainExam]?.[editingDayName];
+      delete newDayNames[effectiveExamKey]?.[editingDayName];
     }
     setDayNames(newDayNames);
     await saveDayNames(newDayNames);
@@ -959,7 +964,7 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
                 ) : days.map((day) => {
                   const wordsInDay = allWords.filter(w => {
                     if (w.exam !== selectedMainExam) return false;
-                    if (selectedTextbook && w.textbook && w.textbook !== selectedTextbook) return false;
+                    if (selectedTextbook && w.textbook !== selectedTextbook) return false;
                     if (hasEffectiveGS) {
                       if (w.grade !== undefined && w.semester !== undefined) {
                         if (w.grade !== effectiveGrade || w.semester !== effectiveSemester) return false;
@@ -971,7 +976,7 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
                     return w.day === day;
                   }).length;
                   const isCustomDay = !isGSMode && day > 30;
-                  const dayLabel = getDayName(selectedMainExam, day);
+                  const dayLabel = getDayName(effectiveExamKey, day);
                   return (
                     <div
                       key={day}
@@ -1001,7 +1006,7 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
                         <button
                           onClick={() => {
                             setEditingDayName(day);
-                            setDayNameInput(getDayName(selectedMainExam, day));
+                            setDayNameInput(getDayName(effectiveExamKey, day));
                           }}
                           className="p-1 text-gray-400 hover:text-cyan-600 hover:bg-cyan-50 rounded transition-colors"
                           title="DAY 이름 변경"
