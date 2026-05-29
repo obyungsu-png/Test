@@ -210,14 +210,6 @@ export function VocaManagement() {
   const [selectedGrade, setSelectedGrade] = useState<number>(1);
   const [selectedSemester, setSelectedSemester] = useState<number>(1);
 
-  // effectiveExam: 교과서가 선택된 경우 "KR-초등영어::천재-함순애" 형태로 분리 저장 키 생성
-  // effectiveExam: 교과서 선택 시 "KR-초등영어::천재-함순애", 내신영단어는 "KR-내신영단어::중등" 형태로 분리
-  const effectiveExam = (() => {
-    if (vocaMode !== 'korean' || !selectedExam.startsWith('KR-')) return selectedExam;
-    const base = isNaeshinMode ? `${selectedExam}::${naeshinSchoolLevel}` : selectedExam;
-    return selectedTextbook ? `${base}::${selectedTextbook}` : base;
-  })();
-
   const certExams = ['TOEFL', 'SAT', 'IELTS', 'ACT', 'TOEIC'];
   const koreanExams = [
     { id: 'KR-초등영어', name: '초등영어' },
@@ -234,6 +226,14 @@ export function VocaManagement() {
   // 학년-학기 모드 판별: 초등/중등/고등 영어는 학년-학기 사용
   const isGradeSemesterMode = ['KR-초등영어', 'KR-중등영어', 'KR-고등영어', 'KR-내신영단어'].includes(selectedExam);
   const isNaeshinMode = selectedExam === 'KR-내신영단어'; // 내신영단어: 학교급 선택 추가
+
+  // effectiveExam: 교과서 선택 시 "KR-초등영어::천재-함순애", 내신영단어는 "KR-내신영단어::중등" 형태로 분리 저장
+  const effectiveExam = (() => {
+    if (vocaMode !== 'korean' || !selectedExam.startsWith('KR-')) return selectedExam;
+    const base = isNaeshinMode ? `${selectedExam}::${naeshinSchoolLevel}` : selectedExam;
+    return selectedTextbook ? `${base}::${selectedTextbook}` : base;
+  })();
+
 
   // 학년 범위 설정
   const getGradeRange = (examId: string): number[] => {
