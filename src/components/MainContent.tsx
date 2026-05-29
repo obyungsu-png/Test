@@ -796,7 +796,7 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
             {/* Header with title and button */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-5 lg:mb-6 space-y-3 sm:space-y-0">
               <div className="flex items-center flex-wrap">
-                <h1 className="text-xl sm:text-2xl lg:text-3xl text-gray-800 font-medium">{activeTab}</h1>
+                <h1 className="text-xl sm:text-2xl lg:text-3xl text-gray-800 font-medium">{activeTab === "국어" || activeTab === "Subject" ? selectedSubject : activeTab}</h1>
                 {!showGridLayout && (
                   <motion.span 
                     key={`count-${activeTab}`}
