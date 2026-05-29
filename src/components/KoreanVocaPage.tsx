@@ -188,6 +188,8 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
   const defaultExam = getDefaultExamFromCategory(selectedCategory);
   const [selectedMainExam, setSelectedMainExam] = useState<string>(defaultExam);
   const [selectedTextbook, setSelectedTextbook] = useState<string>("");
+  const [naeshinSchoolLevel, setNaeshinSchoolLevel] = useState<'초등' | '중등' | '고등'>('중등');
+  const isNaeshinMode = selectedMainExam === 'KR-내신영단어';
   const [daySelections, setDaySelections] = useState<DaySelection>({});
   const [selectAll, setSelectAll] = useState(false);
 
@@ -254,6 +256,13 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
     ? `${selectedMainExam}_${effectiveGrade}_${effectiveSemester}`
     : selectedMainExam;
 
+  // effectiveMainExam: 교과서가 선택된 경우 "KR-초등영어::천재-함순애" 형태로 단어 조회 키 생성
+  const effectiveMainExam = (() => {
+    if (!selectedMainExam.startsWith('KR-')) return selectedMainExam;
+    const base = isNaeshinMode ? `${selectedMainExam}::${naeshinSchoolLevel}` : selectedMainExam;
+    return selectedTextbook ? `${base}::${selectedTextbook}` : base;
+  })();
+
   // 사이드바나 내부 선택을 통해 학년-학기가 결정되지 않았으면 GS 선택 모드
   const isGSMode = !hasEffectiveGS && isGradeSemesterExam(selectedMainExam);
   const gsOptions = isGradeSemesterExam(selectedMainExam) ? getGradeSemesterOptions(selectedMainExam) : [];
@@ -275,8 +284,7 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
   // 선택된 학년-학기에 속하는 단어들의 DAY를 기준으로 표시
   const wordsForCurrentGS = hasEffectiveGS 
     ? koreanWords.filter(w => {
-        if (w.exam !== selectedMainExam) return false;
-        if (selectedTextbook && w.textbook !== selectedTextbook) return false;
+        if (w.exam !== effectiveMainExam) return false;
         if (w.grade !== undefined && w.semester !== undefined) {
           return w.grade === effectiveGrade && w.semester === effectiveSemester;
         }
@@ -290,7 +298,7 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
         ? gsOptions.length 
         : (hasEffectiveGS 
             ? Math.max(customDayCount, ...wordsForCurrentGS.map(w => w.day || 0))
-            : Math.max(customDayCount, getMaxDay(koreanWords.filter(w => w.exam === selectedMainExam) as any[], selectedMainExam))))
+            : Math.max(customDayCount, getMaxDay(koreanWords.filter(w => w.exam === effectiveMainExam) as any[], effectiveMainExam))))
     : 30;
   const days = isGSMode ? gsOptions.map(o => o.day) : Array.from({ length: maxDay }, (_, i) => i + 1);
 
@@ -364,8 +372,7 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
   const getAvailableWords = () => {
     const selectedDays = getSelectedDays();
     return allWords.filter(word => {
-      if (word.exam !== selectedMainExam) return false;
-      if (selectedTextbook && word.textbook !== selectedTextbook) return false;
+      if (word.exam !== effectiveMainExam) return false;
       
       if (hasEffectiveGS) {
         // 학년-학기가 결정됨 (사이드바 또는 내부 선택)
@@ -731,6 +738,35 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
         </div>
       </motion.div>
 
+
+      {/* 내신영단어 학교급 선택 */}
+      {isNaeshinMode && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-xl p-5 sm:p-6 shadow-sm"
+        >
+          <div className="flex items-center gap-3 mb-3">
+            <span className="text-sm font-semibold text-gray-700">학교급 선택</span>
+          </div>
+          <div className="flex gap-2">
+            {(['초등', '중등', '고등'] as const).map((level) => (
+              <button
+                key={level}
+                onClick={() => setNaeshinSchoolLevel(level)}
+                className={`px-5 py-2 rounded-lg font-semibold text-sm transition-all ${
+                  naeshinSchoolLevel === level
+                    ? 'bg-cyan-500 text-white shadow'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {level}
+              </button>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
       {/* 하위 교과서 선택 탭 */}
       {selectedMainExam && (TEXTBOOKS_BY_EXAM[selectedMainExam] || []).length > 0 && (
         <motion.div
@@ -963,8 +999,7 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
                   </div>
                 ) : days.map((day) => {
                   const wordsInDay = allWords.filter(w => {
-                    if (w.exam !== selectedMainExam) return false;
-                    if (selectedTextbook && w.textbook !== selectedTextbook) return false;
+                    if (w.exam !== effectiveMainExam) return false;
                     if (hasEffectiveGS) {
                       if (w.grade !== undefined && w.semester !== undefined) {
                         if (w.grade !== effectiveGrade || w.semester !== effectiveSemester) return false;

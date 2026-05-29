@@ -164,6 +164,8 @@ export function VocaManagement() {
   const [words, setWords] = useState<VocaWord[]>([]);
   const [selectedExam, setSelectedExam] = useState<string>('TOEFL');
   const [selectedDay, setSelectedDay] = useState<number>(1);
+  // effectiveExam: 한국학교 모드 + 교과서 선택 시 "KR-초등영어::천재-함순애" 형태로 저장 키 분리
+  // 이 값을 단어 저장/조회/필터링에 모두 사용해서 교과서별로 완전히 분리 저장됨
   const [searchTerm, setSearchTerm] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ english: "", korean: "", definition: "", synonyms: "" });
@@ -201,9 +203,20 @@ export function VocaManagement() {
   // 한국학교 교과서 필터
   const [selectedTextbook, setSelectedTextbook] = useState<string>("");
 
+  // 내신영단어 전용: 학교급 선택 (초등/중등/고등)
+  const [naeshinSchoolLevel, setNaeshinSchoolLevel] = useState<'초등' | '중등' | '고등'>('중등');
+
   // 한국학교 학년/학기 선택 (NEW)
   const [selectedGrade, setSelectedGrade] = useState<number>(1);
   const [selectedSemester, setSelectedSemester] = useState<number>(1);
+
+  // effectiveExam: 교과서가 선택된 경우 "KR-초등영어::천재-함순애" 형태로 분리 저장 키 생성
+  // effectiveExam: 교과서 선택 시 "KR-초등영어::천재-함순애", 내신영단어는 "KR-내신영단어::중등" 형태로 분리
+  const effectiveExam = (() => {
+    if (vocaMode !== 'korean' || !selectedExam.startsWith('KR-')) return selectedExam;
+    const base = isNaeshinMode ? `${selectedExam}::${naeshinSchoolLevel}` : selectedExam;
+    return selectedTextbook ? `${base}::${selectedTextbook}` : base;
+  })();
 
   const certExams = ['TOEFL', 'SAT', 'IELTS', 'ACT', 'TOEIC'];
   const koreanExams = [
@@ -219,7 +232,8 @@ export function VocaManagement() {
   };
 
   // 학년-학기 모드 판별: 초등/중등/고등 영어는 학년-학기 사용
-  const isGradeSemesterMode = ['KR-초등영어', 'KR-중등영어', 'KR-고등영어'].includes(selectedExam);
+  const isGradeSemesterMode = ['KR-초등영어', 'KR-중등영어', 'KR-고등영어', 'KR-내신영단어'].includes(selectedExam);
+  const isNaeshinMode = selectedExam === 'KR-내신영단어'; // 내신영단어: 학교급 선택 추가
 
   // 학년 범위 설정
   const getGradeRange = (examId: string): number[] => {
@@ -227,13 +241,20 @@ export function VocaManagement() {
       case 'KR-초등영어': return [3, 4, 5, 6]; // 초등 3~6학년
       case 'KR-중등영어': return [1, 2, 3]; // 중1~3
       case 'KR-고등영어': return [1, 2, 3]; // 고1~3
+      case 'KR-내신영단어':
+        if (naeshinSchoolLevel === '초등') return [3, 4, 5, 6];
+        if (naeshinSchoolLevel === '고등') return [1, 2, 3];
+        return [1, 2, 3]; // 중등 기본
       default: return [];
     }
   };
 
   // 학년-학기 옵션 생성
   const gradeSemesterOptions = isGradeSemesterMode
-    ? getGradeRange(selectedExam).flatMap(grade => [1, 2].map(sem => ({ grade, semester: sem, label: `${grade}-${sem}`, fullLabel: `${grade}학년 ${sem}학기` })))
+    ? getGradeRange(selectedExam).flatMap(grade => [1, 2].map(sem => {
+        const schoolPrefix = isNaeshinMode ? `${naeshinSchoolLevel} ` : '';
+        return { grade, semester: sem, label: `${grade}-${sem}`, fullLabel: `${schoolPrefix}${grade}학년 ${sem}학기` };
+      }))
     : [];
 
   // 학년-학기를 Day로 변환 (backward compat)
@@ -261,13 +282,23 @@ export function VocaManagement() {
     }
   }, [selectedGrade, selectedSemester]);
 
+  // 내신영단어 학교급 변경 시 학년/학기/DAY 리셋
+  useEffect(() => {
+    if (isNaeshinMode) {
+      const grades = getGradeRange('KR-내신영단어');
+      setSelectedGrade(grades[0] || 1);
+      setSelectedSemester(1);
+      setSelectedDay(1);
+    }
+  }, [naeshinSchoolLevel]);
+
   // 학년-학기 모드에서는 해당 grade+semester 단어들의 최대 day 기준으로 maxDay 계산
   const gsWordsForMax = isGradeSemesterMode
-    ? words.filter(w => w.exam === selectedExam && w.grade === selectedGrade && w.semester === selectedSemester)
+    ? words.filter(w => w.exam === effectiveExam && w.grade === selectedGrade && w.semester === selectedSemester)
     : [];
   const maxDay = isGradeSemesterMode
     ? Math.max(30, ...gsWordsForMax.map(w => w.day || 0))
-    : getMaxDay(words, selectedExam);
+    : getMaxDay(words, effectiveExam);
   const days = Array.from({ length: maxDay }, (_, i) => i + 1);
 
   useEffect(() => {
@@ -315,10 +346,10 @@ export function VocaManagement() {
     }
     
     const newDayNames = { ...dayNames };
-    if (!newDayNames[selectedExam]) {
-      newDayNames[selectedExam] = {};
+    if (!newDayNames[effectiveExam]) {
+      newDayNames[effectiveExam] = {};
     }
-    newDayNames[selectedExam][editingDayName!] = dayNameInput.trim();
+    newDayNames[effectiveExam][editingDayName!] = dayNameInput.trim();
     
     setDayNames(newDayNames);
     await saveDayNames(newDayNames);
@@ -336,11 +367,11 @@ export function VocaManagement() {
   };
 
   // === DAY 관리: 전체 삭제 & 생략(숨기기) ===
-  const currentHiddenDays = hiddenDays[selectedExam] || [];
+  const currentHiddenDays = hiddenDays[effectiveExam] || [];
   const isDayHidden = currentHiddenDays.includes(selectedDay);
   const currentDayLabel = isGradeSemesterMode
-    ? `${getDayName(selectedExam, selectedDay)} (${selectedGrade}학년 ${selectedSemester}학기)`
-    : getDayName(selectedExam, selectedDay);
+    ? `${getDayName(effectiveExam, selectedDay)} (${selectedGrade}학년 ${selectedSemester}학기)`
+    : getDayName(effectiveExam, selectedDay);
 
   // 현재 DAY 전체 단어 삭제
   const handleDeleteAllDayWords = async () => {
@@ -351,7 +382,7 @@ export function VocaManagement() {
       return;
     }
     const updatedWords = words.filter(w => {
-      if (w.exam !== selectedExam) return true;
+      if (w.exam !== effectiveExam) return true;
       if (w.day !== selectedDay) return true;
       if (isGradeSemesterMode) {
         return !(w.grade === selectedGrade && w.semester === selectedSemester);
@@ -366,28 +397,28 @@ export function VocaManagement() {
 
   // DAY 생략(숨기기) 토글
   const handleToggleDayHidden = (day: number) => {
-    const examHidden = hiddenDays[selectedExam] || [];
+    const examHidden = hiddenDays[effectiveExam] || [];
     let newExamHidden: number[];
     if (examHidden.includes(day)) {
       newExamHidden = examHidden.filter(d => d !== day);
     } else {
       newExamHidden = [...examHidden, day];
     }
-    const newHiddenDays = { ...hiddenDays, [selectedExam]: newExamHidden };
+    const newHiddenDays = { ...hiddenDays, [effectiveExam]: newExamHidden };
     setHiddenDays(newHiddenDays);
     localStorage.setItem('vocaHiddenDays', JSON.stringify(newHiddenDays));
     if (newExamHidden.includes(day)) {
-      toast.success(`${isGradeSemesterMode ? currentDayLabel : getDayName(selectedExam, day)}이(가) 숨김 처리되었습니다.`);
+      toast.success(`${isGradeSemesterMode ? currentDayLabel : getDayName(effectiveExam, day)}이(가) 숨김 처리되었습니다.`);
     } else {
-      toast.success(`${isGradeSemesterMode ? currentDayLabel : getDayName(selectedExam, day)} 숨김이 해제되었습니다.`);
+      toast.success(`${isGradeSemesterMode ? currentDayLabel : getDayName(effectiveExam, day)} 숨김이 해제되었습니다.`);
     }
   };
 
   // DAY 숨김 해제 (복원)
   const handleRestoreDay = (day: number) => {
-    const examHidden = hiddenDays[selectedExam] || [];
+    const examHidden = hiddenDays[effectiveExam] || [];
     const newExamHidden = examHidden.filter(d => d !== day);
-    const newHiddenDays = { ...hiddenDays, [selectedExam]: newExamHidden };
+    const newHiddenDays = { ...hiddenDays, [effectiveExam]: newExamHidden };
     setHiddenDays(newHiddenDays);
     localStorage.setItem('vocaHiddenDays', JSON.stringify(newHiddenDays));
     toast.success("DAY 숨김이 해제되었습니다.");
@@ -398,12 +429,11 @@ export function VocaManagement() {
 
   const filteredWords = words.filter(
     (word) =>
-      word.exam === selectedExam &&
+      word.exam === effectiveExam &&
       word.day === selectedDay &&
       (isGradeSemesterMode
         ? (word.grade === selectedGrade && word.semester === selectedSemester)
         : true) &&
-      (selectedTextbook === "" || !selectedExam.startsWith("KR-") || word.textbook === selectedTextbook) &&
       (searchTerm === "" ||
         word.english.toLowerCase().includes(searchTerm.toLowerCase()) ||
         word.korean.includes(searchTerm))
@@ -420,7 +450,7 @@ export function VocaManagement() {
 
     const word: VocaWord = {
       id: Date.now().toString(),
-      exam: selectedExam,
+      exam: effectiveExam,
       day: selectedDay,
       english: newWord.english.trim(),
       korean: newWord.korean.trim(),
@@ -499,7 +529,7 @@ export function VocaManagement() {
       if (english && korean) {
         newWords.push({
           id: `${Date.now()}-${index}`,
-          exam: selectedExam,
+          exam: effectiveExam,
           day: selectedDay,
           english: english.trim(),
           korean: korean.trim(),
@@ -565,7 +595,7 @@ export function VocaManagement() {
 
           newWords.push({
             id: `${Date.now()}-${index}`,
-            exam: selectedExam,
+            exam: textbookId ? `${selectedExam}::${textbookId}` : effectiveExam,
             day: selectedDay,
             english: english.trim(),
             korean: korean.trim(),
@@ -798,7 +828,7 @@ export function VocaManagement() {
 
       {/* 시험 및 Day 선택 */}
       <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-        <div className={`grid grid-cols-1 ${isGradeSemesterMode ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-4`}>
+        <div className={`grid grid-cols-1 ${isNaeshinMode ? 'md:grid-cols-5' : isGradeSemesterMode ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-4`}>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               {vocaMode === 'certification' ? '시험 선택' : '교재 선택'}
@@ -815,6 +845,23 @@ export function VocaManagement() {
               ))}
             </select>
           </div>
+          {/* 내신영단어 전용: 학교급 선택 */}
+          {isNaeshinMode && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                학교급 선택
+              </label>
+              <select
+                value={naeshinSchoolLevel}
+                onChange={(e) => setNaeshinSchoolLevel(e.target.value as '초등' | '중등' | '고등')}
+                className="w-full border border-cyan-400 rounded-lg px-4 py-2 focus:border-cyan-500 focus:outline-none font-semibold text-cyan-700 bg-cyan-50"
+              >
+                <option value="초등">초등</option>
+                <option value="중등">중등</option>
+                <option value="고등">고등</option>
+              </select>
+            </div>
+          )}
           {/* 학년-학기 선택 (학년-학기 모드일 때만) */}
           {isGradeSemesterMode && (
             <div>
@@ -853,7 +900,7 @@ export function VocaManagement() {
                   const isCustomDay = day > 30;
                   const isHidden = currentHiddenDays.includes(day);
                   const wordCountInDay = words.filter(w => {
-                    if (w.exam !== selectedExam || w.day !== day) return false;
+                    if (w.exam !== effectiveExam || w.day !== day) return false;
                     if (isGradeSemesterMode) return w.grade === selectedGrade && w.semester === selectedSemester;
                     return true;
                   }).length;
@@ -863,7 +910,7 @@ export function VocaManagement() {
                       value={day}
                       style={isCustomDay ? { color: '#ef4444', fontWeight: 'bold' } : isHidden ? { color: '#9ca3af', fontStyle: 'italic' } : {}}
                     >
-                      {getDayName(selectedExam, day)} ({wordCountInDay}단어){isCustomDay ? ' (추가됨)' : ''}{isHidden ? ' (숨김)' : ''}
+                      {getDayName(effectiveExam, day)} ({wordCountInDay}단어){isCustomDay ? ' (추가됨)' : ''}{isHidden ? ' (숨김)' : ''}
                     </option>
                   );
                 })}
@@ -871,7 +918,7 @@ export function VocaManagement() {
               <Button
                 onClick={() => {
                   setEditingDayName(selectedDay);
-                  setDayNameInput(getDayName(selectedExam, selectedDay));
+                  setDayNameInput(getDayName(effectiveExam, selectedDay));
                 }}
                 variant="outline"
                 size="sm"
@@ -1040,7 +1087,7 @@ export function VocaManagement() {
                 const gsOpt = isGradeSemesterMode
                   ? gradeSemesterOptions[day - 1]
                   : null;
-                const label = gsOpt ? gsOpt.label : getDayName(selectedExam, day);
+                const label = gsOpt ? gsOpt.label : getDayName(effectiveExam, day);
                 return (
                   <button
                     key={day}
@@ -1117,7 +1164,7 @@ export function VocaManagement() {
       <div className="bg-gradient-to-r from-cyan-50 to-blue-50 rounded-lg p-6 border-2 border-cyan-200">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold text-gray-800">
-            새 단어 추가 ({selectedExam} - {isGradeSemesterMode ? `${selectedGrade}-${selectedSemester} (${selectedGrade}학년 ${selectedSemester}학기) / ${getDayName(selectedExam, selectedDay)}` : getDayName(selectedExam, selectedDay)})
+            새 단어 추가 ({isNaeshinMode ? `내신영단어-${naeshinSchoolLevel}` : effectiveExam} - {isGradeSemesterMode ? `${selectedGrade}학년 ${selectedSemester}학기 / ${getDayName(effectiveExam, selectedDay)}` : getDayName(effectiveExam, selectedDay)})
             {vocaMode === 'korean' && selectedTextbook && (
               <span className="ml-2 text-xs bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded-full">
                 {currentTextbooks.find(t => t.id === selectedTextbook)?.name || selectedTextbook}
@@ -1128,7 +1175,7 @@ export function VocaManagement() {
             <Button
               onClick={() => {
                 setEditingDayName(selectedDay);
-                setDayNameInput(getDayName(selectedExam, selectedDay));
+                setDayNameInput(getDayName(effectiveExam, selectedDay));
               }}
               variant="outline"
               size="sm"
