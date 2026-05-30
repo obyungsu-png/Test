@@ -293,14 +293,27 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
     : [];
   
   const customDayCount = customMaxDays[customMaxDayKey] || 30;
+
+  // effectiveMainExam 기준으로 실제 단어가 있는 DAY 목록 계산
+  const wordsForEffectiveExam = allWords.filter(w => w.exam === effectiveMainExam);
+  const daysWithWords = [...new Set(wordsForEffectiveExam.map(w => w.day))].sort((a, b) => a - b);
+
   const maxDay = selectedMainExam 
     ? (isGSMode 
         ? gsOptions.length 
         : (hasEffectiveGS 
             ? Math.max(customDayCount, ...wordsForCurrentGS.map(w => w.day || 0))
-            : Math.max(customDayCount, getMaxDay(koreanWords.filter(w => w.exam === effectiveMainExam) as any[], effectiveMainExam))))
+            : (daysWithWords.length > 0
+                ? Math.max(customDayCount, ...daysWithWords)
+                : Math.max(customDayCount, getMaxDay(koreanWords.filter(w => w.exam === effectiveMainExam) as any[], effectiveMainExam)))))
     : 30;
   const days = isGSMode ? gsOptions.map(o => o.day) : Array.from({ length: maxDay }, (_, i) => i + 1);
+
+  // 교과서(effectiveMainExam) 변경 시 DAY 선택 초기화
+  useEffect(() => {
+    setDaySelections({});
+    setSelectAll(false);
+  }, [effectiveMainExam]);
 
   useEffect(() => {
     loadWords();
