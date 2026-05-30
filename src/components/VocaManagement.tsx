@@ -754,68 +754,71 @@ export function VocaManagement() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-3 sm:p-6 space-y-3 sm:space-y-6">
+      {/* 헤더 */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <BookOpen className="w-8 h-8 text-cyan-600" />
-          <h1 className="text-2xl font-bold text-gray-800">단어 관리</h1>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          <Button
-            onClick={() => setShowBulkModal(true)}
-            className="bg-teal-600 hover:bg-teal-700 text-white"
-          >
-            <Upload className="w-4 h-4 mr-2" />
-            일괄 입력/업로드
-          </Button>
-          <Button
-            onClick={handleGenerateSampleWords}
-            className="bg-purple-600 hover:bg-purple-700 text-white"
-            disabled={loading}
-          >
-            <CloudUpload className="w-4 h-4 mr-2" />
-            샘플 생성 (7,500개)
-          </Button>
-          <Button
-            onClick={handleMigrateToSupabase}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-            disabled={loading}
-          >
-            <Cloud className="w-4 h-4 mr-2" />
-            localStorage → Supabase
-          </Button>
-          <Button
-            onClick={handleShowStats}
-            variant="outline"
-            className="border-gray-300 text-gray-700 hover:bg-gray-50"
-          >
-            📊 통계 보기
-          </Button>
-          <Button
-            onClick={handleDeleteAllSampleWords}
-            variant="outline"
-            className="border-red-300 text-red-600 hover:bg-red-50"
-          >
-            <Trash2 className="w-4 h-4 mr-2" />
-            샘플 삭제
-          </Button>
+        <div className="flex items-center gap-2">
+          <BookOpen className="w-6 h-6 sm:w-8 sm:h-8 text-cyan-600" />
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-800">단어 관리</h1>
         </div>
       </div>
 
+      {/* 액션 버튼들 - 모바일: 2열 그리드 */}
+      <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
+        <Button
+          onClick={() => setShowBulkModal(true)}
+          className="bg-teal-600 hover:bg-teal-700 text-white text-xs sm:text-sm h-9 sm:h-10"
+        >
+          <Upload className="w-3.5 h-3.5 mr-1.5" />
+          일괄 입력/업로드
+        </Button>
+        <Button
+          onClick={handleGenerateSampleWords}
+          className="bg-purple-600 hover:bg-purple-700 text-white text-xs sm:text-sm h-9 sm:h-10"
+          disabled={loading}
+        >
+          <CloudUpload className="w-3.5 h-3.5 mr-1.5" />
+          샘플 생성 (7,500개)
+        </Button>
+        <Button
+          onClick={handleMigrateToSupabase}
+          className="bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm h-9 sm:h-10"
+          disabled={loading}
+        >
+          <Cloud className="w-3.5 h-3.5 mr-1.5" />
+          <span className="hidden sm:inline">localStorage → </span>Supabase
+        </Button>
+        <Button
+          onClick={handleShowStats}
+          variant="outline"
+          className="border-gray-300 text-gray-700 hover:bg-gray-50 text-xs sm:text-sm h-9 sm:h-10"
+        >
+          📊 통계 보기
+        </Button>
+        <Button
+          onClick={handleDeleteAllSampleWords}
+          variant="outline"
+          className="border-red-300 text-red-600 hover:bg-red-50 text-xs sm:text-sm h-9 sm:h-10 col-span-2 sm:col-span-1"
+        >
+          <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+          샘플 삭제
+        </Button>
+      </div>
+
       {/* 모드 선택: 인증시험 / 한국학교 */}
-      <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 mb-4">
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-gray-700">단어장 모드:</span>
-          <div className="flex rounded-lg border border-gray-300 overflow-hidden">
+      <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-200">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+          <span className="text-xs sm:text-sm font-medium text-gray-700">단어장 모드:</span>
+          <div className="flex rounded-lg border border-gray-300 overflow-hidden flex-1 sm:flex-none">
             <button
               onClick={() => { setVocaMode('certification'); setSelectedExam('TOEFL'); setSelectedDay(1); }}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${vocaMode === 'certification' ? 'bg-cyan-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+              className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium transition-colors ${vocaMode === 'certification' ? 'bg-cyan-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
             >
-              인증시험 (TOEFL, SAT 등)
+              인증시험
             </button>
             <button
               onClick={() => { setVocaMode('korean'); setSelectedExam('KR-초등영어'); setSelectedDay(1); }}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${vocaMode === 'korean' ? 'bg-cyan-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+              className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium transition-colors ${vocaMode === 'korean' ? 'bg-cyan-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
             >
               한국학교 Voca
             </button>
@@ -827,16 +830,16 @@ export function VocaManagement() {
       </div>
 
       {/* 시험 및 Day 선택 */}
-      <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-        <div className={`grid grid-cols-1 ${isNaeshinMode ? 'md:grid-cols-5' : isGradeSemesterMode ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-4`}>
+      <div className="bg-white rounded-lg p-3 sm:p-6 shadow-sm border border-gray-200">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">
               {vocaMode === 'certification' ? '시험 선택' : '교재 선택'}
             </label>
             <select
               value={selectedExam}
               onChange={(e) => { setSelectedExam(e.target.value as any); setSelectedTextbook(""); }}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:border-cyan-500 focus:outline-none"
+              className="w-full border border-gray-300 rounded-lg px-2 sm:px-4 py-2 text-xs sm:text-sm focus:border-cyan-500 focus:outline-none"
             >
               {exams.map((exam) => (
                 <option key={exam} value={exam}>
@@ -848,13 +851,13 @@ export function VocaManagement() {
           {/* 내신영단어 전용: 학교급 선택 */}
           {isNaeshinMode && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                학교급 선택
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">
+                학교급
               </label>
               <select
                 value={naeshinSchoolLevel}
                 onChange={(e) => setNaeshinSchoolLevel(e.target.value as '초등' | '중등' | '고등')}
-                className="w-full border border-cyan-400 rounded-lg px-4 py-2 focus:border-cyan-500 focus:outline-none font-semibold text-cyan-700 bg-cyan-50"
+                className="w-full border border-cyan-400 rounded-lg px-2 sm:px-4 py-2 text-xs sm:text-sm focus:border-cyan-500 focus:outline-none font-semibold text-cyan-700 bg-cyan-50"
               >
                 <option value="초등">초등</option>
                 <option value="중등">중등</option>
@@ -862,11 +865,11 @@ export function VocaManagement() {
               </select>
             </div>
           )}
-          {/* 학년-학기 선택 (학년-학기 모드일 때만) */}
+          {/* 학년-학기 선택 */}
           {isGradeSemesterMode && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                학년-학기 선택
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">
+                학년-학기
               </label>
               <select
                 value={`${selectedGrade}-${selectedSemester}`}
@@ -875,7 +878,7 @@ export function VocaManagement() {
                   setSelectedGrade(g);
                   setSelectedSemester(s);
                 }}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:border-cyan-500 focus:outline-none font-semibold"
+                className="w-full border border-gray-300 rounded-lg px-2 sm:px-4 py-2 text-xs sm:text-sm focus:border-cyan-500 focus:outline-none font-semibold"
               >
                 {gradeSemesterOptions.map((opt) => (
                   <option key={opt.label} value={opt.label}>
@@ -885,16 +888,16 @@ export function VocaManagement() {
               </select>
             </div>
           )}
-          {/* DAY 선택 (항상 표시) */}
+          {/* DAY 선택 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">
               DAY 선택
             </label>
-            <div className="flex gap-2">
+            <div className="flex gap-1.5">
               <select
                 value={selectedDay}
                 onChange={(e) => setSelectedDay(parseInt(e.target.value))}
-                className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:border-cyan-500 focus:outline-none"
+                className="flex-1 border border-gray-300 rounded-lg px-2 sm:px-4 py-2 text-xs sm:text-sm focus:border-cyan-500 focus:outline-none min-w-0"
               >
                 {visibleDays.map((day) => {
                   const isCustomDay = day > 30;
@@ -922,24 +925,24 @@ export function VocaManagement() {
                 }}
                 variant="outline"
                 size="sm"
-                className="px-3"
+                className="px-2 sm:px-3 h-9"
                 title="Day 이름 변경"
               >
-                <Edit2 className="w-4 h-4" />
+                <Edit2 className="w-3.5 h-3.5" />
               </Button>
               <Button
                 onClick={() => setShowAddDayModal(true)}
                 variant="outline"
                 size="sm"
-                className="px-3 border-red-300 text-red-600 hover:bg-red-50"
+                className="px-2 sm:px-3 h-9 border-red-300 text-red-600 hover:bg-red-50"
                 title="새 Day 추가"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-3.5 h-3.5" />
               </Button>
             </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="col-span-2 sm:col-span-1">
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">
               검색
             </label>
             <div className="relative">
@@ -956,10 +959,10 @@ export function VocaManagement() {
 
         {/* 한국학교 모드: 교과서 필터 */}
         {vocaMode === 'korean' && currentTextbooks.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <div className="flex items-center gap-2 mb-3">
-              <Filter className="w-4 h-4 text-cyan-600" />
-              <label className="text-sm font-medium text-gray-700">교과서 필터</label>
+          <div className="mt-3 pt-3 border-t border-gray-200">
+            <div className="flex items-center gap-2 mb-2">
+              <Filter className="w-3.5 h-3.5 text-cyan-600" />
+              <label className="text-xs sm:text-sm font-medium text-gray-700">교과서 필터</label>
               {selectedTextbook && (
                 <button
                   onClick={() => setSelectedTextbook("")}
@@ -969,10 +972,10 @@ export function VocaManagement() {
                 </button>
               )}
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               <button
                 onClick={() => setSelectedTextbook("")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors border ${
                   selectedTextbook === ""
                     ? "bg-cyan-600 text-white border-cyan-600"
                     : "bg-white text-gray-600 border-gray-300 hover:border-cyan-400"
@@ -984,7 +987,7 @@ export function VocaManagement() {
                 <button
                   key={tb.id}
                   onClick={() => setSelectedTextbook(tb.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors border ${
                     selectedTextbook === tb.id
                       ? "bg-cyan-600 text-white border-cyan-600"
                       : "bg-white text-gray-600 border-gray-300 hover:border-cyan-400"
@@ -999,76 +1002,57 @@ export function VocaManagement() {
       </div>
 
       {/* DAY 관리 액션 바 */}
-      <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-700">
-              DAY 관리:
-            </span>
-            <span className="text-sm text-gray-500">
+      <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-200">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs sm:text-sm font-medium text-gray-700">DAY 관리:</span>
+            <span className="text-xs sm:text-sm text-gray-500">
               {currentDayLabel}
               {isDayHidden && (
-                <span className="ml-1 text-xs text-amber-600 font-medium">(숨김 상태)</span>
+                <span className="ml-1 text-xs text-amber-600 font-medium">(숨김)</span>
               )}
             </span>
             <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
               {filteredWords.length}개 단어
             </span>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* DAY 전체 단어 삭제 */}
+          <div className="flex items-center gap-1.5 flex-wrap">
             <Button
               onClick={() => setShowDeleteDayConfirm(true)}
               variant="outline"
               size="sm"
-              className="border-red-300 text-red-600 hover:bg-red-50"
+              className="border-red-300 text-red-600 hover:bg-red-50 text-xs h-8"
               disabled={filteredWords.length === 0}
             >
-              <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+              <Trash2 className="w-3 h-3 mr-1" />
               전체 단어 삭제
             </Button>
-
-            {/* DAY 생략(숨기기) 토글 */}
             <Button
               onClick={() => handleToggleDayHidden(selectedDay)}
               variant="outline"
               size="sm"
-              className={isDayHidden
+              className={`text-xs h-8 ${isDayHidden
                 ? "border-green-300 text-green-600 hover:bg-green-50"
                 : "border-amber-300 text-amber-600 hover:bg-amber-50"
-              }
+              }`}
             >
               {isDayHidden ? (
-                <>
-                  <Eye className="w-3.5 h-3.5 mr-1.5" />
-                  숨김 해제
-                </>
+                <><Eye className="w-3 h-3 mr-1" />숨김 해제</>
               ) : (
-                <>
-                  <EyeOff className="w-3.5 h-3.5 mr-1.5" />
-                  DAY 생략
-                </>
+                <><EyeOff className="w-3 h-3 mr-1" />DAY 생략</>
               )}
             </Button>
-
-            {/* 숨긴 DAY 보기 토글 */}
             {currentHiddenDays.length > 0 && (
               <Button
                 onClick={() => setShowHiddenDays(!showHiddenDays)}
                 variant="outline"
                 size="sm"
-                className="border-gray-300 text-gray-600 hover:bg-gray-50"
+                className="border-gray-300 text-gray-600 hover:bg-gray-50 text-xs h-8"
               >
                 {showHiddenDays ? (
-                  <>
-                    <Eye className="w-3.5 h-3.5 mr-1.5" />
-                    숨긴 DAY 포함
-                  </>
+                  <><Eye className="w-3 h-3 mr-1" />숨긴 DAY 포함</>
                 ) : (
-                  <>
-                    <EyeOff className="w-3.5 h-3.5 mr-1.5" />
-                    숨긴 DAY 표시 ({currentHiddenDays.length}개)
-                  </>
+                  <><EyeOff className="w-3 h-3 mr-1" />숨긴 DAY ({currentHiddenDays.length}개)</>
                 )}
               </Button>
             )}
@@ -1161,12 +1145,15 @@ export function VocaManagement() {
       </AnimatePresence>
 
       {/* 새 단어 추가 */}
-      <div className="bg-gradient-to-r from-cyan-50 to-blue-50 rounded-lg p-6 border-2 border-cyan-200">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold text-gray-800">
-            새 단어 추가 ({isNaeshinMode ? `내신영단어-${naeshinSchoolLevel}` : effectiveExam} - {isGradeSemesterMode ? `${selectedGrade}학년 ${selectedSemester}학기 / ${getDayName(effectiveExam, selectedDay)}` : getDayName(effectiveExam, selectedDay)})
+      <div className="bg-gradient-to-r from-cyan-50 to-blue-50 rounded-lg p-3 sm:p-6 border-2 border-cyan-200">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm sm:text-base font-semibold text-gray-800">
+            새 단어 추가
+            <span className="ml-1.5 text-xs font-normal text-gray-500">
+              ({isNaeshinMode ? `내신영단어-${naeshinSchoolLevel}` : effectiveExam} · {isGradeSemesterMode ? `${selectedGrade}학년 ${selectedSemester}학기 / ` : ''}{getDayName(effectiveExam, selectedDay)})
+            </span>
             {vocaMode === 'korean' && selectedTextbook && (
-              <span className="ml-2 text-xs bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded-full">
+              <span className="ml-1.5 text-xs bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded-full">
                 {currentTextbooks.find(t => t.id === selectedTextbook)?.name || selectedTextbook}
               </span>
             )}
@@ -1179,51 +1166,54 @@ export function VocaManagement() {
               }}
               variant="outline"
               size="sm"
-              className="px-3"
-              title="Day 이름 변경"
+              className="px-2 h-7 text-xs"
             >
-              <Edit2 className="w-4 h-4 mr-1" />
+              <Edit2 className="w-3 h-3 mr-1" />
               이름 변경
             </Button>
           )}
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-4 mb-3">
           <div>
-            <label className="block text-sm text-gray-600 mb-2">영어 단어 *</label>
+            <label className="block text-xs text-gray-600 mb-1">영어 단어 *</label>
             <Input
               value={newWord.english}
               onChange={(e) => setNewWord({ ...newWord, english: e.target.value })}
               placeholder="예: abandon"
+              className="text-sm h-9"
             />
           </div>
           <div>
-            <label className="block text-sm text-gray-600 mb-2">한글 뜻 *</label>
+            <label className="block text-xs text-gray-600 mb-1">한글 뜻 *</label>
             <Input
               value={newWord.korean}
               onChange={(e) => setNewWord({ ...newWord, korean: e.target.value })}
               placeholder="예: 버리다, 포기하다"
+              className="text-sm h-9"
             />
           </div>
-          <div>
-            <label className="block text-sm text-gray-600 mb-2">영영풀이 (선택)</label>
+          <div className="col-span-2 sm:col-span-1">
+            <label className="block text-xs text-gray-600 mb-1">영영풀이 (선택)</label>
             <Input
               value={newWord.definition}
               onChange={(e) => setNewWord({ ...newWord, definition: e.target.value })}
               placeholder="예: desert, leave"
+              className="text-sm h-9"
             />
           </div>
-          <div>
-            <label className="block text-sm text-gray-600 mb-2">유의어 (선택)</label>
+          <div className="col-span-2 sm:col-span-1">
+            <label className="block text-xs text-gray-600 mb-1">유의어 (선택)</label>
             <Input
               value={newWord.synonyms}
               onChange={(e) => setNewWord({ ...newWord, synonyms: e.target.value })}
               placeholder="예: desert, leave"
+              className="text-sm h-9"
             />
           </div>
         </div>
         <Button
           onClick={handleAddWord}
-          className="w-full bg-cyan-600 hover:bg-cyan-700 text-white"
+          className="w-full bg-cyan-600 hover:bg-cyan-700 text-white h-9 text-sm"
         >
           <Plus className="w-4 h-4 mr-2" />
           단어 추가
@@ -1231,9 +1221,9 @@ export function VocaManagement() {
       </div>
 
       {/* 단어 목록 */}
-      <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold text-gray-800">
+      <div className="bg-white rounded-lg p-3 sm:p-6 shadow-sm border border-gray-200">
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <h2 className="text-sm sm:text-base font-semibold text-gray-800">
             등록된 단어 ({filteredWords.length}개)
           </h2>
           {filteredWords.length > 0 && (
@@ -1241,8 +1231,9 @@ export function VocaManagement() {
               onClick={handleExportWords}
               variant="outline"
               size="sm"
+              className="h-8 text-xs"
             >
-              <Download className="w-4 h-4 mr-2" />
+              <Download className="w-3.5 h-3.5 mr-1.5" />
               CSV 내보내기
             </Button>
           )}

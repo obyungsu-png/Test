@@ -459,20 +459,20 @@ export function InteractivePracticeTest({ materialTitle, material, onExit }: Int
 
       {/* ===== Main Content Area ===== */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left: Passage Section */}
+        {/* Left: Passage Section - 더 넓게, 글씨 크게 */}
         {currentQuestion.passage && (
           <div className={`
             ${mobileView === 'passage' ? 'flex' : 'hidden'} 
-            sm:flex sm:w-1/2 w-full flex-col bg-gray-50 border-r border-gray-200
+            sm:flex sm:w-[55%] w-full flex-col bg-gray-50 border-r border-gray-200
           `}>
-            <div className="flex-1 p-5 sm:p-8 overflow-y-auto">
-              <div className="max-w-lg">
-                <div className="inline-block px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-full mb-4">
+            <div className="flex-1 p-6 sm:p-10 overflow-y-auto">
+              <div className="max-w-2xl ml-auto">
+                <div className="inline-block px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-full mb-5">
                   문제 {currentQuestionIndex + 1} / {totalQuestions}
                 </div>
                 <div ref={passageRef} onMouseUp={handleTextSelection}>
                   {currentQuestion.passage.split('\n\n').map((paragraph, index) => (
-                    <p key={index} className="mb-4 text-gray-700 leading-relaxed text-[15px] sm:text-[16px] italic select-text">{paragraph}</p>
+                    <p key={index} className="mb-5 text-gray-800 leading-loose text-[18px] sm:text-[20px] italic select-text">{paragraph}</p>
                   ))}
                 </div>
               </div>
@@ -483,9 +483,9 @@ export function InteractivePracticeTest({ materialTitle, material, onExit }: Int
         {/* Right: Question Section */}
         <div className={`
           ${currentQuestion.passage ? (mobileView === 'question' ? 'flex' : 'hidden') : 'flex'}
-          sm:flex ${currentQuestion.passage ? 'sm:w-1/2' : 'w-full'} w-full flex-col overflow-hidden
+          sm:flex ${currentQuestion.passage ? 'sm:w-[45%]' : 'w-full'} w-full flex-col overflow-hidden
         `}>
-          <div className="flex-1 p-5 sm:p-8 overflow-y-auto">
+          <div className="flex-1 p-6 sm:p-10 overflow-y-auto">
             <div className="max-w-xl mx-auto">
               {/* No passage: show question number badge */}
               {!currentQuestion.passage && (
@@ -495,10 +495,10 @@ export function InteractivePracticeTest({ materialTitle, material, onExit }: Int
               )}
 
               {/* Question header */}
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
+              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">
                 Question {currentQuestionIndex + 1}
               </h3>
-              <p className="text-sm sm:text-[15px] text-gray-700 leading-relaxed mb-6">
+              <p className="text-base sm:text-lg text-gray-700 leading-relaxed mb-8">
                 {currentQuestion.question}
               </p>
 
@@ -540,13 +540,13 @@ export function InteractivePracticeTest({ materialTitle, material, onExit }: Int
                       onClick={() => handleAnswerSelect(index)}
                       disabled={isAnswered}
                       whileTap={!isAnswered ? { scale: 0.98 } : undefined}
-                      className={`w-full text-left p-3.5 sm:p-4 rounded-xl border-2 transition-all ${borderClass} ${bgClass} ${isAnswered ? 'cursor-default' : 'cursor-pointer'}`}
+                      className={`w-full text-left p-4 sm:p-5 rounded-xl border-2 transition-all ${borderClass} ${bgClass} ${isAnswered ? 'cursor-default' : 'cursor-pointer'}`}
                     >
                       <div className="flex items-center gap-3">
-                        <span className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${letterBg}`}>
+                        <span className={`flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-base font-semibold ${letterBg}`}>
                           {letter}
                         </span>
-                        <span className="flex-1 text-sm sm:text-[15px] text-gray-800">{option}</span>
+                        <span className="flex-1 text-base sm:text-lg text-gray-800">{option}</span>
                         {isAnswered && isCorrectOption && (
                           <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
                         )}
