@@ -13,7 +13,9 @@ interface Question {
   options: string[];
   correctAnswer: number;
   section: string;
-  explanation?: string;
+  explanation?: string;    // 해설 (CMS에서 편집 가능)
+  analysis?: string;       // 분석 (CMS에서 편집 가능)
+  vocab?: string;          // 단어 (CMS에서 편집 가능)
   aiInsight?: string;
   calculatorAllowed?: boolean;
 }
@@ -21,6 +23,7 @@ interface Question {
 interface InteractivePracticeTestProps {
   materialTitle: string;
   material?: any;
+  questionEdits?: {[key: string]: {explanation: string, analysis: string, vocab: string}};
   onExit: () => void;
 }
 
@@ -72,7 +75,7 @@ const sampleQuestions: Question[] = [
   }
 ];
 
-export function InteractivePracticeTest({ materialTitle, material, onExit }: InteractivePracticeTestProps) {
+export function InteractivePracticeTest({ materialTitle, material, questionEdits = {}, onExit }: InteractivePracticeTestProps) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<{[key: number]: number}>({});
   const [answeredQuestions, setAnsweredQuestions] = useState<Set<number>>(new Set());
@@ -258,8 +261,13 @@ export function InteractivePracticeTest({ materialTitle, material, onExit }: Int
     }
   };
 
-  // Generate helper content for feedback buttons
+  // Generate helper content - questionEdits(CMS) > q 필드 > 자동 생성 순서
+  const getEditKey = (q: Question) => `${materialTitle}-Q${q.id}`;
+
   const getInterpretation = (q: Question) => {
+    const edit = questionEdits[getEditKey(q)];
+    if (edit?.explanation) return edit.explanation;
+    if (q.explanation) return q.explanation;
     if (q.passage) {
       return `이 지문은 ${q.section} 영역의 문제입니다. 핵심 내용을 파악하고, 선택지와의 관계를 분석하는 것이 중요합니다. 지문의 주요 키워드와 논리적 흐름에 주목하세요.`;
     }
@@ -267,6 +275,9 @@ export function InteractivePracticeTest({ materialTitle, material, onExit }: Int
   };
 
   const getAnalysis = (q: Question) => {
+    const edit = questionEdits[getEditKey(q)];
+    if (edit?.analysis) return edit.analysis;
+    if (q.analysis) return q.analysis;
     const correctLetter = getCorrectLetter(q);
     return `정답 분석: ${correctLetter}번 "${q.options[q.correctAnswer]}"\n\n각 선택지 비교:\n${q.options.map((opt, i) => {
       const letter = String.fromCharCode(65 + i);
@@ -276,7 +287,9 @@ export function InteractivePracticeTest({ materialTitle, material, onExit }: Int
   };
 
   const getVocab = (q: Question) => {
-    // Extract potential vocabulary from the question and passage
+    const edit = questionEdits[getEditKey(q)];
+    if (edit?.vocab) return edit.vocab;
+    if (q.vocab) return q.vocab;
     const text = (q.passage || '') + ' ' + q.question + ' ' + q.options.join(' ');
     const complexWords: string[] = [];
     const words = text.split(/\s+/);
@@ -432,26 +445,30 @@ export function InteractivePracticeTest({ materialTitle, material, onExit }: Int
 
       {/* ===== Mobile: Passage/Question toggle ===== */}
       {currentQuestion.passage && (
-        <div className="sm:hidden flex-shrink-0 border-b border-gray-200 bg-gray-50">
+        <div className="sm:hidden flex-shrink-0 border-b border-gray-100 bg-white">
           <div className="flex">
             <button
               onClick={() => setMobileView('passage')}
-              className={`flex-1 py-2.5 text-xs font-medium text-center transition-colors relative ${
-                mobileView === 'passage' ? 'text-blue-600 bg-white' : 'text-gray-500'
+              className={`flex-1 py-3 text-sm font-semibold text-center transition-all relative flex items-center justify-center gap-1.5 ${
+                mobileView === 'passage'
+                  ? 'text-white bg-gradient-to-r from-indigo-500 to-blue-500'
+                  : 'text-gray-400 bg-white hover:bg-gray-50'
               }`}
             >
+              <span>📄</span>
               지문 보기
-              {mobileView === 'passage' && <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-blue-500 rounded-full" />}
             </button>
             <button
               onClick={() => setMobileView('question')}
-              className={`flex-1 py-2.5 text-xs font-medium text-center transition-colors relative ${
-                mobileView === 'question' ? 'text-blue-600 bg-white' : 'text-gray-500'
+              className={`flex-1 py-3 text-sm font-semibold text-center transition-all relative flex items-center justify-center gap-1.5 ${
+                mobileView === 'question'
+                  ? 'text-white bg-gradient-to-r from-violet-500 to-purple-500'
+                  : 'text-gray-400 bg-white hover:bg-gray-50'
               }`}
             >
+              <span>✏️</span>
               문제 풀기
-              {isCurrentAnswered && <span className="ml-1 w-1.5 h-1.5 bg-green-500 rounded-full inline-block"></span>}
-              {mobileView === 'question' && <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-blue-500 rounded-full" />}
+              {isCurrentAnswered && <span className="w-2 h-2 bg-green-400 rounded-full inline-block ml-0.5"></span>}
             </button>
           </div>
         </div>
@@ -584,94 +601,91 @@ export function InteractivePracticeTest({ materialTitle, material, onExit }: Int
                       </div>
                     )}
 
-                    {/* 해석 / 분석 / 단어 buttons */}
-                    <div className="flex items-center gap-2.5">
-                      <button
-                        onClick={() => { setShowInterpretation(!showInterpretation); setShowAnalysis(false); setShowVocab(false); }}
-                        className={`flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-medium transition-all ${
-                          showInterpretation 
-                            ? 'bg-gray-800 text-white border-gray-800' 
-                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                        }`}
-                      >
-                        <Lightbulb className="w-4 h-4" />
-                        해석
-                      </button>
-                      <button
-                        onClick={() => { setShowAnalysis(!showAnalysis); setShowInterpretation(false); setShowVocab(false); }}
-                        className={`flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-medium transition-all ${
-                          showAnalysis 
-                            ? 'bg-gray-800 text-white border-gray-800' 
-                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                        }`}
-                      >
-                        <BarChart3 className="w-4 h-4" />
-                        분석
-                      </button>
-                      <button
-                        onClick={() => { setShowVocab(!showVocab); setShowInterpretation(false); setShowAnalysis(false); }}
-                        className={`flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-medium transition-all ${
-                          showVocab 
-                            ? 'bg-gray-800 text-white border-gray-800' 
-                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                        }`}
-                      >
-                        <BookMarked className="w-4 h-4" />
-                        단어
-                      </button>
-                    </div>
+                    {/* 해석 / 분석 / 단어 탭 */}
+                    <div className="rounded-2xl overflow-hidden border border-gray-100 shadow-sm bg-white">
+                      {/* 탭 헤더 */}
+                      <div className="grid grid-cols-3 border-b border-gray-100">
+                        <button
+                          onClick={() => { setShowInterpretation(!showInterpretation); setShowAnalysis(false); setShowVocab(false); }}
+                          className={`py-3.5 flex flex-col items-center gap-1 transition-all text-xs font-semibold ${
+                            showInterpretation
+                              ? 'bg-gradient-to-b from-amber-400 to-orange-400 text-white'
+                              : 'bg-white text-gray-500 hover:bg-amber-50 hover:text-amber-600'
+                          }`}
+                        >
+                          <span className="text-lg">💡</span>
+                          해설
+                        </button>
+                        <button
+                          onClick={() => { setShowAnalysis(!showAnalysis); setShowInterpretation(false); setShowVocab(false); }}
+                          className={`py-3.5 flex flex-col items-center gap-1 transition-all text-xs font-semibold border-l border-r border-gray-100 ${
+                            showAnalysis
+                              ? 'bg-gradient-to-b from-blue-500 to-indigo-500 text-white'
+                              : 'bg-white text-gray-500 hover:bg-blue-50 hover:text-blue-600'
+                          }`}
+                        >
+                          <span className="text-lg">📊</span>
+                          분석
+                        </button>
+                        <button
+                          onClick={() => { setShowVocab(!showVocab); setShowInterpretation(false); setShowAnalysis(false); }}
+                          className={`py-3.5 flex flex-col items-center gap-1 transition-all text-xs font-semibold ${
+                            showVocab
+                              ? 'bg-gradient-to-b from-violet-500 to-purple-500 text-white'
+                              : 'bg-white text-gray-500 hover:bg-violet-50 hover:text-violet-600'
+                          }`}
+                        >
+                          <span className="text-lg">📖</span>
+                          단어
+                        </button>
+                      </div>
 
-                    {/* Expanded content */}
-                    <AnimatePresence>
-                      {showInterpretation && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          className="bg-white border border-gray-200 rounded-xl p-4 overflow-hidden"
-                        >
-                          <h4 className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
-                            <Lightbulb className="w-4 h-4 text-amber-500" />
-                            해석
-                          </h4>
-                          <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
-                            {currentQuestion.explanation || getInterpretation(currentQuestion)}
-                          </p>
-                        </motion.div>
-                      )}
-                      {showAnalysis && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          className="bg-white border border-gray-200 rounded-xl p-4 overflow-hidden"
-                        >
-                          <h4 className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
-                            <BarChart3 className="w-4 h-4 text-blue-500" />
-                            분석
-                          </h4>
-                          <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
-                            {getAnalysis(currentQuestion)}
-                          </p>
-                        </motion.div>
-                      )}
-                      {showVocab && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          className="bg-white border border-gray-200 rounded-xl p-4 overflow-hidden"
-                        >
-                          <h4 className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
-                            <BookMarked className="w-4 h-4 text-purple-500" />
-                            단어
-                          </h4>
-                          <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
-                            {getVocab(currentQuestion)}
-                          </p>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                      {/* 탭 콘텐츠 */}
+                      <AnimatePresence>
+                        {showInterpretation && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="p-4 bg-amber-50 border-t border-amber-100">
+                              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+                                {currentQuestion.explanation || getInterpretation(currentQuestion)}
+                              </p>
+                            </div>
+                          </motion.div>
+                        )}
+                        {showAnalysis && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="p-4 bg-blue-50 border-t border-blue-100">
+                              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+                                {getAnalysis(currentQuestion)}
+                              </p>
+                            </div>
+                          </motion.div>
+                        )}
+                        {showVocab && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="p-4 bg-violet-50 border-t border-violet-100">
+                              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+                                {getVocab(currentQuestion)}
+                              </p>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
