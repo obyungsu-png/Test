@@ -264,6 +264,10 @@ export default function App() {
             setLmsSelectedMenu('dashboard');
             setCurrentPage('lms');
           }}
+          onCMSClick={() => {
+            setLmsSelectedMenu('voca');
+            setCurrentPage('lms');
+          }}
           onComponent3Click={handleComponent3Click}
           onComponent4Click={handleComponent4Click}
           onComponent5Click={handleComponent5Click}

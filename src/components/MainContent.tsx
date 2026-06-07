@@ -37,6 +37,7 @@ interface MainContentProps {
   schoolType: 'korean' | 'international' | null;
   isCertificationMode?: boolean;
   onActiveTabChange?: (tab: string) => void;
+  onCMSClick?: () => void;
   onComponent3Click?: () => void;
   onComponent4Click?: () => void;
   onComponent5Click?: () => void;
@@ -95,7 +96,7 @@ function CategoryCard({ category, index, onClick }: { category: any; index: numb
   );
 }
 
-export function MainContent({ selectedSubject, selectedCategory, selectedSubCategory, schoolType, isCertificationMode, onActiveTabChange, onComponent3Click, onComponent4Click, onComponent5Click }: MainContentProps) {
+export function MainContent({ selectedSubject, selectedCategory, selectedSubCategory, schoolType, isCertificationMode, onActiveTabChange, onCMSClick, onComponent3Click, onComponent4Click, onComponent5Click }: MainContentProps) {
   const defaultTabs = isCertificationMode ? CERTIFICATION_TABS : 
                     (schoolType === 'international' ? INTERNATIONAL_SCHOOL_TABS : KOREAN_SCHOOL_TABS);
   // school-type 별 localStorage 키 (다른 학교 유형의 커스텀 탭이 섞이지 않도록)
@@ -1159,9 +1160,9 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
                           시험보기
                         </button>
                         <button
-                          onClick={() => { setEditingMaterial(material); setShowQuestionEditModal(true); }}
+                          onClick={() => onCMSClick?.()}
                           className="bg-white border border-amber-300 rounded px-3 py-1.5 text-xs text-amber-600 hover:bg-amber-50 transition-all whitespace-nowrap"
-                          title="해설/분석/단어 편집"
+                          title="CMS에서 단어/해설 편집"
                         >
                           ✏️ 편집
                         </button>

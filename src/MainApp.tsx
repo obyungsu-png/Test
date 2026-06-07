@@ -10,6 +10,7 @@ interface MainAppProps {
   onUploadClick?: () => void;
   onBackToLanding?: () => void;
   onLMSClick?: () => void;
+  onCMSClick?: () => void;
   onComponent3Click?: () => void;
   onComponent4Click?: () => void;
   onComponent5Click?: () => void;
@@ -20,7 +21,7 @@ interface MainAppProps {
   initialSubject?: string | null;
 }
 
-export default function MainApp({ onUploadClick, onBackToLanding, onLMSClick, onComponent3Click, onComponent4Click, onComponent5Click, schoolType, userRole, onUserRoleChange, isCertificationMode, initialSubject }: MainAppProps) {
+export default function MainApp({ onUploadClick, onBackToLanding, onLMSClick, onCMSClick, onComponent3Click, onComponent4Click, onComponent5Click, schoolType, userRole, onUserRoleChange, isCertificationMode, initialSubject }: MainAppProps) {
   const getDefaultSubject = () => {
     if (initialSubject) return initialSubject;
     if (isCertificationMode) return "TOEFL";
@@ -98,6 +99,7 @@ export default function MainApp({ onUploadClick, onBackToLanding, onLMSClick, on
               schoolType={schoolType}
               isCertificationMode={isCertificationMode}
               onActiveTabChange={setActiveTab}
+              onCMSClick={onCMSClick}
               onComponent3Click={onComponent3Click}
               onComponent4Click={onComponent4Click}
               onComponent5Click={onComponent5Click}

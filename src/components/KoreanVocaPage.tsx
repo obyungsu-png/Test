@@ -321,9 +321,15 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
     const handleUpdate = () => { loadWords(); loadDayNames(); };
     window.addEventListener('vocaWordsUpdated', handleUpdate);
     window.addEventListener('vocaDayNamesUpdated', handleUpdate);
+    // CMS(다른 뷰)에서 단어 제목 변경 후 돌아왔을 때 최신 데이터 반영
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') loadDayNames();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
     return () => {
       window.removeEventListener('vocaWordsUpdated', handleUpdate);
       window.removeEventListener('vocaDayNamesUpdated', handleUpdate);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, []);
 
@@ -347,7 +353,17 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
   };
 
   const getDayName = (exam: string, day: number): string => {
-    return dayNames[exam]?.[day] || `Day ${day}`;
+    // 1. 비동기로 로드된 state 확인
+    if (dayNames[exam]?.[day]) return dayNames[exam][day];
+    // 2. state가 아직 로드 안 됐거나 CMS에서 막 변경된 경우: localStorage 직접 읽기
+    try {
+      const stored = localStorage.getItem('vocaDayNames');
+      if (stored) {
+        const names = JSON.parse(stored);
+        if (names[exam]?.[day]) return names[exam][day];
+      }
+    } catch {}
+    return `Day ${day}`;
   };
 
   const handleExamChange = (examId: string) => {
