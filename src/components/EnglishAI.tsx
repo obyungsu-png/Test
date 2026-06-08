@@ -10,7 +10,6 @@ import {
   Clock, ChevronDown, ChevronUp, AlertCircle
 } from "lucide-react";
 import { toast } from "sonner@2.0.3";
-import { FlowChart } from "./TextbookMastery/FlowChart";
 import type { ParagraphItem, SentenceItem as TBSentenceItem } from "./TextbookMastery/types";
 import { downloadMasteryExamPDF, downloadMasteryExamWord, downloadMasteryVocaPDF } from "../utils/downloadHelpers";
 
@@ -1057,6 +1056,200 @@ function Stage3StructuralMemory({ sentences, onComplete }: { sentences: Analyzed
   );
 }
 
+// ===================== Stage 4: 구조 파악 (글의 흐름 + 주제) =====================
+function Stage4FlowMastery({ paragraphs, sentences }: { paragraphs: typeof SAMPLE_PARAGRAPHS; sentences: typeof SAMPLE_TB_SENTENCES; onComplete?: () => void }) {
+  const [tab, setTab] = useState<'topic' | 'flow'>('topic');
+
+  // ── 주제 파악 ──
+  const correctTopic = "우주 팽창 발견의 의의와 팽창 속도에 따른 우주의 운명";
+  const topicOptions = [
+    "우주 팽창 발견의 의의와 팽창 속도에 따른 우주의 운명",
+    "뉴턴이 중력 이론을 완성한 역사적 배경",
+    "블랙홀의 형성 과정과 우주 수축의 원인",
+    "정적인 우주론과 현대 천문학의 차이점",
+  ];
+  const [topicAnswer, setTopicAnswer] = useState<number | null>(null);
+  const [topicConfirmed, setTopicConfirmed] = useState(false);
+
+  // ── 글의 흐름 ──
+  const [shuffled, setShuffled] = useState(() =>
+    [...paragraphs].sort(() => Math.random() - 0.5)
+  );
+  const [arranged, setArranged] = useState<typeof paragraphs>([]);
+  const [flowChecked, setFlowChecked] = useState(false);
+  const [flowCorrect, setFlowCorrect] = useState(false);
+
+  const addPara = (p: (typeof paragraphs)[0]) => {
+    setArranged(prev => [...prev, p]);
+    setShuffled(prev => prev.filter(x => x.id !== p.id));
+    setFlowChecked(false);
+  };
+  const removePara = (idx: number) => {
+    const p = arranged[idx];
+    setArranged(prev => prev.filter((_, i) => i !== idx));
+    setShuffled(prev => [...prev, p]);
+    setFlowChecked(false);
+  };
+  const checkFlow = () => {
+    const ok = arranged.every((p, i) => p.id === paragraphs[i].id);
+    setFlowCorrect(ok);
+    setFlowChecked(true);
+  };
+  const resetFlow = () => {
+    setShuffled([...paragraphs].sort(() => Math.random() - 0.5));
+    setArranged([]);
+    setFlowChecked(false);
+  };
+
+  return (
+    <div>
+      {/* 탭 */}
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl mb-6">
+        <button onClick={() => setTab('topic')}
+          className={`flex-1 py-3 rounded-lg text-base font-bold transition-all ${tab === 'topic' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500'}`}>
+          📌 주제 파악
+        </button>
+        <button onClick={() => setTab('flow')}
+          className={`flex-1 py-3 rounded-lg text-base font-bold transition-all ${tab === 'flow' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500'}`}>
+          🔀 글의 흐름
+        </button>
+      </div>
+
+      <AnimatePresence mode="wait">
+        {/* ── 주제 파악 ── */}
+        {tab === 'topic' && (
+          <motion.div key="topic" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+            {/* 지문 요약 */}
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-5 mb-6">
+              <p className="text-sm font-bold text-blue-600 mb-3 uppercase tracking-wide">지문 요약</p>
+              {paragraphs.map(p => (
+                <div key={p.id} className="mb-2 last:mb-0">
+                  <span className="text-xs font-bold text-white bg-blue-400 px-2 py-0.5 rounded mr-2">{p.id}단락</span>
+                  <span className="text-base text-blue-900 font-medium">{p.topic}</span>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-xl font-bold text-gray-800 mb-5">이 글의 주제로 가장 적절한 것은?</p>
+            <div className="space-y-3">
+              {topicOptions.map((opt, i) => {
+                const isSelected = topicAnswer === i;
+                const isCorrect = opt === correctTopic;
+                let cls = "bg-white border-gray-200 hover:border-blue-300 hover:bg-blue-50/50";
+                if (topicConfirmed && isSelected && isCorrect) cls = "bg-green-50 border-green-400 ring-2 ring-green-200";
+                else if (topicConfirmed && isSelected && !isCorrect) cls = "bg-red-50 border-red-400 ring-2 ring-red-200";
+                else if (topicConfirmed && isCorrect) cls = "bg-green-50 border-green-300";
+                return (
+                  <button key={i} onClick={() => { if (!topicConfirmed) setTopicAnswer(i); }}
+                    className={`w-full text-left px-5 py-4 rounded-xl border-2 transition-all ${cls}`}>
+                    <div className="flex items-center gap-3">
+                      <span className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-base font-bold text-gray-600 shrink-0">
+                        {String.fromCharCode(65 + i)}
+                      </span>
+                      <span className="text-base text-gray-800">{opt}</span>
+                      {topicConfirmed && isCorrect && <span className="ml-auto text-green-500 text-lg">✓</span>}
+                      {topicConfirmed && isSelected && !isCorrect && <span className="ml-auto text-red-500 text-lg">✗</span>}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            {topicAnswer !== null && !topicConfirmed && (
+              <motion.button initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                onClick={() => setTopicConfirmed(true)}
+                className="mt-5 w-full py-3.5 bg-blue-600 text-white rounded-xl text-base font-bold hover:bg-blue-700">
+                정답 확인
+              </motion.button>
+            )}
+            {topicConfirmed && (
+              <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                className={`mt-5 p-5 rounded-xl text-base font-bold text-center ${topicAnswer !== null && topicOptions[topicAnswer] === correctTopic ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                {topicAnswer !== null && topicOptions[topicAnswer] === correctTopic ? '🎉 정답입니다!' : `😅 오답 — 정답: ${correctTopic}`}
+              </motion.div>
+            )}
+          </motion.div>
+        )}
+
+        {/* ── 글의 흐름 ── */}
+        {tab === 'flow' && (
+          <motion.div key="flow" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+            <p className="text-xl font-bold text-gray-800 mb-2">문단을 글의 순서대로 배열하세요</p>
+            <p className="text-base text-gray-500 mb-6">아래에서 선택 → 순서대로 위로 올라갑니다</p>
+
+            {/* 정렬 영역 */}
+            <div className="mb-4">
+              <p className="text-sm font-bold text-gray-500 mb-2 uppercase tracking-wide">내 답안</p>
+              <div className="min-h-[80px] bg-indigo-50 border-2 border-dashed border-indigo-200 rounded-xl p-3 space-y-2">
+                {arranged.length === 0 && (
+                  <p className="text-base text-indigo-300 text-center py-4">아래에서 문단을 선택하세요</p>
+                )}
+                {arranged.map((p, i) => (
+                  <motion.div key={p.id} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 cursor-pointer transition-all ${
+                      flowChecked
+                        ? p.id === paragraphs[i].id
+                          ? 'bg-green-50 border-green-400'
+                          : 'bg-red-50 border-red-400'
+                        : 'bg-white border-indigo-200 hover:border-red-300'
+                    }`}
+                    onClick={() => { if (!flowChecked) removePara(i); }}>
+                    <span className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold text-base flex items-center justify-center shrink-0">{i + 1}</span>
+                    <span className="text-base font-medium text-gray-800 flex-1">{p.topic}</span>
+                    {flowChecked && (
+                      <span className="text-lg">{p.id === paragraphs[i].id ? '✓' : '✗'}</span>
+                    )}
+                    {!flowChecked && <span className="text-gray-300 text-sm">클릭하여 제거</span>}
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+
+            {/* 선택지 */}
+            <div className="mb-5">
+              <p className="text-sm font-bold text-gray-500 mb-2 uppercase tracking-wide">선택 가능한 문단</p>
+              <div className="space-y-2">
+                {shuffled.map(p => (
+                  <motion.button key={p.id} layout whileTap={{ scale: 0.98 }}
+                    onClick={() => addPara(p)}
+                    className="w-full flex items-center gap-3 px-4 py-3 bg-white border-2 border-gray-200 hover:border-indigo-400 hover:bg-indigo-50 rounded-xl text-left transition-all">
+                    <span className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 font-bold text-base flex items-center justify-center shrink-0">?</span>
+                    <span className="text-base font-medium text-gray-800">{p.topic}</span>
+                  </motion.button>
+                ))}
+                {shuffled.length === 0 && arranged.length === paragraphs.length && !flowChecked && (
+                  <p className="text-base text-gray-400 text-center py-2">모든 문단이 배치됐습니다 ↑</p>
+                )}
+              </div>
+            </div>
+
+            {/* 확인/리셋 */}
+            <div className="flex gap-3">
+              {arranged.length === paragraphs.length && !flowChecked && (
+                <motion.button initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                  onClick={checkFlow}
+                  className="flex-1 py-3.5 bg-indigo-600 text-white rounded-xl text-base font-bold hover:bg-indigo-700">
+                  순서 확인
+                </motion.button>
+              )}
+              <button onClick={resetFlow}
+                className="px-5 py-3.5 bg-gray-100 text-gray-600 rounded-xl text-base font-bold hover:bg-gray-200">
+                초기화
+              </button>
+            </div>
+
+            {flowChecked && (
+              <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                className={`mt-4 p-5 rounded-xl text-base font-bold text-center ${flowCorrect ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+                {flowCorrect ? '🎉 완벽한 순서입니다!' : '😅 순서를 다시 확인해 보세요. 초기화 후 재도전!'}
+              </motion.div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // ===================== Stage 4: Killer Questions (MockTest Style) =====================
 function Stage4KillerTest({ questions, sentences }: { questions: KillerQuestion[]; sentences: AnalyzedSentence[] }) {
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -1797,9 +1990,7 @@ export default function EnglishAI() {
               {currentStage === 2 && <Stage2VocaChallenge vocab={SAMPLE_VOCAB} onComplete={() => {}} />}
               {currentStage === 3 && <Stage3StructuralMemory sentences={SAMPLE_SENTENCES} onComplete={() => {}} />}
               {currentStage === 4 && (
-                <div className="[&>div]:max-w-none">
-                  <FlowChart paragraphs={SAMPLE_PARAGRAPHS} sentences={SAMPLE_TB_SENTENCES} onComplete={() => setCurrentStage(5)} />
-                </div>
+                <Stage4FlowMastery paragraphs={SAMPLE_PARAGRAPHS} sentences={SAMPLE_TB_SENTENCES} onComplete={() => setCurrentStage(5)} />
               )}
               {currentStage === 5 && <Stage4KillerTest questions={SAMPLE_KILLER_QUESTIONS} sentences={SAMPLE_SENTENCES} />}
             </motion.div>
