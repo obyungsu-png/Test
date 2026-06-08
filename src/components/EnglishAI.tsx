@@ -483,95 +483,86 @@ function Stage1DirectReading({ sentences, onComplete }: { sentences: AnalyzedSen
 // ===================== Stage 2: Vocabulary Challenge =====================
 function Stage2VocaChallenge({ vocab, onComplete }: { vocab: VocaCard[]; onComplete?: () => void }) {
   const [currentIdx, setCurrentIdx] = useState(0);
-  const [mode, setMode] = useState<"study" | "card" | "test">("study");
-  const [isFlipped, setIsFlipped] = useState(false);
+  const [mode, setMode] = useState<"study" | "test">("study");
   const [quizAnswer, setQuizAnswer] = useState<string | null>(null);
   const [score, setScore] = useState({ correct: 0, wrong: 0 });
-  const [testType, setTestType] = useState<"context" | "synonym">("context");
   const [learnedWords, setLearnedWords] = useState<Set<string>>(new Set());
-  const [contextTestDone, setContextTestDone] = useState(false);
 
   const current = vocab[currentIdx];
 
   const contextOptions = useMemo(() => {
-    if (!current || testType !== "context") return [];
+    if (!current) return [];
     const correct = current.word;
     const distractors = vocab.filter(v => v.id !== current.id).map(v => v.word).sort(() => Math.random() - 0.5).slice(0, 3);
     return [correct, ...distractors].sort(() => Math.random() - 0.5);
-  }, [currentIdx, mode, testType]);
-
-  const synonymOptions = useMemo(() => {
-    if (!current || testType !== "synonym") return [];
-    const correctSynonyms = current.synonyms;
-    const allWords = vocab.flatMap(v => [...v.synonyms, ...v.antonyms, v.word]).filter(w => !correctSynonyms.includes(w));
-    const distractors = allWords.sort(() => Math.random() - 0.5).slice(0, 3);
-    return [correctSynonyms[0], ...distractors].sort(() => Math.random() - 0.5);
-  }, [currentIdx, mode, testType]);
+  }, [currentIdx, mode, vocab, current]);
 
   const handleTestSelect = (word: string) => {
     if (quizAnswer) return;
     setQuizAnswer(word);
-    const isCorrect = testType === "context" ? word === current.word : current.synonyms.includes(word);
+    const isCorrect = word === current.word;
     setScore(prev => ({ correct: prev.correct + (isCorrect ? 1 : 0), wrong: prev.wrong + (isCorrect ? 0 : 1) }));
     setTimeout(() => {
       setQuizAnswer(null);
       if (currentIdx < vocab.length - 1) setCurrentIdx(prev => prev + 1);
       else {
         toast.success(`테스트 완료! 정답: ${score.correct + (isCorrect ? 1 : 0)}/${vocab.length}`);
-        if (testType === "context") { setContextTestDone(true); if (onComplete) onComplete(); }
+        if (onComplete) onComplete();
         setCurrentIdx(0);
         setScore({ correct: 0, wrong: 0 });
       }
     }, 1200);
   };
 
-  const next = () => { setIsFlipped(false); setCurrentIdx(prev => (prev + 1) % vocab.length); };
-  const prev2 = () => { setIsFlipped(false); setCurrentIdx(prev => (prev - 1 + vocab.length) % vocab.length); };
   const toggleLearned = (id: string) => {
     setLearnedWords(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   };
 
-  const options = testType === "context" ? contextOptions : synonymOptions;
-
   return (
     <div>
-      {/* 3-Tab Toggle */}
-      <div className="flex gap-1 mb-5 bg-gray-100 p-1 rounded-xl">
-        <button onClick={() => { setMode("study"); setCurrentIdx(0); }} className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${mode === "study" ? "bg-white text-emerald-700 shadow-sm" : "text-gray-500"}`}>어휘 학습</button>
-        <button onClick={() => { setMode("card"); setCurrentIdx(0); setIsFlipped(false); }} className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${mode === "card" ? "bg-white text-cyan-700 shadow-sm" : "text-gray-500"}`}>단어 카드</button>
-        <button onClick={() => { setMode("test"); setCurrentIdx(0); setQuizAnswer(null); setScore({ correct: 0, wrong: 0 }); }} className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${mode === "test" ? "bg-white text-purple-700 shadow-sm" : "text-gray-500"}`}>테스트</button>
+      {/* 2-Tab Toggle: 어휘 학습 / 테스트 */}
+      <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-xl">
+        <button onClick={() => { setMode("study"); setCurrentIdx(0); }}
+          className={`flex-1 py-3 rounded-lg text-base font-bold transition-all ${mode === "study" ? "bg-white text-emerald-700 shadow-sm" : "text-gray-500"}`}>
+          어휘 학습
+        </button>
+        <button onClick={() => { setMode("test"); setCurrentIdx(0); setQuizAnswer(null); setScore({ correct: 0, wrong: 0 }); }}
+          className={`flex-1 py-3 rounded-lg text-base font-bold transition-all ${mode === "test" ? "bg-white text-purple-700 shadow-sm" : "text-gray-500"}`}>
+          테스트
+        </button>
       </div>
 
       {/* 어휘 학습 */}
       {mode === "study" && (
         <div className="space-y-3">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500">학습 완료: <span className="font-bold text-emerald-600">{learnedWords.size}/{vocab.length}</span></span>
-            <div className="h-1.5 flex-1 mx-3 bg-gray-100 rounded-full overflow-hidden">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-base text-gray-600">학습 완료: <span className="font-bold text-emerald-600 text-lg">{learnedWords.size}/{vocab.length}</span></span>
+            <div className="h-2 flex-1 mx-4 bg-gray-100 rounded-full overflow-hidden">
               <motion.div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full" animate={{ width: `${(learnedWords.size / vocab.length) * 100}%` }} />
             </div>
           </div>
           {vocab.map((v) => {
             const isLearned = learnedWords.has(v.id);
             return (
-              <motion.div key={v.id} layout className={`p-4 rounded-xl border transition-all ${isLearned ? 'border-emerald-200 bg-emerald-50/50' : 'border-gray-100 bg-white'}`}>
+              <motion.div key={v.id} layout className={`p-5 rounded-xl border transition-all ${isLearned ? "border-emerald-200 bg-emerald-50/50" : "border-gray-100 bg-white"}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-lg font-bold text-gray-800">{v.word}</h3>
-                      <span className="text-[10px] text-cyan-500 bg-cyan-50 px-1.5 py-0.5 rounded-full border border-cyan-200">{v.pos}</span>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <h3 className="text-xl font-bold text-gray-800">{v.word}</h3>
+                      <span className="text-xs text-cyan-500 bg-cyan-50 px-1.5 py-0.5 rounded-full border border-cyan-200">{v.pos}</span>
                     </div>
-                    <p className="text-sm text-gray-600 font-medium">{v.meaning}</p>
-                    <p className="text-xs text-gray-400 italic mt-1">"{v.contextSentence}"</p>
+                    <p className="text-base text-gray-600 font-medium">{v.meaning}</p>
+                    <p className="text-sm text-gray-400 italic mt-1.5">"{v.contextSentence}"</p>
                     {(v.synonyms.length > 0 || v.antonyms.length > 0) && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {v.synonyms.map((s, i) => (<span key={i} className="text-[10px] px-1.5 py-0.5 bg-green-50 text-green-600 rounded-full border border-green-100">{s}</span>))}
-                        {v.antonyms.map((a, i) => (<span key={`a-${i}`} className="text-[10px] px-1.5 py-0.5 bg-red-50 text-red-500 rounded-full border border-red-100">{a}</span>))}
+                      <div className="flex flex-wrap gap-1.5 mt-2.5">
+                        {v.synonyms.map((s, i) => (<span key={i} className="text-xs px-2 py-0.5 bg-green-50 text-green-600 rounded-full border border-green-100">{s}</span>))}
+                        {v.antonyms.map((a, i) => (<span key={`a-${i}`} className="text-xs px-2 py-0.5 bg-red-50 text-red-500 rounded-full border border-red-100">{a}</span>))}
                       </div>
                     )}
                   </div>
-                  <button onClick={() => toggleLearned(v.id)} className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all ${isLearned ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}>
-                    <CheckCircle2 className="w-4 h-4" />
+                  <button onClick={() => toggleLearned(v.id)}
+                    className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-all ${isLearned ? "bg-emerald-500 text-white" : "bg-gray-100 text-gray-400 hover:bg-gray-200"}`}>
+                    <CheckCircle2 className="w-5 h-5" />
                   </button>
                 </div>
               </motion.div>
@@ -580,86 +571,42 @@ function Stage2VocaChallenge({ vocab, onComplete }: { vocab: VocaCard[]; onCompl
         </div>
       )}
 
-      {/* 단어 카드 */}
-      {mode === "card" && current && (
-        <>
-          <div className="flex items-center justify-between mb-3 text-sm"><span className="text-gray-500">{currentIdx + 1} / {vocab.length}</span></div>
-          <div className="h-1.5 bg-gray-100 rounded-full mb-5 overflow-hidden">
-            <motion.div className="h-full bg-gradient-to-r from-cyan-400 to-cyan-600 rounded-full" animate={{ width: `${((currentIdx + 1) / vocab.length) * 100}%` }} />
-          </div>
-          <motion.div key={currentIdx} initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={() => setIsFlipped(!isFlipped)} className="cursor-pointer rounded-2xl shadow-lg border border-gray-100 overflow-hidden" style={{ minHeight: "240px" }}>
-            {!isFlipped ? (
-              <div className="flex flex-col items-center justify-center p-8 bg-gradient-to-br from-cyan-50 to-sky-50 h-full min-h-[240px]">
-                <span className="text-xs text-cyan-500 bg-cyan-50 px-2 py-0.5 rounded-full border border-cyan-200 mb-3">{current.pos}</span>
-                <h2 className="text-3xl font-bold text-gray-800 mb-2">{current.word}</h2>
-                <p className="text-sm text-gray-400 italic mt-2">"{current.contextSentence}"</p>
-                <p className="text-xs text-gray-400 mt-4">탭하여 뜻 확인</p>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center p-8 bg-gradient-to-br from-amber-50 to-orange-50 h-full min-h-[240px]">
-                <h2 className="text-2xl font-bold text-gray-800 mb-1">{current.word}</h2>
-                <p className="text-xl text-amber-700 font-semibold mb-3">{current.meaning}</p>
-                <div className="flex gap-4 text-xs text-gray-500">
-                  {current.synonyms.length > 0 && <span>유의어: <span className="font-medium text-green-600">{current.synonyms.join(", ")}</span></span>}
-                </div>
-                {current.antonyms.length > 0 && <span className="text-xs text-gray-500 mt-1">반의어: <span className="font-medium text-red-500">{current.antonyms.join(", ")}</span></span>}
-              </div>
-            )}
-          </motion.div>
-          <div className="flex justify-center gap-4 mt-5">
-            <button onClick={prev2} className="px-4 py-2 bg-gray-100 rounded-lg text-sm font-medium hover:bg-gray-200">이전</button>
-            <button onClick={next} className="px-4 py-2 bg-cyan-600 text-white rounded-lg text-sm font-medium hover:bg-cyan-700">다음</button>
-          </div>
-        </>
-      )}
-
-      {/* 테스트 */}
+      {/* 테스트 (context only, 서브탭 없음) */}
       {mode === "test" && current && (
         <div>
-          <div className="flex gap-2 mb-4">
-            <button onClick={() => { setTestType("context"); setCurrentIdx(0); setQuizAnswer(null); setScore({ correct: 0, wrong: 0 }); }} className={`flex-1 py-2 rounded-lg text-xs font-bold border-2 transition-all ${testType === "context" ? "border-cyan-500 bg-cyan-50 text-cyan-700" : "border-gray-200 bg-white text-gray-500 hover:bg-gray-50"}`}>본문단어</button>
-            <button onClick={() => { setTestType("synonym"); setCurrentIdx(0); setQuizAnswer(null); setScore({ correct: 0, wrong: 0 }); }} className={`flex-1 py-2 rounded-lg text-xs font-bold border-2 transition-all ${testType === "synonym" ? "border-purple-500 bg-purple-50 text-purple-700" : "border-gray-200 bg-white text-gray-500 hover:bg-gray-50"}`}>유의어</button>
-          </div>
-          <div className="flex items-center justify-between mb-3 text-sm">
-            <span className="text-gray-500">{currentIdx + 1} / {vocab.length}</span>
-            <div className="flex gap-3">
+          <div className="flex items-center justify-between mb-3 text-base">
+            <span className="text-gray-500 font-medium">{currentIdx + 1} / {vocab.length}</span>
+            <div className="flex gap-4">
               <span className="text-green-600 font-bold">{score.correct} 정답</span>
               <span className="text-red-500 font-bold">{score.wrong} 오답</span>
             </div>
           </div>
-          <div className="h-1.5 bg-gray-100 rounded-full mb-5 overflow-hidden">
+          <div className="h-2 bg-gray-100 rounded-full mb-6 overflow-hidden">
             <motion.div className="h-full bg-gradient-to-r from-cyan-400 to-cyan-600 rounded-full" animate={{ width: `${((currentIdx + 1) / vocab.length) * 100}%` }} />
           </div>
-          <motion.div key={`${currentIdx}-${testType}`} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className={`rounded-2xl shadow-lg border p-6 text-center mb-5 ${testType === "context" ? "bg-gradient-to-br from-cyan-50 to-sky-50 border-cyan-100" : "bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-100"}`}>
-            {testType === "context" ? (
-              <>
-                <p className="text-sm text-cyan-500 mb-2">뜻에 맞는 영어 단어를 고르세요</p>
-                <h2 className="text-2xl font-bold text-gray-800 mb-1">{current.meaning}</h2>
-                <p className="text-xs text-gray-400 italic mt-1">"{current.contextSentence}"</p>
-              </>
-            ) : (
-              <>
-                <p className="text-sm text-purple-500 mb-2">이 단어의 유의어를 고르세요</p>
-                <h2 className="text-3xl font-bold text-gray-800 mb-1">{current.word}</h2>
-                <p className="text-sm text-gray-500">{current.meaning}</p>
-              </>
-            )}
+          <motion.div key={currentIdx} initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}
+            className="rounded-2xl shadow-lg border bg-gradient-to-br from-cyan-50 to-sky-50 border-cyan-100 p-8 text-center mb-6">
+            <p className="text-base text-cyan-500 mb-3">뜻에 맞는 영어 단어를 고르세요</p>
+            <h2 className="text-3xl font-bold text-gray-800 mb-2">{current.meaning}</h2>
+            <p className="text-sm text-gray-400 italic mt-2">"{current.contextSentence}"</p>
           </motion.div>
-          <div className="grid grid-cols-1 gap-2.5">
-            {options.map((opt, i) => {
+          <div className="grid grid-cols-1 gap-3">
+            {contextOptions.map((opt, i) => {
               const isSelected = quizAnswer === opt;
-              const isCorrectOpt = testType === "context" ? opt === current.word : current.synonyms.includes(opt);
-              let cls = "bg-white border-gray-200 hover:border-purple-300 hover:bg-purple-50";
+              const isCorrectOpt = opt === current.word;
+              let cls = "bg-white border-gray-200 hover:border-cyan-300 hover:bg-cyan-50";
               if (quizAnswer && isSelected && isCorrectOpt) cls = "bg-green-50 border-green-400 ring-2 ring-green-200";
               else if (quizAnswer && isSelected && !isCorrectOpt) cls = "bg-red-50 border-red-400 ring-2 ring-red-200";
               else if (quizAnswer && isCorrectOpt) cls = "bg-green-50 border-green-300";
               return (
-                <motion.button key={i} whileTap={{ scale: 0.98 }} onClick={() => handleTestSelect(opt)} disabled={quizAnswer !== null} className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all ${cls}`}>
+                <motion.button key={i} whileTap={{ scale: 0.98 }} onClick={() => handleTestSelect(opt)}
+                  disabled={quizAnswer !== null}
+                  className={`w-full text-left px-5 py-4 rounded-xl border-2 transition-all ${cls}`}>
                   <div className="flex items-center gap-3">
-                    <span className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500">{String.fromCharCode(65 + i)}</span>
-                    <span className="text-sm font-medium text-gray-700">{opt}</span>
-                    {quizAnswer && isCorrectOpt && <CheckCircle2 className="w-4 h-4 text-green-500 ml-auto" />}
-                    {quizAnswer && isSelected && !isCorrectOpt && <XCircle className="w-4 h-4 text-red-500 ml-auto" />}
+                    <span className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-sm font-bold text-gray-500">{String.fromCharCode(65 + i)}</span>
+                    <span className="text-base font-medium text-gray-700">{opt}</span>
+                    {quizAnswer && isCorrectOpt && <CheckCircle2 className="w-5 h-5 text-green-500 ml-auto" />}
+                    {quizAnswer && isSelected && !isCorrectOpt && <XCircle className="w-5 h-5 text-red-500 ml-auto" />}
                   </div>
                 </motion.button>
               );
@@ -670,6 +617,7 @@ function Stage2VocaChallenge({ vocab, onComplete }: { vocab: VocaCard[]; onCompl
     </div>
   );
 }
+
 
 // ===================== Stage 3: Structural Memory (Multi-blank + Unscramble + Writing) =====================
 function Stage3StructuralMemory({ sentences, onComplete }: { sentences: AnalyzedSentence[]; onComplete?: () => void }) {
@@ -1561,7 +1509,7 @@ function InputDashboard({ onAnalyze }: { onAnalyze: (text: string) => void }) {
   };
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-5xl mx-auto">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -1630,28 +1578,19 @@ function InputDashboard({ onAnalyze }: { onAnalyze: (text: string) => void }) {
         </motion.button>
       </div>
 
-      {/* Feature cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-10">
+      {/* Feature pills */}
+      <div className="flex flex-wrap gap-2 mt-8 justify-center">
         {[
-          { icon: BookOpen, label: "직독직해", desc: "끊어읽기 + 구문 레이더", color: "text-cyan-600 bg-cyan-50" },
-          { icon: Layers, label: "어휘 챌린지", desc: "유의어 선택 퀴즈", color: "text-purple-600 bg-purple-50" },
-          { icon: Target, label: "구조 암기", desc: "어법/키워드/연결어 빈칸", color: "text-amber-600 bg-amber-50" },
-          { icon: Brain, label: "구조 파악", desc: "순서 배열 + 주제 찾기", color: "text-green-600 bg-green-50" },
-          { icon: Zap, label: "실전 테스트", desc: "AI 생성 킬러 문항", color: "text-red-600 bg-red-50" },
+          { icon: BookOpen, label: "직독직해" },
+          { icon: Layers, label: "어휘 챌린지" },
+          { icon: Target, label: "구조 암기" },
+          { icon: Brain, label: "구조 파악" },
+          { icon: Zap, label: "실전 테스트" },
         ].map((f, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 * i }}
-            className="p-4 rounded-xl border border-gray-100 bg-white text-center"
-          >
-            <div className={`w-10 h-10 rounded-xl ${f.color} flex items-center justify-center mx-auto mb-2`}>
-              <f.icon className="w-5 h-5" />
-            </div>
-            <h3 className="text-sm font-bold text-gray-700">{f.label}</h3>
-            <p className="text-xs text-gray-400 mt-0.5">{f.desc}</p>
-          </motion.div>
+          <div key={i} className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-full text-sm text-gray-600">
+            <f.icon className="w-3.5 h-3.5 text-cyan-500" />
+            {f.label}
+          </div>
         ))}
       </div>
     </div>
@@ -1663,10 +1602,6 @@ export default function EnglishAI() {
   const [isAnalyzed, setIsAnalyzed] = useState(false);
   const [currentStage, setCurrentStage] = useState(1);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
-  const [unlockedStage, setUnlockedStage] = useState(1); // highest unlocked stage
-
-  // 뽀개기 게이지: based on stages completed (each stage = 20%)
-  const ppogaegiProgress = (unlockedStage - 1) * 20;
 
   // Build MasteryLesson-compatible object for download helpers
   const buildLessonForDownload = () => ({
@@ -1818,56 +1753,35 @@ export default function EnglishAI() {
             </div>
           </div>
 
-          {/* Stage Navigation */}
-          <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2">
-            {stages.map((s) => (
-              <button
-                key={s.stage}
-                onClick={() => { if (s.stage <= unlockedStage) setCurrentStage(s.stage); }}
-                className="shrink-0"
-              >
-                <StageLock
-                  stage={s.stage}
-                  currentStage={currentStage}
-                  label={s.label}
-                  icon={s.icon}
-                  unlockedStage={unlockedStage}
-                />
-              </button>
-            ))}
-
+          {/* Stage Navigation — 자유 클릭 */}
+          <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-1">
+            {stages.map((s) => {
+              const Icon = s.icon;
+              const isActive = currentStage === s.stage;
+              return (
+                <button key={s.stage} onClick={() => setCurrentStage(s.stage)}
+                  className={`shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                    isActive ? "bg-cyan-600 text-white shadow-md scale-105" : "bg-gray-100 text-gray-600 hover:bg-cyan-50 hover:text-cyan-700"
+                  }`}>
+                  <Icon className="w-4 h-4" />
+                  <span className="hidden sm:inline">{s.label}</span>
+                  <span className="sm:hidden">S{s.stage}</span>
+                </button>
+              );
+            })}
           </div>
 
-          {/* 뽀개기 게이지 */}
-          <div className="bg-gradient-to-r from-gray-50 to-white p-4 rounded-xl border border-gray-100 mb-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <Flame className="w-5 h-5 text-orange-500" />
-                <span className="text-sm font-bold text-gray-700">뽀개기 게이지</span>
+          {/* 단순 진행 표시 */}
+          <div className="flex items-center gap-2 mb-6">
+            {stages.map((s) => (
+              <div key={s.stage} className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full transition-all ${
+                currentStage === s.stage ? "bg-cyan-500 text-white" : "bg-gray-100 text-gray-400"
+              }`}>
+                {currentStage === s.stage && <span className="w-1.5 h-1.5 rounded-full bg-white inline-block" />}
+                {s.stage}
               </div>
-              <span className="text-sm font-bold text-cyan-600">{ppogaegiProgress}%</span>
-            </div>
-            <div className="h-4 bg-gray-100 rounded-full overflow-hidden relative">
-              <motion.div
-                className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500"
-                animate={{ width: `${ppogaegiProgress}%` }}
-                transition={{ duration: 0.5 }}
-              />
-              {ppogaegiProgress >= 100 && (
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center shadow-lg -mr-1"
-                >
-                  <Trophy className="w-4 h-4 text-white" />
-                </motion.div>
-              )}
-            </div>
-            {ppogaegiProgress >= 100 && (
-              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center text-sm font-bold text-yellow-600 mt-2">
-                110점 도전권 획득! 완벽하게 뽀갰습니다!
-              </motion.p>
-            )}
+            ))}
+            <span className="text-xs text-gray-400 ml-1">{currentStage}/{stages.length}</span>
           </div>
 
           {/* Stage Content */}
@@ -1879,12 +1793,12 @@ export default function EnglishAI() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
-              {currentStage === 1 && <Stage1DirectReading sentences={SAMPLE_SENTENCES} onComplete={() => { if (unlockedStage < 2) { setUnlockedStage(2); toast.success('Stage 2 어휘 챌린지가 해제되었습니다!'); }}} />}
-              {currentStage === 2 && <Stage2VocaChallenge vocab={SAMPLE_VOCAB} onComplete={() => { if (unlockedStage < 3) { setUnlockedStage(3); toast.success('Stage 3 구조 암기가 해제되었습니다!'); }}} />}
-              {currentStage === 3 && <Stage3StructuralMemory sentences={SAMPLE_SENTENCES} onComplete={() => { if (unlockedStage < 4) { setUnlockedStage(4); toast.success('Stage 4 구조 파악이 해제되었습니다!'); }}} />}
+              {currentStage === 1 && <Stage1DirectReading sentences={SAMPLE_SENTENCES} onComplete={() => {}} />}
+              {currentStage === 2 && <Stage2VocaChallenge vocab={SAMPLE_VOCAB} onComplete={() => {}} />}
+              {currentStage === 3 && <Stage3StructuralMemory sentences={SAMPLE_SENTENCES} onComplete={() => {}} />}
               {currentStage === 4 && (
                 <div className="[&>div]:max-w-none">
-                  <FlowChart paragraphs={SAMPLE_PARAGRAPHS} sentences={SAMPLE_TB_SENTENCES} onComplete={() => { if (unlockedStage < 5) { setUnlockedStage(5); toast.success('Stage 5 실전 테스트가 해제되었습니다!'); } setCurrentStage(5); }} />
+                  <FlowChart paragraphs={SAMPLE_PARAGRAPHS} sentences={SAMPLE_TB_SENTENCES} onComplete={() => setCurrentStage(5)} />
                 </div>
               )}
               {currentStage === 5 && <Stage4KillerTest questions={SAMPLE_KILLER_QUESTIONS} sentences={SAMPLE_SENTENCES} />}
@@ -1909,18 +1823,16 @@ export default function EnglishAI() {
               {currentStage} / {stages.length} 단계
             </span>
             <button
-              onClick={() => { if (currentStage + 1 <= unlockedStage) setCurrentStage(prev => prev + 1); else toast('현재 단계를 먼저 완료해주세요!', { icon: '🔒' }); }}
-              disabled={currentStage === 5}
+              onClick={() => setCurrentStage(prev => Math.min(prev + 1, stages.length))}
+              disabled={currentStage === stages.length}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                currentStage === 5
-                  ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
-                  : currentStage + 1 <= unlockedStage
-                  ? 'bg-cyan-600 text-white hover:bg-cyan-700 shadow-md'
-                  : 'bg-gray-200 text-gray-400'
+                currentStage === stages.length
+                  ? "bg-gray-100 text-gray-300 cursor-not-allowed"
+                  : "bg-cyan-600 text-white hover:bg-cyan-700 shadow-md"
               }`}
             >
               다음 단계
-              {currentStage + 1 > unlockedStage && currentStage < 5 ? <Lock className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>
