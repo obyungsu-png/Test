@@ -162,8 +162,76 @@ export default function App() {
     );
   }
 
+  // LMS 비밀번호 상태
+  const [lmsUnlocked, setLmsUnlocked] = useState(false);
+  const [lmsPwInput, setLmsPwInput] = useState('');
+  const [lmsPwError, setLmsPwError] = useState(false);
+  const LMS_PASSWORD = 'sw21qa00';
+
+  const handleLmsPwSubmit = () => {
+    if (lmsPwInput === LMS_PASSWORD) {
+      setLmsUnlocked(true);
+      setLmsPwError(false);
+      setLmsPwInput('');
+    } else {
+      setLmsPwError(true);
+      setLmsPwInput('');
+    }
+  };
+
   // LMS App
   if (currentPage === 'lms') {
+    // 비밀번호 미입력 시 잠금 화면
+    if (!lmsUnlocked) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8">
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-800">학습 관리 시스템</h2>
+              <p className="text-sm text-gray-500 mt-1">관리자 전용 — 비밀번호를 입력하세요</p>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <input
+                  type="password"
+                  value={lmsPwInput}
+                  onChange={e => { setLmsPwInput(e.target.value); setLmsPwError(false); }}
+                  onKeyDown={e => e.key === 'Enter' && handleLmsPwSubmit()}
+                  placeholder="비밀번호"
+                  autoFocus
+                  className={`w-full px-4 py-3 text-base border-2 rounded-xl outline-none transition-all ${
+                    lmsPwError
+                      ? 'border-red-400 bg-red-50 focus:border-red-500'
+                      : 'border-gray-200 focus:border-purple-500'
+                  }`}
+                />
+                {lmsPwError && (
+                  <p className="text-red-500 text-sm mt-1.5 font-medium">❌ 비밀번호가 틀렸습니다.</p>
+                )}
+              </div>
+              <button
+                onClick={handleLmsPwSubmit}
+                className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white text-base font-bold rounded-xl transition-colors"
+              >
+                입력
+              </button>
+              <button
+                onClick={() => { setCurrentPage('landing'); setLmsPwInput(''); setLmsPwError(false); }}
+                className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm font-medium rounded-xl transition-colors"
+              >
+                돌아가기
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <>
         <div className="pb-16 md:pb-0">
@@ -181,7 +249,7 @@ export default function App() {
                 <span className="sm:hidden">서준01</span>
               </Button>
               <Button
-                onClick={() => setCurrentPage('landing')}
+                onClick={() => { setCurrentPage('landing'); setLmsUnlocked(false); }}
                 variant="outline"
                 className="bg-purple-50 border-purple-200 text-purple-700 shadow-lg text-sm sm:text-base px-3 py-2 sm:px-4 sm:py-3 min-h-10 sm:min-h-12"
               >
