@@ -334,21 +334,40 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
   }, []);
 
   const loadWords = async () => {
+    // 1. localStorage에서 즉시 표시 (CMS 저장값 바로 반영)
+    try {
+      const stored = localStorage.getItem('vocaWords');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) setAllWords(parsed);
+      }
+    } catch {}
+    // 2. 서버에서 최신값으로 갱신 (백그라운드)
     try {
       const words = await getVocaWords();
       setAllWords(words);
+      localStorage.setItem('vocaWords', JSON.stringify(words));
     } catch (error) {
       console.error('Error loading words:', error);
-      toast.error('단어 로딩 중 오류 발생');
     }
   };
 
   const loadDayNames = async () => {
+    // 1. localStorage에서 즉시 표시 (CMS 저장값 바로 반영)
+    try {
+      const stored = localStorage.getItem('vocaDayNames');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setDayNames(parsed);
+      }
+    } catch {}
+    // 2. 서버에서 최신값으로 갱신 (백그라운드)
     try {
       const names = await getDayNames();
       setDayNames(names);
+      localStorage.setItem('vocaDayNames', JSON.stringify(names));
     } catch (error) {
-      console.error('Error loading day names:', error);
+      console.error('Error loading day names from server:', error);
     }
   };
 

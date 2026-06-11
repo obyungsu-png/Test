@@ -18,6 +18,22 @@ export default function App() {
   const [lmsSelectedMenu, setLmsSelectedMenu] = useState('dashboard');
   const [isCertificationMode, setIsCertificationMode] = useState(false);
   const [selectedCurriculum, setSelectedCurriculum] = useState<string | null>(null);
+  // LMS 비밀번호 — 반드시 최상단에 (Rules of Hooks)
+  const [lmsUnlocked, setLmsUnlocked] = useState(false);
+  const [lmsPwInput, setLmsPwInput] = useState('');
+  const [lmsPwError, setLmsPwError] = useState(false);
+  const LMS_PASSWORD = 'sw21qa00';
+
+  const handleLmsPwSubmit = () => {
+    if (lmsPwInput === LMS_PASSWORD) {
+      setLmsUnlocked(true);
+      setLmsPwError(false);
+      setLmsPwInput('');
+    } else {
+      setLmsPwError(true);
+      setLmsPwInput('');
+    }
+  };
 
   // 브라우저 탭 제목 설정
   document.title = "AllMyExam";
@@ -161,23 +177,6 @@ export default function App() {
       </>
     );
   }
-
-  // LMS 비밀번호 상태
-  const [lmsUnlocked, setLmsUnlocked] = useState(false);
-  const [lmsPwInput, setLmsPwInput] = useState('');
-  const [lmsPwError, setLmsPwError] = useState(false);
-  const LMS_PASSWORD = 'sw21qa00';
-
-  const handleLmsPwSubmit = () => {
-    if (lmsPwInput === LMS_PASSWORD) {
-      setLmsUnlocked(true);
-      setLmsPwError(false);
-      setLmsPwInput('');
-    } else {
-      setLmsPwError(true);
-      setLmsPwInput('');
-    }
-  };
 
   // LMS App
   if (currentPage === 'lms') {

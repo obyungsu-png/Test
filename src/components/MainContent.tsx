@@ -1160,13 +1160,6 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
                           시험보기
                         </button>
                         <button
-                          onClick={() => onCMSClick?.()}
-                          className="bg-white border border-amber-300 rounded px-3 py-1.5 text-xs text-amber-600 hover:bg-amber-50 transition-all whitespace-nowrap"
-                          title="CMS에서 단어/해설 편집"
-                        >
-                          ✏️ 편집
-                        </button>
-                        <button
                           onClick={() => handleDownloadClick(material)}
                           className="flex items-center justify-center bg-white border border-gray-300 rounded px-4 py-1.5 text-xs text-gray-600 hover:bg-gray-50 hover:border-cyan-300 transition-all whitespace-nowrap"
                         >
