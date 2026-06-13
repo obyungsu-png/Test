@@ -230,7 +230,15 @@ export function VocaManagement() {
   // effectiveExam: 교과서 선택 시 "KR-초등영어::천재-함순애", 내신영단어는 "KR-내신영단어::중등" 형태로 분리 저장
   const effectiveExam = (() => {
     if (vocaMode !== 'korean' || !selectedExam.startsWith('KR-')) return selectedExam;
-    const base = isNaeshinMode ? `${selectedExam}::${naeshinSchoolLevel}` : selectedExam;
+    if (isNaeshinMode) {
+      const base = `${selectedExam}::${naeshinSchoolLevel}`;
+      return selectedTextbook ? `${base}::${selectedTextbook}` : base;
+    }
+    // grade/semester 모드: KoreanVocaPage의 effectiveExamKey와 키 구조를 맞춤
+    // KoreanVocaPage: "KR-고등영어_1_1" 또는 "KR-고등영어_1_1::textbook"
+    const base = isGradeSemesterMode
+      ? `${selectedExam}_${selectedGrade}_${selectedSemester}`
+      : selectedExam;
     return selectedTextbook ? `${base}::${selectedTextbook}` : base;
   })();
 

@@ -252,9 +252,15 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
   const hasEffectiveGS = effectiveGrade !== null && effectiveSemester !== null;
 
   // 학년-학기가 결정된 경우 DAY 이름을 학년-학기별로 독립 관리하기 위해 복합 키 사용
-  const effectiveExamKey = hasEffectiveGS
-    ? `${selectedMainExam}_${effectiveGrade}_${effectiveSemester}`
-    : selectedMainExam;
+  // effectiveExamKey: day 이름 저장·조회에 사용하는 키
+  // 교과서가 선택된 경우 반드시 포함해야 다른 교과서의 이름이 섞이지 않음
+  const effectiveExamKey = (() => {
+    const base = hasEffectiveGS
+      ? `${selectedMainExam}_${effectiveGrade}_${effectiveSemester}`
+      : selectedMainExam;
+    // 교과서가 선택되면 교과서 ID 추가 → 교과서별로 완전히 다른 키
+    return selectedTextbook ? `${base}::${selectedTextbook}` : base;
+  })();
 
   // effectiveMainExam: 교과서가 선택된 경우 "KR-초등영어::천재-함순애" 형태로 단어 조회 키 생성
   const effectiveMainExam = (() => {
@@ -307,7 +313,12 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
                 ? Math.max(customDayCount, ...daysWithWords)
                 : Math.max(customDayCount, getMaxDay(koreanWords.filter(w => w.exam === effectiveMainExam) as any[], effectiveMainExam)))))
     : 30;
-  const days = isGSMode ? gsOptions.map(o => o.day) : Array.from({ length: maxDay }, (_, i) => i + 1);
+  // days: 교과서가 선택된 경우 실제 단어가 있는 day만, 아닌 경우 1~maxDay
+  const days = isGSMode
+    ? gsOptions.map(o => o.day)
+    : (selectedTextbook && daysWithWords.length > 0)
+      ? daysWithWords  // 교과서 선택 시: 실제 단어가 있는 day만
+      : Array.from({ length: maxDay }, (_, i) => i + 1);
 
   // 교과서(effectiveMainExam) 변경 시 DAY 선택 초기화
   useEffect(() => {
@@ -353,7 +364,7 @@ export function KoreanVocaPage({ selectedCategory = "" }: KoreanVocaPageProps) {
   };
 
   const loadDayNames = async () => {
-    // 1. localStorage에서 즉시 표시 (CMS 저장값 바로 반영)
+    // 1. localStorage에서 즉시 표시
     try {
       const stored = localStorage.getItem('vocaDayNames');
       if (stored) {
