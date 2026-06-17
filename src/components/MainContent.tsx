@@ -273,55 +273,43 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
 
   const handleDirectPDFDownload = async (material: any) => {
     try {
-      let textContent = '';
       const uploadData = material.uploadData;
-      
+      const safeName = material.title.replace(/\s+/g, '_').replace(/[^\w가-힣-]/g, '');
+
+      // ① 업로드된 파일이 있는 경우 — 원본 파일 그대로 다운로드
       if (material.isUploaded && uploadData && uploadData.fileData) {
-        // Extract text from uploaded file
-        try {
-          const base64Data = uploadData.fileData.split(',')[1];
-          const binaryString = atob(base64Data);
-          const bytes = new Uint8Array(binaryString.length);
-          for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-          }
-          const decoder = new TextDecoder('utf-8');
-          textContent = decoder.decode(bytes);
-        } catch {
-          textContent = material.title;
-        }
+        const a = document.createElement('a');
+        a.href = uploadData.fileData;
+        // 확장자 보존
+        const ext = uploadData.fileName?.split('.').pop() || 'pdf';
+        a.download = `${safeName}.${ext}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        toast.success(`"${material.title}" 다운로드를 시작합니다.`);
       } else {
-        textContent = `${material.title}\n\n이 자료는 AllMyExam에서 제공되는 교육 자료입니다.\n다운로드 날짜: ${new Date().toLocaleDateString('ko-KR')}`;
-      }
-      
-      const examHTML = generateKoreanExamStyleHTML(textContent, material.title, selectedSubject, selectedCategory);
-      
-      // Use jsPDF-like approach: open print window for PDF save
-      const printWin = window.open('', '_blank');
-      if (printWin) {
-        printWin.document.write(examHTML);
-        printWin.document.close();
-        printWin.onload = () => setTimeout(() => printWin.print(), 300);
-        toast.success(`"${material.title}" PDF 다운로드를 시작합니다.`);
-      } else {
-        // Popup blocked: download as HTML
+        // ② 업로드 파일 없음 — 시험지 HTML 생성 후 .html 파일로 다운로드
+        const textContent = `${material.title}\n\n이 자료는 AllMyExam에서 제공되는 교육 자료입니다.\n다운로드 날짜: ${new Date().toLocaleDateString('ko-KR')}`;
+        const examHTML = generateKoreanExamStyleHTML(textContent, material.title, selectedSubject, selectedCategory);
         const blob = new Blob([examHTML], { type: 'text/html;charset=utf-8' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = `시험지_${material.title.replace(/\s+/g, '_')}.html`;
+        a.download = `시험지_${safeName}.html`;
+        document.body.appendChild(a);
         a.click();
+        document.body.removeChild(a);
         URL.revokeObjectURL(a.href);
         toast.success(`"${material.title}" 파일을 다운로드합니다.`);
       }
-      
-      // Update download count
+
+      // 다운로드 횟수 업데이트
       if (material.isUploaded) {
         updateUploadedMaterial(material.id, {
           downloadCount: (material.downloadCount || 0) + 1
         });
       }
-      
-      // Record download
+
+      // 기록 저장
       const downloadRecord = {
         id: `download-${Date.now()}`,
         materialTitle: material.title,
@@ -334,9 +322,10 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
       existingRecords.unshift(downloadRecord);
       localStorage.setItem('myContentRecords', JSON.stringify(existingRecords));
       window.dispatchEvent(new Event('contentRecordsUpdated'));
+
     } catch (error) {
-      console.error('Direct PDF download error:', error);
-      toast.error('PDF 다운로드 중 오류가 발생했습니다.');
+      console.error('Download error:', error);
+      toast.error('다운로드 중 오류가 발생했습니다.');
     }
   };
 
