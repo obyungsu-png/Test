@@ -335,29 +335,29 @@ export function InteractivePracticeTest({ materialTitle, material, questionEdits
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="bg-white rounded-2xl p-5 sm:p-8 w-full max-w-3xl shadow-xl border border-gray-200"
+            className="bg-white rounded-2xl p-5 sm:p-8 w-full max-w-3xl shadow-lg border border-gray-200"
           >
             <div className="text-center mb-6">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-3">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-3">
                 <CheckCircle2 className="w-9 h-9 sm:w-12 sm:h-12 text-white" />
               </div>
               <h2 className="text-2xl sm:text-3xl text-gray-900 mb-1">시험 완료!</h2>
-              <p className="text-sm text-gray-600">수고하셨습니다. 결과를 확인하세요.</p>
+              <p className="text-sm text-gray-500">수고하셨습니다. 결과를 확인하세요.</p>
             </div>
 
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-5 sm:p-8 rounded-xl mb-4 border border-blue-100">
+            <div className="bg-gray-50 p-5 sm:p-8 rounded-xl mb-4 border border-gray-200">
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div>
-                  <div className="text-3xl sm:text-4xl text-blue-600 font-bold">{score?.correct}/{score?.total}</div>
-                  <div className="text-xs text-gray-600 mt-1">정답 수</div>
+                  <div className="text-3xl sm:text-4xl text-slate-700 font-bold">{score?.correct}/{score?.total}</div>
+                  <div className="text-xs text-gray-500 mt-1">정답 수</div>
                 </div>
                 <div>
-                  <div className="text-3xl sm:text-4xl text-blue-600 font-bold">{score?.percentage}%</div>
-                  <div className="text-xs text-gray-600 mt-1">정답률</div>
+                  <div className="text-3xl sm:text-4xl text-slate-700 font-bold">{score?.percentage}%</div>
+                  <div className="text-xs text-gray-500 mt-1">정답률</div>
                 </div>
                 <div>
-                  <div className="text-3xl sm:text-4xl text-blue-600 font-bold">{formatTime(timeElapsed)}</div>
-                  <div className="text-xs text-gray-600 mt-1">소요 시간</div>
+                  <div className="text-3xl sm:text-4xl text-slate-700 font-bold">{formatTime(timeElapsed)}</div>
+                  <div className="text-xs text-gray-500 mt-1">소요 시간</div>
                 </div>
               </div>
             </div>
@@ -405,10 +405,10 @@ export function InteractivePracticeTest({ materialTitle, material, questionEdits
             </div>
 
             <div className="flex flex-col sm:flex-row gap-2.5">
-              <Button onClick={handleRetakeIncorrect} className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white h-11 rounded-xl">
+              <Button onClick={handleRetakeIncorrect} className="flex-1 bg-amber-700 hover:bg-amber-800 text-white h-11 rounded-xl">
                 틀린 문제 다시 풀기
               </Button>
-              <Button onClick={onExit} className="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white h-11 rounded-xl">
+              <Button onClick={onExit} className="flex-1 bg-slate-700 hover:bg-slate-800 text-white h-11 rounded-xl">
                 돌아가기
               </Button>
             </div>
