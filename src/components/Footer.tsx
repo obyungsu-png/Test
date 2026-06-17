@@ -32,7 +32,7 @@ export function Footer({ onLMSClick }: FooterProps) {
           <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4">
             <span className="text-gray-800">상담문의</span>
             <span className="text-gray-800">18805456163</span>
-            {/* WeChat & Telegram QR Buttons */}
+            {/* WeChat QR Button */}
             <div className="flex items-center gap-2 ml-0 sm:ml-2">
               <button
                 onClick={() => setShowQRModal('wechat')}
@@ -40,13 +40,6 @@ export function Footer({ onLMSClick }: FooterProps) {
               >
                 <MessageCircle className="w-3.5 h-3.5" />
                 WeChat
-              </button>
-              <button
-                onClick={() => setShowQRModal('telegram')}
-                className="flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-medium hover:bg-blue-100 transition-colors border border-blue-200"
-              >
-                <Send className="w-3.5 h-3.5" />
-                Telegram
               </button>
             </div>
           </div>

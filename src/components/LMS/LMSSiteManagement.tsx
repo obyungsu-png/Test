@@ -501,37 +501,6 @@ export default function LMSSiteManagement() {
                   )}
                 </div>
               </div>
-
-              {/* Telegram QR */}
-              <div className="p-4 bg-gray-50 rounded-xl border space-y-3">
-                <div className="flex items-center gap-2">
-                  <Send className="w-4 h-4 text-blue-500" />
-                  <span className="text-sm font-medium text-gray-800">Telegram</span>
-                  {qrImages.telegram && <span className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full">등록됨</span>}
-                </div>
-                <input type="file" ref={telegramFileRef} onChange={(e) => handleQRUpload('telegram', e)} accept="image/*" className="hidden" />
-                {qrImages.telegram ? (
-                  <div className="relative w-36 h-36 mx-auto bg-white rounded-lg border overflow-hidden">
-                    <img src={qrImages.telegram} alt="Telegram QR" className="w-full h-full object-contain" />
-                  </div>
-                ) : (
-                  <div className="w-36 h-36 mx-auto bg-white rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
-                    <span className="text-xs text-gray-400">미등록</span>
-                  </div>
-                )}
-                <div className="flex gap-2 justify-center">
-                  <Button onClick={() => telegramFileRef.current?.click()} size="sm" variant="outline" className="text-blue-500 border-blue-300 hover:bg-blue-50">
-                    <Upload className="w-3.5 h-3.5 mr-1" />
-                    {qrImages.telegram ? '변경' : '업로드'}
-                  </Button>
-                  {qrImages.telegram && (
-                    <Button onClick={() => handleQRDelete('telegram')} size="sm" variant="outline" className="text-red-500 border-red-200 hover:bg-red-50">
-                      <Trash2 className="w-3.5 h-3.5 mr-1" />
-                      삭제
-                    </Button>
-                  )}
-                </div>
-              </div>
             </div>
             
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
