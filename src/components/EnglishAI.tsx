@@ -551,7 +551,7 @@ function Stage2VocaChallenge({ vocab, onComplete }: { vocab: VocaCard[]; onCompl
                       <span className="text-xs text-cyan-500 bg-cyan-50 px-1.5 py-0.5 rounded-full border border-cyan-200">{v.pos}</span>
                     </div>
                     <p className="text-base text-gray-600 font-medium">{v.meaning}</p>
-                    <p className="text-sm text-gray-400 italic mt-1.5">"{v.contextSentence}"</p>
+                    <p className="text-base font-bold text-gray-900 mt-2">"{v.contextSentence}"</p>
                     {(v.synonyms.length > 0 || v.antonyms.length > 0) && (
                       <div className="flex flex-wrap gap-1.5 mt-2.5">
                         {v.synonyms.map((s, i) => (<span key={i} className="text-xs px-2 py-0.5 bg-green-50 text-green-600 rounded-full border border-green-100">{s}</span>))}
@@ -587,7 +587,7 @@ function Stage2VocaChallenge({ vocab, onComplete }: { vocab: VocaCard[]; onCompl
             className="rounded-2xl shadow-lg border bg-gradient-to-br from-cyan-50 to-sky-50 border-cyan-100 p-8 text-center mb-6">
             <p className="text-base text-cyan-500 mb-3">뜻에 맞는 영어 단어를 고르세요</p>
             <h2 className="text-3xl font-bold text-gray-800 mb-2">{current.meaning}</h2>
-            <p className="text-sm text-gray-400 italic mt-2">"{current.contextSentence}"</p>
+            <p className="text-base font-bold text-gray-900 mt-2">"{current.contextSentence}"</p>
           </motion.div>
           <div className="grid grid-cols-1 gap-3">
             {contextOptions.map((opt, i) => {
@@ -620,7 +620,7 @@ function Stage2VocaChallenge({ vocab, onComplete }: { vocab: VocaCard[]; onCompl
 
 // ===================== Stage 3: Structural Memory (Multi-blank + Unscramble + Writing) =====================
 function Stage3StructuralMemory({ sentences, onComplete }: { sentences: AnalyzedSentence[]; onComplete?: () => void }) {
-  const [topMode, setTopMode] = useState<"blank" | "unscramble" | "writing">("blank");
+  const [topMode, setTopMode] = useState<"blank" | "unscramble" | "writing" | "phrase">("blank");
   const [blankDone, setBlankDone] = useState(false);
   const [unscrambleDone, setUnscrambleDone] = useState(false);
 
@@ -819,6 +819,7 @@ function Stage3StructuralMemory({ sentences, onComplete }: { sentences: Analyzed
       <div className="flex gap-1 p-1 bg-gray-100 rounded-xl mb-5">
         {([
           { key: "blank" as const, label: "빈칸 채우기", icon: Sparkles },
+          { key: "phrase" as const, label: "핵심 어구", icon: Target },
           { key: "unscramble" as const, label: "문장 재배열", icon: ArrowRight },
           { key: "writing" as const, label: "한영 영작", icon: PenTool },
         ]).map(m => (
@@ -834,6 +835,91 @@ function Stage3StructuralMemory({ sentences, onComplete }: { sentences: Analyzed
           </button>
         ))}
       </div>
+
+      {/* PHRASE MODE — 핵심 어구 분석 */}
+      {topMode === "phrase" && (() => {
+        // 단락별로 묶기
+        const byParagraph = sentences.reduce((acc, s) => {
+          const key = `${s.paragraph}||${s.paragraphTitle}`;
+          if (!acc[key]) acc[key] = [];
+          acc[key].push(s);
+          return acc;
+        }, {} as Record<string, AnalyzedSentence[]>);
+
+        return (
+          <div className="space-y-6">
+            {Object.entries(byParagraph).map(([key, sents]) => {
+              const [paraNum, paraTitle] = key.split('||');
+              // 이 단락의 keywords + grammarPoints 수집
+              const allKeywords = [...new Set(sents.flatMap(s => s.keywords))];
+              const allGrammar = sents.flatMap(s =>
+                s.grammarPoints.map(gp => ({ ...gp, sentence: s }))
+              );
+
+              return (
+                <div key={key} className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                  {/* 단락 헤더 */}
+                  <div className="px-5 py-3 bg-gradient-to-r from-indigo-50 to-white border-b border-gray-100 flex items-center gap-2">
+                    <span className="text-xs font-bold text-white bg-indigo-500 px-2 py-0.5 rounded">{paraNum}단락</span>
+                    <span className="text-sm font-bold text-gray-700">{paraTitle}</span>
+                  </div>
+
+                  <div className="px-5 py-4 space-y-5">
+                    {/* 핵심 단어 */}
+                    {allKeywords.length > 0 && (
+                      <div>
+                        <p className="text-xs font-bold text-indigo-500 uppercase tracking-wide mb-2">핵심 단어</p>
+                        <div className="flex flex-wrap gap-2">
+                          {allKeywords.map((kw, i) => (
+                            <span key={i} className="px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-full text-sm font-bold border border-indigo-100">
+                              {kw}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 핵심 어구 (grammarPoints) */}
+                    {allGrammar.length > 0 && (
+                      <div>
+                        <p className="text-xs font-bold text-cyan-500 uppercase tracking-wide mb-2">핵심 어구 분석</p>
+                        <div className="space-y-3">
+                          {allGrammar.map((gp, i) => (
+                            <div key={i} className="border border-gray-100 rounded-xl p-4 bg-gray-50">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="px-2 py-0.5 bg-cyan-100 text-cyan-700 rounded-full text-xs font-bold">{gp.label}</span>
+                                <span className="text-xs text-gray-500">문장 {gp.sentence.id}</span>
+                              </div>
+                              {/* 해당 어구 강조 표시 */}
+                              <p className="text-[15px] text-gray-800 leading-relaxed mb-2">
+                                {gp.sentence.english.split(gp.highlight).map((part, idx, arr) => (
+                                  <span key={idx}>
+                                    {part}
+                                    {idx < arr.length - 1 && (
+                                      <span className="bg-yellow-200 text-gray-900 font-bold px-0.5 rounded">
+                                        {gp.highlight}
+                                      </span>
+                                    )}
+                                  </span>
+                                ))}
+                              </p>
+                              <p className="text-sm text-indigo-600 font-medium">{gp.description}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {allKeywords.length === 0 && allGrammar.length === 0 && (
+                      <p className="text-sm text-gray-400 text-center py-4">이 단락에 등록된 핵심 어구가 없습니다.</p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* BLANK MODE */}
       {topMode === "blank" && (
