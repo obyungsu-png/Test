@@ -11,7 +11,7 @@ interface ScaffoldingTrainingProps {
   onWrongAnswer: (sentenceId: number, type: string) => void;
 }
 
-type TrainingMode = 'blank' | 'unscramble' | 'writing';
+type TrainingMode = 'blank';
 
 export function ScaffoldingTraining({ sentences, onComplete, onWrongAnswer }: ScaffoldingTrainingProps) {
   const [mode, setMode] = useState<TrainingMode>('blank');
@@ -153,12 +153,10 @@ export function ScaffoldingTraining({ sentences, onComplete, onWrongAnswer }: Sc
         </div>
       </div>
 
-      {/* Mode Tabs */}
+      {/* Mode Tabs — 빈칸 채우기만 */}
       <div className="flex gap-1 p-1 bg-gray-100 rounded-xl mb-5">
         {([
           { key: 'blank' as TrainingMode, label: '빈칸 채우기', icon: Sparkles },
-          { key: 'unscramble' as TrainingMode, label: '문장 재배열', icon: ArrowUpDown },
-          { key: 'writing' as TrainingMode, label: '한영 영작', icon: Pencil },
         ]).map(m => (
           <button
             key={m.key}
