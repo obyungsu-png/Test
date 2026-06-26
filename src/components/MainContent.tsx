@@ -12,7 +12,6 @@ import { PracticeTestViewer } from "./PracticeTestViewer";
 import { MyContentRoom } from "./MyContentRoom";
 import { VocaPage } from "./VocaPage";
 import { KoreanVocaPage } from "./KoreanVocaPage";
-import { TextbookMasteryMain } from "./TextbookMastery/TextbookMasteryMain";
 import EnglishAI from "./EnglishAI";
 import { getFilteredMaterials } from "./utils/materialHelpers";
 import { getCategoryCustomName, updateUploadedMaterial } from "./utils/dataManager";
@@ -102,15 +101,13 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
   // school-type 별 localStorage 키 (다른 학교 유형의 커스텀 탭이 섞이지 않도록)
   const customTabNamesKey = isCertificationMode ? 'customTabNames_certification' :
                             (schoolType === 'international' ? 'customTabNames_international' : 'customTabNames_korean');
-  // 서류전형 과목에서는 "교과서 뽀개기" → "합격 예측" 으로 탭 이름 변경
   // 영어 과목이 아닌 경우 Voca 탭 숨기기
   const adjustedTabs = (() => {
     let tabs = defaultTabs;
     if (schoolType === 'korean' && selectedSubject === '서류전형') {
-      tabs = tabs.map(tab => tab === '교과서 뽀개기' ? '합격 예측' : tab);
     }
     if (schoolType === 'korean' && selectedSubject !== '영어') {
-      tabs = tabs.filter(tab => tab !== 'Voca' && tab !== 'SGR AI');
+      tabs = tabs.filter(tab => tab !== 'Voca' && tab !== 'SGR AI' && tab !== '교과서 뽀개기');
     }
     return tabs;
   })();
@@ -528,16 +525,6 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
     }
   }, [showEnglishAI]);
 
-  // Check if we should show Textbook Mastery (교과서 뽀개기)
-  const showTextbookMastery = activeTab === "교과서 뽀개기" && schoolType === 'korean';
-  const [textbookMasteryFullscreen, setTextbookMasteryFullscreen] = useState(false);
-
-  // 교과서 뽀개기 탭 선택 시 자동 전체화면
-  useEffect(() => {
-    if (showTextbookMastery) {
-      setTextbookMasteryFullscreen(true);
-    }
-  }, [showTextbookMastery]);
   
   // Check if we should show grid layout for Subject or 보조자료
   const showGridLayout = (activeTab === "Subject" || activeTab === "보조자료") && schoolType === 'international' && selectedSubject === 'AP';
@@ -782,20 +769,6 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
                 <p className="text-gray-500 mb-4">전체화면에서 학습 중입니다</p>
                 <button
                   onClick={() => setEnglishAIFullscreen(true)}
-                  className="px-6 py-3 bg-cyan-600 text-white rounded-xl font-bold hover:bg-cyan-700 transition-colors"
-                >
-                  전체화면 열기
-                </button>
-              </div>
-            </div>
-          ) : showTextbookMastery ? (
-            <div className="flex items-center justify-center py-20 text-center">
-              <div>
-                <BookOpen className="w-16 h-16 text-cyan-400 mx-auto mb-4" />
-                <h2 className="text-xl font-bold text-gray-700 mb-2">교과서 뽀개기</h2>
-                <p className="text-gray-500 mb-4">전체화면에서 학습 중입니다</p>
-                <button
-                  onClick={() => setTextbookMasteryFullscreen(true)}
                   className="px-6 py-3 bg-cyan-600 text-white rounded-xl font-bold hover:bg-cyan-700 transition-colors"
                 >
                   전체화면 열기
@@ -1545,50 +1518,7 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
         <MyContentRoom onClose={() => setShowMyContentRoom(false)} />
       )}
 
-      {/* Textbook Mastery Fullscreen Overlay */}
-      <AnimatePresence>
-        {textbookMasteryFullscreen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="fixed inset-0 z-[90] bg-white flex flex-col"
-          >
-            {/* Fullscreen Header */}
-            <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-gray-200 bg-gradient-to-r from-cyan-50 to-white shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-cyan-600 flex items-center justify-center">
-                  <BookOpen className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-lg font-bold text-gray-800">교과서 뽀개기</h1>
-                  <p className="text-xs text-gray-400">{selectedSubject} · {selectedCategory || '전체'}</p>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  setTextbookMasteryFullscreen(false);
-                  setActiveTab(tabs[0] || '국어');
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-600 transition-colors"
-              >
-                <X className="w-4 h-4" />
-                닫기
-              </button>
-            </div>
-            {/* Fullscreen Content */}
-            <div className="flex-1 overflow-y-auto">
-              <div className="max-w-7xl mx-auto">
-                <TextbookMasteryMain
-                  subject={selectedSubject}
-                  category={selectedCategory}
-                />
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
 
       {/* English AI Fullscreen Overlay */}
       <AnimatePresence>
