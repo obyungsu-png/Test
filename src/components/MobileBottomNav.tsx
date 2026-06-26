@@ -17,22 +17,29 @@ const navItems = [
 
 export function MobileBottomNav({ currentPage, onNavigate }: MobileBottomNavProps) {
   const [isVocaTestActive, setIsVocaTestActive] = useState(false);
+  const [isAiChatOpen, setIsAiChatOpen] = useState(false);
 
   useEffect(() => {
     const handleVocaTestStart = () => setIsVocaTestActive(true);
     const handleVocaTestEnd = () => setIsVocaTestActive(false);
-    
+    const handleAiChatOpen = () => setIsAiChatOpen(true);
+    const handleAiChatClose = () => setIsAiChatOpen(false);
+
     window.addEventListener('vocaTestStart', handleVocaTestStart);
     window.addEventListener('vocaTestEnd', handleVocaTestEnd);
-    
+    window.addEventListener('aiChatOpen', handleAiChatOpen);
+    window.addEventListener('aiChatClose', handleAiChatClose);
+
     return () => {
       window.removeEventListener('vocaTestStart', handleVocaTestStart);
       window.removeEventListener('vocaTestEnd', handleVocaTestEnd);
+      window.removeEventListener('aiChatOpen', handleAiChatOpen);
+      window.removeEventListener('aiChatClose', handleAiChatClose);
     };
   }, []);
 
-  // Voca 테스트 모드일 때는 footer 숨김
-  if (isVocaTestActive) {
+  // Voca 테스트 or AI 채팅 열릴 때 탭바 숨김
+  if (isVocaTestActive || isAiChatOpen) {
     return null;
   }
 

@@ -120,6 +120,11 @@ export function InteractivePracticeTest({ materialTitle, material, questionEdits
   const passageRef = useRef<HTMLDivElement>(null);
   const questionNavRef = useRef<HTMLDivElement>(null);
 
+  // 언마운트 시 탭바 복원
+  useEffect(() => {
+    return () => { window.dispatchEvent(new Event('aiChatClose')); };
+  }, []);
+
   // Load questions from material
   useEffect(() => {
     const loadQuestions = async () => {
@@ -750,7 +755,13 @@ ${q.passage ? `[지문] ${q.passage.slice(0,300)}` : ''}`;
                                 setShowAnalysis(nextAnalysis);
                                 setShowVocab(nextVocab);
                                 if (nextAnalysis && !analysisCache[getEditKey(currentQuestion)]) fetchAnalysis(currentQuestion);
-                                if (nextVocab) { setAiChatMessages([]); setAiChatInput(''); }
+                                if (nextVocab) {
+                                  setAiChatMessages([]);
+                                  setAiChatInput('');
+                                  window.dispatchEvent(new Event('aiChatOpen'));
+                                } else {
+                                  window.dispatchEvent(new Event('aiChatClose'));
+                                }
                               }}
                               className={`py-3 flex flex-col items-center gap-1 transition-all text-xs font-semibold ${ti > 0 ? 'border-l border-gray-100' : ''} ${
                                 isActive
