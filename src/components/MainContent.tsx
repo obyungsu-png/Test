@@ -129,6 +129,8 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
   const [password, setPassword] = useState("");
   const [selectedMaterial, setSelectedMaterial] = useState<any>(null);
   const [pendingDownloadMaterial, setPendingDownloadMaterial] = useState<any>(null);
+  const [showDownloadFormatModal, setShowDownloadFormatModal] = useState(false);
+  const [downloadFormatMaterial, setDownloadFormatMaterial] = useState<any>(null);
   const [showAllAnswers, setShowAllAnswers] = useState(false);
   const [showPdfViewer, setShowPdfViewer] = useState(false);
   const [showMyContentRoom, setShowMyContentRoom] = useState(false);
@@ -330,7 +332,81 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
     }
   };
 
+  const handleDownloadWithFormat = async (material: any, format: 'pdf' | 'word') => {
+    setShowDownloadFormatModal(false);
+    const safeName = material.title.replace(/\s+/g, '_').replace(/[^\w가-힣-]/g, '');
+    try {
+      const uploadData = material.uploadData;
+      if (material.isUploaded && uploadData?.fileData) {
+        // 원본 파일 있으면 그대로 다운로드
+        const a = document.createElement('a');
+        a.href = uploadData.fileData;
+        const ext = format === 'pdf' ? 'pdf' : 'docx';
+        a.download = `${safeName}.${ext}`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        toast.success(`"${material.title}" ${format.toUpperCase()} 다운로드를 시작합니다.`);
+      } else {
+        // 샘플 자료 → 문제 목록으로 파일 생성
+        const GLM_API_KEY = "dc2213720f4b4a88ae06ddbd434ab1dd.qDGcLtBM9gGqp6ff";
+        toast.info("AI가 문제를 생성 중입니다...");
+        let questions: any[] = [];
+        try {
+          const res = await fetch("https://open.bigmodel.cn/api/paas/v4/chat/completions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GLM_API_KEY}` },
+            body: JSON.stringify({
+              model: "glm-4-flash", max_tokens: 2000,
+              messages: [{ role: "user", content: `한국 고등학교 영어 시험 문제 5개를 만들어줘. 제목: "${material.title}". JSON 배열만 출력:
+[{"question":"문제","options":["A","B","C","D"],"answer":0,"explanation":"해설"}]` }]
+            })
+          });
+          const d = await res.json();
+          const text = (d.choices?.[0]?.message?.content || "").replace(/\`\`\`json|\`\`\`/g, "").trim();
+          questions = JSON.parse(text);
+        } catch { questions = []; }
+
+        if (format === 'word') {
+          // docx 스타일 HTML → blob
+          const body = questions.map((q: any, i: number) => `
+<p><b>${i+1}. ${q.question}</b></p>
+${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}. ${o}</p>`).join('')}
+<p style="color:#555">▶ 정답: ${String.fromCharCode(65+(q.answer||0))} | ${q.explanation||''}</p><hr/>`).join('');
+          const html = `<html><head><meta charset="utf-8"/><style>body{font-family:Arial;font-size:13pt;margin:40px}p{margin:4px 0}</style></head><body><h2>${material.title}</h2>${body}</body></html>`;
+          const blob = new Blob([html], { type: 'application/msword' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = `${safeName}.doc`;
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        } else {
+          // PDF → print-friendly HTML
+          const body = questions.map((q: any, i: number) => `
+<div style="margin-bottom:20px">
+<p><b>${i+1}. ${q.question}</b></p>
+${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}. ${o}</p>`).join('')}
+<p style="color:#555;font-size:11pt">정답: ${String.fromCharCode(65+(q.answer||0))} | ${q.explanation||''}</p>
+</div>`).join('<hr/>');
+          const html = `<html><head><meta charset="utf-8"/><style>@media print{body{margin:20mm}}body{font-family:Arial;font-size:13pt;margin:40px}</style></head><body><h2>${material.title}</h2>${body}<script>window.onload=()=>window.print()<\/script></body></html>`;
+          const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = `${safeName}.html`;
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+          toast.info("브라우저 인쇄 창에서 PDF로 저장하세요.");
+        }
+        toast.success(`"${material.title}" 파일 준비 완료!`);
+      }
+      // 기록
+      const rec = { id: `download-${Date.now()}`, materialTitle: material.title, subject: selectedSubject, category: selectedCategory || activeTab, date: new Date().toISOString(), type: 'download' };
+      const recs = JSON.parse(localStorage.getItem('myContentRecords') || '[]');
+      recs.unshift(rec); localStorage.setItem('myContentRecords', JSON.stringify(recs));
+      window.dispatchEvent(new Event('contentRecordsUpdated'));
+    } catch(e) { toast.error('다운로드 중 오류가 발생했습니다.'); }
+  };
+
   const handleDownloadClick = (material: any) => {
+    setDownloadFormatMaterial(material);
+    setShowDownloadFormatModal(true);
+    return;
     // Korean school: direct PDF download without modal
     if (schoolType === 'korean') {
       handleDirectPDFDownload(material);
@@ -1471,6 +1547,39 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
             setSelectedMaterial(null);
           }}
         />
+      )}
+
+      {/* Download Format Modal */}
+      {showDownloadFormatModal && downloadFormatMaterial && (
+        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowDownloadFormatModal(false)}>
+          <div className="bg-white w-full sm:w-80 rounded-t-2xl sm:rounded-2xl shadow-2xl p-6" onClick={e => e.stopPropagation()}>
+            <h3 className="text-base font-bold text-gray-800 mb-1">다운로드 형식 선택</h3>
+            <p className="text-xs text-gray-400 mb-5 truncate">{downloadFormatMaterial.title}</p>
+            <div className="space-y-3">
+              <button
+                onClick={() => handleDownloadWithFormat(downloadFormatMaterial, 'pdf')}
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 border-red-100 hover:border-red-300 hover:bg-red-50 transition-all"
+              >
+                <span className="text-2xl">📄</span>
+                <div className="text-left">
+                  <p className="text-sm font-bold text-gray-800">PDF 다운로드</p>
+                  <p className="text-xs text-gray-400">인쇄 가능한 PDF 파일</p>
+                </div>
+              </button>
+              <button
+                onClick={() => handleDownloadWithFormat(downloadFormatMaterial, 'word')}
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 border-blue-100 hover:border-blue-300 hover:bg-blue-50 transition-all"
+              >
+                <span className="text-2xl">📝</span>
+                <div className="text-left">
+                  <p className="text-sm font-bold text-gray-800">Word 다운로드</p>
+                  <p className="text-xs text-gray-400">편집 가능한 .doc 파일</p>
+                </div>
+              </button>
+            </div>
+            <button onClick={() => setShowDownloadFormatModal(false)} className="mt-4 w-full py-2.5 text-xs text-gray-400 hover:text-gray-600">취소</button>
+          </div>
+        </div>
       )}
 
       {/* Password Modal for Downloads */}

@@ -375,3 +375,55 @@ export const validateQuestionFormat = (text: string): { valid: boolean; errors: 
   
   return { valid: errors.length === 0, errors };
 };
+/**
+ * GLM API로 시험 문제 자동 생성
+ */
+export const generateQuestionsWithGLM = async (material: any): Promise<ParsedQuestion[]> => {
+  const GLM_API_KEY = "dc2213720f4b4a88ae06ddbd434ab1dd.qDGcLtBM9gGqp6ff";
+  const title = material.title || "시험 문제";
+  const subject = material.subject || "영어";
+
+  const prompt = `한국 고등학교 ${subject} 시험 문제 5개를 만들어줘.
+제목/단원: "${title}"
+각 문제는 4지선다형으로 만들어줘.
+반드시 아래 JSON 배열 형식만 출력해줘 (설명 없이):
+[
+  {
+    "question": "문제 내용",
+    "options": ["선택지A", "선택지B", "선택지C", "선택지D"],
+    "correctAnswer": 0,
+    "explanation": "정답 해설"
+  }
+]`;
+
+  try {
+    const res = await fetch("https://open.bigmodel.cn/api/paas/v4/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${GLM_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "glm-4-flash",
+        max_tokens: 2000,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+    const data = await res.json();
+    const text = (data.choices?.[0]?.message?.content || "")
+      .replace(/```json|```/g, "").trim();
+    const parsed = JSON.parse(text);
+    return parsed.map((q: any, i: number) => ({
+      id: i + 1,
+      question: q.question,
+      options: q.options,
+      correctAnswer: q.correctAnswer ?? 0,
+      explanation: q.explanation,
+      section: subject,
+      type: "reading" as const,
+    }));
+  } catch (e) {
+    console.error("[GLM] 문제 생성 실패:", e);
+    return [];
+  }
+};

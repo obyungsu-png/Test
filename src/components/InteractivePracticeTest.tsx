@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Button } from "./ui/button";
 import { X, ChevronLeft, ChevronRight, Clock, CheckCircle2, Brain, BookOpen, Calculator, AlertCircle, Highlighter, Pencil, Underline, Lightbulb, BarChart3, BookMarked } from "lucide-react";
-import { extractQuestionsFromMaterial, ParsedQuestion } from "./utils/questionParser";
+import { extractQuestionsFromMaterial, generateQuestionsWithGLM, ParsedQuestion } from "./utils/questionParser";
 import { toast } from "sonner@2.0.3";
 
 interface Question {
@@ -148,9 +148,34 @@ export function InteractivePracticeTest({ materialTitle, material, questionEdits
           setIsUploadedContent(true);
           toast.success(`${convertedQuestions.length}개 문제를 불러왔습니다!`);
         } else {
-          setQuestions(sampleQuestions);
-          setIsUploadedContent(false);
-          toast.warning("업로드된 문제를 찾을 수 없어 샘플 문제를 표시합니다.");
+          // 업로드 파일 없는 샘플 자료 → GLM으로 문제 자동 생성
+          toast.info("AI가 문제를 생성 중입니다...");
+          try {
+            const glmQuestions = await generateQuestionsWithGLM(material);
+            if (glmQuestions.length > 0) {
+              const converted: Question[] = glmQuestions.map(pq => ({
+                id: pq.id,
+                type: pq.type || 'reading',
+                passage: pq.passage,
+                question: pq.question,
+                options: pq.options,
+                correctAnswer: pq.correctAnswer,
+                section: pq.section || '일반',
+                explanation: pq.explanation,
+                calculatorAllowed: false,
+              }));
+              setQuestions(converted);
+              setIsUploadedContent(true);
+              toast.success(`AI가 ${converted.length}개 문제를 생성했습니다!`);
+            } else {
+              setQuestions(sampleQuestions);
+              setIsUploadedContent(false);
+              toast.warning("문제 생성에 실패하여 샘플 문제를 표시합니다.");
+            }
+          } catch {
+            setQuestions(sampleQuestions);
+            setIsUploadedContent(false);
+          }
         }
       } catch (error) {
         console.error("Error loading questions:", error);
