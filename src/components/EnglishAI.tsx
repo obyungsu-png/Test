@@ -1759,7 +1759,7 @@ async function analyzePassageWithAI(passage: string): Promise<{
   paragraphs: { id: number; topic: string; structure: string }[];
   tbSentences: { id: number; english: string; korean: string; chunks: string[]; importance: "high" | "mid" | "low"; paragraphId: number }[];
 }> {
-  const ANTHROPIC_API_KEY = "dc2213720f4b4a88ae06ddbd434ab1dd.qDGcLtBM9gGqp6ff";
+  const GLM_API_KEY = "dc2213720f4b4a88ae06ddbd434ab1dd.qDGcLtBM9gGqp6ff";
 
   const prompt = `You are an expert Korean high school English teacher. Analyze the following English passage for Korean students (내신 대비).
 
@@ -1842,16 +1842,14 @@ Rules:
 - isKeyExam: mark ~40% of sentences as true
 - highlight field must be exact substring of the english sentence`;
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+  const response = await fetch("https://open.bigmodel.cn/api/paas/v4/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-api-key": ANTHROPIC_API_KEY,
-      "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-access": "true",
+      "Authorization": `Bearer ${GLM_API_KEY}`,
     },
     body: JSON.stringify({
-      model: "claude-haiku-4-5-20251001",
+      model: "glm-4-flash",
       max_tokens: 8000,
       messages: [{ role: "user", content: prompt }],
     }),
@@ -1862,7 +1860,7 @@ Rules:
   }
 
   const data = await response.json();
-  const text = data.content?.[0]?.text || "";
+  const text = data.choices?.[0]?.message?.content || "";
   const clean = text.replace(/```json|```/g, "").trim();
   return JSON.parse(clean);
 }
