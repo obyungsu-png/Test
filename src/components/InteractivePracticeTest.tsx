@@ -696,7 +696,7 @@ export function InteractivePracticeTest({ materialTitle, material, questionEdits
       </div>
 
       {/* ===== Bottom Navigation ===== */}
-      <div className="bg-white border-t border-gray-200 px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0">
+      <div className="bg-white border-t border-gray-200 px-4 sm:px-6 py-3 sm:py-4 pb-20 sm:pb-4 [padding-bottom:calc(80px+env(safe-area-inset-bottom))] sm:[padding-bottom:1rem] flex-shrink-0">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           {/* Previous */}
           <button
