@@ -107,6 +107,9 @@ export function InteractivePracticeTest({ materialTitle, material, questionEdits
   const [vocabCache, setVocabCache] = useState<{[key: string]: string}>({});
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [vocabLoading, setVocabLoading] = useState(false);
+  const [aiChatMessages, setAiChatMessages] = useState<{role: 'user'|'ai', text: string}[]>([]);
+  const [aiChatInput, setAiChatInput] = useState('');
+  const [aiChatLoading, setAiChatLoading] = useState(false);
 
   // Mobile
   const [mobileView, setMobileView] = useState<'question' | 'passage'>('question');
@@ -316,26 +319,19 @@ export function InteractivePracticeTest({ materialTitle, material, questionEdits
     if (analysisCache[key]) return;
     setAnalysisLoading(true);
     try {
-      const correctOpt = q.options[q.correctAnswer];
-      const prompt = `다음 시험 문제를 한국어로 분석해줘. 아래 형식을 정확히 따라줘:
+      const text = (q.passage || '') + ' ' + q.question + ' ' + q.options.join(' ');
+      const prompt = `다음 영어 시험 문제/지문에서 중요 어휘를 추출해서 아래 형식으로 정리해줘. 반드시 줄바꿈을 지켜줘.
 
-[문제]
-${q.question}
+[텍스트]
+${text}
 
-[선택지]
-${q.options.map((o, i) => `${String.fromCharCode(65+i)}. ${o}`).join('\n')}
+출력 형식 (6~8개):
+단어 [품사] 뜻
+예) compelling [adj] 강렬한, 설득력 있는
+예) acknowledge [v] 인정하다
+예) validity [n] 타당성, 유효성
 
-[정답] ${String.fromCharCode(65 + q.correctAnswer)}. ${correctOpt}
-
-형식:
-✅ 정답: (정답 선택지와 이유 1~2줄)
-
-❌ 오답 분석:
-• A: (틀린 이유)
-• B: (틀린 이유)
-...
-
-💡 핵심 포인트: (이 문제 유형의 핵심 1줄)`;
+형식만 맞추고 불필요한 설명 없이 단어 목록만 출력해줘.`;
       const result = await callGLM(prompt);
       setAnalysisCache(prev => ({ ...prev, [key]: result }));
     } catch {
@@ -345,29 +341,36 @@ ${q.options.map((o, i) => `${String.fromCharCode(65+i)}. ${o}`).join('\n')}
     }
   };
 
-  const fetchVocab = async (q: Question) => {
-    const key = getEditKey(q);
-    if (vocabCache[key]) return;
-    setVocabLoading(true);
+  const sendAiChat = async (userMsg: string, q: Question) => {
+    if (!userMsg.trim() || aiChatLoading) return;
+    const newMessages = [...aiChatMessages, { role: 'user' as const, text: userMsg }];
+    setAiChatMessages(newMessages);
+    setAiChatInput('');
+    setAiChatLoading(true);
     try {
-      const text = (q.passage || '') + ' ' + q.question + ' ' + q.options.join(' ');
-      const prompt = `다음 영어 지문/문제에서 중요 어휘 5~8개를 뽑아 한국어로 정리해줘.
+      const context = `너는 영어 시험 문제 도우미야. 아래 문제를 기반으로 학생 질문에 한국어로 친절하게 짧게 답해줘.
 
-[텍스트]
-${text}
+[문제] ${q.question}
+[선택지] ${q.options.map((o,i)=>`${String.fromCharCode(65+i)}.${o}`).join(' / ')}
+[정답] ${String.fromCharCode(65+q.correctAnswer)}. ${q.options[q.correctAnswer]}
+${q.passage ? `[지문] ${q.passage.slice(0,300)}` : ''}`;
 
-형식 (각 단어마다 줄바꿈):
-단어 [품사] - 한국어 뜻
-예문: (지문에서 발췌 or 짧은 예문)
-
----
-(다음 단어)`;
-      const result = await callGLM(prompt);
-      setVocabCache(prev => ({ ...prev, [key]: result }));
+      const messages = [
+        { role: 'system', content: context },
+        ...newMessages.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text })),
+      ];
+      const res = await fetch("https://open.bigmodel.cn/api/paas/v4/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GLM_API_KEY}` },
+        body: JSON.stringify({ model: "glm-4-flash", max_tokens: 400, messages }),
+      });
+      const data = await res.json();
+      const reply = data.choices?.[0]?.message?.content || "답변을 불러오지 못했어요.";
+      setAiChatMessages(prev => [...prev, { role: 'ai', text: reply }]);
     } catch {
-      setVocabCache(prev => ({ ...prev, [key]: getVocabFallback(q) }));
+      setAiChatMessages(prev => [...prev, { role: 'ai', text: '오류가 발생했어요. 다시 시도해주세요.' }]);
     } finally {
-      setVocabLoading(false);
+      setAiChatLoading(false);
     }
   };
 
@@ -695,15 +698,13 @@ ${text}
                     transition={{ duration: 0.3 }}
                     className="mt-6 space-y-4"
                   >
-                    {/* Correct / Incorrect — 심플 인라인 표시 */}
-                    <div className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold ${
-                      isCurrentCorrect
-                        ? 'text-green-700 bg-green-50 border border-green-200'
-                        : 'text-red-600 bg-red-50 border border-red-200'
+                    {/* Correct / Incorrect — 최소화 */}
+                    <div className={`flex items-center gap-1.5 text-xs font-semibold ${
+                      isCurrentCorrect ? 'text-green-600' : 'text-red-500'
                     }`}>
                       {isCurrentCorrect
-                        ? <><CheckCircle2 className="w-4 h-4 flex-shrink-0" /> 정답입니다</>
-                        : <><X className="w-4 h-4 flex-shrink-0" /> 오답 · 정답은 <span className="ml-1 font-bold underline">{getCorrectLetter(currentQuestion)}</span></>
+                        ? <><CheckCircle2 className="w-3.5 h-3.5" /> 정답</>
+                        : <><X className="w-3.5 h-3.5" /> 오답 · 정답 {getCorrectLetter(currentQuestion)}</>
                       }
                     </div>
 
@@ -724,7 +725,7 @@ ${text}
                                 setShowAnalysis(nextAnalysis);
                                 setShowVocab(nextVocab);
                                 if (nextAnalysis && !analysisCache[getEditKey(currentQuestion)]) fetchAnalysis(currentQuestion);
-                                if (nextVocab && !vocabCache[getEditKey(currentQuestion)]) fetchVocab(currentQuestion);
+                                if (nextVocab) { setAiChatMessages([]); setAiChatInput(''); }
                               }}
                               className={`py-3 flex flex-col items-center gap-1 transition-all text-xs font-semibold ${ti > 0 ? 'border-l border-gray-100' : ''} ${
                                 isActive
@@ -783,17 +784,53 @@ ${text}
                             exit={{ opacity: 0, height: 0 }}
                             className="overflow-hidden"
                           >
-                            <div className="p-4 bg-violet-50 border-t border-violet-100">
-                              {vocabLoading && !vocabCache[getEditKey(currentQuestion)] ? (
-                                <div className="flex items-center gap-2 text-sm text-violet-500">
-                                  <div className="w-4 h-4 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />
-                                  AI 어휘 분석 중...
-                                </div>
-                              ) : (
-                                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-                                  {vocabCache[getEditKey(currentQuestion)] || getVocabFallback(currentQuestion)}
-                                </p>
-                              )}
+                            <div className="border-t border-gray-100 bg-gray-50">
+                              {/* 채팅 메시지 */}
+                              <div className="p-3 space-y-2 max-h-52 overflow-y-auto">
+                                {aiChatMessages.length === 0 && (
+                                  <p className="text-xs text-gray-400 text-center py-3">이 문제에 대해 무엇이든 물어보세요 🤖</p>
+                                )}
+                                {aiChatMessages.map((msg, i) => (
+                                  <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`max-w-[80%] px-3 py-2 rounded-xl text-xs leading-relaxed ${
+                                      msg.role === 'user'
+                                        ? 'bg-blue-500 text-white rounded-br-none'
+                                        : 'bg-white border border-gray-200 text-gray-700 rounded-bl-none'
+                                    }`}>
+                                      {msg.text}
+                                    </div>
+                                  </div>
+                                ))}
+                                {aiChatLoading && (
+                                  <div className="flex justify-start">
+                                    <div className="bg-white border border-gray-200 px-3 py-2 rounded-xl rounded-bl-none flex items-center gap-1">
+                                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{animationDelay:'0ms'}} />
+                                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{animationDelay:'150ms'}} />
+                                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{animationDelay:'300ms'}} />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                              {/* 입력창 */}
+                              <div className="flex items-center gap-2 px-3 pb-3">
+                                <input
+                                  type="text"
+                                  value={aiChatInput}
+                                  onChange={e => setAiChatInput(e.target.value)}
+                                  onKeyDown={e => e.key === 'Enter' && sendAiChat(aiChatInput, currentQuestion)}
+                                  placeholder="질문을 입력하세요..."
+                                  className="flex-1 text-xs bg-white border border-gray-200 rounded-full px-3 py-2 focus:outline-none focus:border-blue-400"
+                                />
+                                <button
+                                  onClick={() => sendAiChat(aiChatInput, currentQuestion)}
+                                  disabled={aiChatLoading || !aiChatInput.trim()}
+                                  className="w-8 h-8 bg-blue-500 disabled:bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0"
+                                >
+                                  <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                  </svg>
+                                </button>
+                              </div>
                             </div>
                           </motion.div>
                         )}
