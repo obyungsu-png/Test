@@ -29,7 +29,7 @@ export interface FeedbackTabConfig {
 export const DEFAULT_FEEDBACK_TABS: FeedbackTabConfig[] = [
   { key: 'explanation', label: '해설', emoji: '🔍' },
   { key: 'analysis',    label: '분석', emoji: '📐' },
-  { key: 'vocab',       label: '단어', emoji: '🗂️' },
+  { key: 'vocab',       label: 'AI',   emoji: '🤖' },
 ];
 
 interface InteractivePracticeTestProps {
@@ -103,6 +103,10 @@ export function InteractivePracticeTest({ materialTitle, material, questionEdits
   const [showInterpretation, setShowInterpretation] = useState(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [showVocab, setShowVocab] = useState(false);
+  const [analysisCache, setAnalysisCache] = useState<{[key: string]: string}>({});
+  const [vocabCache, setVocabCache] = useState<{[key: string]: string}>({});
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [vocabLoading, setVocabLoading] = useState(false);
 
   // Mobile
   const [mobileView, setMobileView] = useState<'question' | 'passage'>('question');
@@ -285,6 +289,100 @@ export function InteractivePracticeTest({ materialTitle, material, questionEdits
       return `이 지문은 ${q.section} 영역의 문제입니다. 핵심 내용을 파악하고, 선택지와의 관계를 분석하는 것이 중요합니다. 지문의 주요 키워드와 논리적 흐름에 주목하세요.`;
     }
     return `이 문제는 ${q.section} 유형의 문제입니다. 문제의 핵심 요구사항을 정확히 파악하고, 각 선택지의 차이점을 비교하여 가장 적합한 답을 선택하세요.`;
+  };
+
+  const GLM_API_KEY = "dc2213720f4b4a88ae06ddbd434ab1dd.qDGcLtBM9gGqp6ff";
+
+  const callGLM = async (prompt: string): Promise<string> => {
+    const res = await fetch("https://open.bigmodel.cn/api/paas/v4/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${GLM_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "glm-4-flash",
+        max_tokens: 1000,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+    if (!res.ok) throw new Error(`GLM Error: ${res.status}`);
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content || "";
+  };
+
+  const fetchAnalysis = async (q: Question) => {
+    const key = getEditKey(q);
+    if (analysisCache[key]) return;
+    setAnalysisLoading(true);
+    try {
+      const correctOpt = q.options[q.correctAnswer];
+      const prompt = `다음 시험 문제를 한국어로 분석해줘. 아래 형식을 정확히 따라줘:
+
+[문제]
+${q.question}
+
+[선택지]
+${q.options.map((o, i) => `${String.fromCharCode(65+i)}. ${o}`).join('\n')}
+
+[정답] ${String.fromCharCode(65 + q.correctAnswer)}. ${correctOpt}
+
+형식:
+✅ 정답: (정답 선택지와 이유 1~2줄)
+
+❌ 오답 분석:
+• A: (틀린 이유)
+• B: (틀린 이유)
+...
+
+💡 핵심 포인트: (이 문제 유형의 핵심 1줄)`;
+      const result = await callGLM(prompt);
+      setAnalysisCache(prev => ({ ...prev, [key]: result }));
+    } catch {
+      setAnalysisCache(prev => ({ ...prev, [key]: getAnalysisFallback(q) }));
+    } finally {
+      setAnalysisLoading(false);
+    }
+  };
+
+  const fetchVocab = async (q: Question) => {
+    const key = getEditKey(q);
+    if (vocabCache[key]) return;
+    setVocabLoading(true);
+    try {
+      const text = (q.passage || '') + ' ' + q.question + ' ' + q.options.join(' ');
+      const prompt = `다음 영어 지문/문제에서 중요 어휘 5~8개를 뽑아 한국어로 정리해줘.
+
+[텍스트]
+${text}
+
+형식 (각 단어마다 줄바꿈):
+단어 [품사] - 한국어 뜻
+예문: (지문에서 발췌 or 짧은 예문)
+
+---
+(다음 단어)`;
+      const result = await callGLM(prompt);
+      setVocabCache(prev => ({ ...prev, [key]: result }));
+    } catch {
+      setVocabCache(prev => ({ ...prev, [key]: getVocabFallback(q) }));
+    } finally {
+      setVocabLoading(false);
+    }
+  };
+
+  const getAnalysisFallback = (q: Question) => {
+    const correctLetter = getCorrectLetter(q);
+    return `✅ 정답: ${correctLetter}. ${q.options[q.correctAnswer]}\n\n❌ 오답 분석:\n${q.options.map((opt, i) => {
+      const letter = String.fromCharCode(65 + i);
+      return i === q.correctAnswer ? null : `• ${letter}: ${opt}`;
+    }).filter(Boolean).join('\n')}`;
+  };
+
+  const getVocabFallback = (q: Question) => {
+    const text = (q.passage || '') + ' ' + q.question + ' ' + q.options.join(' ');
+    const words = [...new Set(text.split(/\s+/).filter(w => w.length > 6 && /^[a-zA-Z]+$/.test(w)).map(w => w.toLowerCase()))].slice(0, 6);
+    return words.length ? words.map(w => `${w} - (사전 검색 권장)`).join('\n') : q.options.join('\n');
   };
 
   const getAnalysis = (q: Question) => {
@@ -541,29 +639,29 @@ export function InteractivePracticeTest({ materialTitle, material, questionEdits
                   const isCorrectOption = index === currentQuestion.correctAnswer;
                   const isWrongSelected = isAnswered && isSelected && !isCorrectOption;
 
-                  // 심플 스타일: 배경 전체 색칠 X, 테두리+텍스트만
-                  let borderClass = 'border-gray-200 hover:border-gray-400';
-                  let textClass = 'text-gray-800';
-                  let letterBg = 'bg-gray-100 text-gray-500';
-                  let rowExtra = '';
+                  // 미니멀 스타일
+                  let letterColor = 'text-gray-400 bg-gray-100';
+                  let textColor = 'text-gray-700';
+                  let rowStyle = 'border-transparent';
+                  let icon = null;
 
                   if (isAnswered) {
                     if (isCorrectOption) {
-                      borderClass = 'border-green-500';
-                      letterBg = 'bg-green-500 text-white';
-                      textClass = 'text-green-800 font-medium';
+                      letterColor = 'text-white bg-green-500';
+                      textColor = 'text-gray-800 font-semibold';
+                      rowStyle = 'border-green-200 bg-green-50/40';
                     } else if (isWrongSelected) {
-                      borderClass = 'border-red-400';
-                      letterBg = 'bg-red-400 text-white';
-                      textClass = 'text-red-600 line-through';
+                      letterColor = 'text-white bg-red-400';
+                      textColor = 'text-gray-400 line-through';
+                      rowStyle = 'border-transparent';
                     } else {
-                      borderClass = 'border-gray-100';
-                      textClass = 'text-gray-400';
-                      letterBg = 'bg-gray-50 text-gray-300';
+                      letterColor = 'text-gray-300 bg-gray-50';
+                      textColor = 'text-gray-300';
                     }
                   } else if (isSelected) {
-                    borderClass = 'border-blue-400';
-                    letterBg = 'bg-blue-500 text-white';
+                    letterColor = 'text-white bg-blue-500';
+                    textColor = 'text-gray-800';
+                    rowStyle = 'border-blue-200';
                   }
 
                   return (
@@ -571,20 +669,16 @@ export function InteractivePracticeTest({ materialTitle, material, questionEdits
                       key={index}
                       onClick={() => handleAnswerSelect(index)}
                       disabled={isAnswered}
-                      whileTap={!isAnswered ? { scale: 0.98 } : undefined}
-                      className={`w-full text-left px-4 py-3 sm:py-3.5 rounded-xl border transition-all bg-white ${borderClass} ${isAnswered ? 'cursor-default' : 'cursor-pointer'}`}
+                      whileTap={!isAnswered ? { scale: 0.97 } : undefined}
+                      className={`w-full text-left px-3 py-2.5 rounded-lg border transition-all bg-white ${rowStyle} ${isAnswered ? 'cursor-default' : 'cursor-pointer hover:bg-gray-50'}`}
                     >
-                      <div className="flex items-center gap-3">
-                        <span className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${letterBg}`}>
+                      <div className="flex items-center gap-2.5">
+                        <span className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${letterColor}`}>
                           {letter}
                         </span>
-                        <span className={`flex-1 text-base transition-colors ${textClass}`}>{option}</span>
-                        {isAnswered && isCorrectOption && (
-                          <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
-                        )}
-                        {isWrongSelected && (
-                          <X className="w-4 h-4 text-red-400 flex-shrink-0" />
-                        )}
+                        <span className={`flex-1 text-sm sm:text-base transition-colors ${textColor}`}>{option}</span>
+                        {isAnswered && isCorrectOption && <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />}
+                        {isWrongSelected && <X className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />}
                       </div>
                     </motion.button>
                   );
@@ -624,9 +718,13 @@ export function InteractivePracticeTest({ materialTitle, material, questionEdits
                             <button
                               key={tab.key}
                               onClick={() => {
+                                const nextAnalysis = tab.key === 'analysis' ? !showAnalysis : false;
+                                const nextVocab = tab.key === 'vocab' ? !showVocab : false;
                                 setShowInterpretation(tab.key === 'explanation' ? !showInterpretation : false);
-                                setShowAnalysis(tab.key === 'analysis' ? !showAnalysis : false);
-                                setShowVocab(tab.key === 'vocab' ? !showVocab : false);
+                                setShowAnalysis(nextAnalysis);
+                                setShowVocab(nextVocab);
+                                if (nextAnalysis && !analysisCache[getEditKey(currentQuestion)]) fetchAnalysis(currentQuestion);
+                                if (nextVocab && !vocabCache[getEditKey(currentQuestion)]) fetchVocab(currentQuestion);
                               }}
                               className={`py-3 flex flex-col items-center gap-1 transition-all text-xs font-semibold ${ti > 0 ? 'border-l border-gray-100' : ''} ${
                                 isActive
@@ -665,9 +763,16 @@ export function InteractivePracticeTest({ materialTitle, material, questionEdits
                             className="overflow-hidden"
                           >
                             <div className="p-4 bg-blue-50 border-t border-blue-100">
-                              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-                                {getAnalysis(currentQuestion)}
-                              </p>
+                              {analysisLoading && !analysisCache[getEditKey(currentQuestion)] ? (
+                                <div className="flex items-center gap-2 text-sm text-blue-500">
+                                  <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                                  AI 분석 중...
+                                </div>
+                              ) : (
+                                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+                                  {analysisCache[getEditKey(currentQuestion)] || getAnalysis(currentQuestion)}
+                                </p>
+                              )}
                             </div>
                           </motion.div>
                         )}
@@ -679,9 +784,16 @@ export function InteractivePracticeTest({ materialTitle, material, questionEdits
                             className="overflow-hidden"
                           >
                             <div className="p-4 bg-violet-50 border-t border-violet-100">
-                              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-                                {getVocab(currentQuestion)}
-                              </p>
+                              {vocabLoading && !vocabCache[getEditKey(currentQuestion)] ? (
+                                <div className="flex items-center gap-2 text-sm text-violet-500">
+                                  <div className="w-4 h-4 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />
+                                  AI 어휘 분석 중...
+                                </div>
+                              ) : (
+                                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+                                  {vocabCache[getEditKey(currentQuestion)] || getVocabFallback(currentQuestion)}
+                                </p>
+                              )}
                             </div>
                           </motion.div>
                         )}
