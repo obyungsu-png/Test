@@ -5,7 +5,7 @@ import { Input } from "./ui/input";
 import { toast } from "sonner@2.0.3";
 import { Menu, Calculator, TestTube, Atom, Globe, Users, DollarSign, Leaf, Brain, BookOpen, Languages, ChevronRight, X } from "lucide-react";
 
-import { InteractivePracticeTest } from "./InteractivePracticeTest";
+import { InteractivePracticeTest, FeedbackTabConfig, DEFAULT_FEEDBACK_TABS } from "./InteractivePracticeTest";
 import { ExamQuestionsViewer } from "./ExamQuestionsViewer";
 import { KeyNotesViewer } from "./KeyNotesViewer";
 import { PracticeTestViewer } from "./PracticeTestViewer";
@@ -110,7 +110,7 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
       tabs = tabs.map(tab => tab === '교과서 뽀개기' ? '합격 예측' : tab);
     }
     if (schoolType === 'korean' && selectedSubject !== '영어') {
-      tabs = tabs.filter(tab => tab !== 'Voca' && tab !== 'BS 에이아이');
+      tabs = tabs.filter(tab => tab !== 'Voca' && tab !== 'SGR AI');
     }
     return tabs;
   })();
@@ -139,6 +139,10 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
   const [showQuestionEditModal, setShowQuestionEditModal] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<any>(null);
   const [questionEdits, setQuestionEdits] = useState<{[key: string]: {explanation: string, analysis: string, vocab: string}}>({});
+  const [feedbackTabs, setFeedbackTabs] = useState<FeedbackTabConfig[]>(() => {
+    try { return JSON.parse(localStorage.getItem('feedbackTabsConfig') || 'null') || DEFAULT_FEEDBACK_TABS; }
+    catch { return DEFAULT_FEEDBACK_TABS; }
+  });
 
   const [uploadedMaterials, setUploadedMaterials] = useState<any[]>([]);
   const [tabs, setTabs] = useState(adjustedTabs);
@@ -514,10 +518,10 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
   const showKoreanVocaPage = activeTab === "Voca" && schoolType === 'korean';
   
   // Check if we should show English AI
-  const showEnglishAI = activeTab === "BS 에이아이" && schoolType === 'korean';
+  const showEnglishAI = activeTab === "SGR AI" && schoolType === 'korean';
   const [englishAIFullscreen, setEnglishAIFullscreen] = useState(false);
 
-  // BS 에이아이 탭 선택 시 자동 전체화면
+  // SGR AI 탭 선택 시 자동 전체화면
   useEffect(() => {
     if (showEnglishAI) {
       setEnglishAIFullscreen(true);
@@ -701,7 +705,11 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
                 }}
                 whileTap={{ scale: 0.98 }}
                 className={`px-3 sm:px-5 lg:px-6 py-2.5 sm:py-3.5 lg:py-4 text-sm sm:text-base lg:text-lg border-b-2 transition-all duration-200 relative whitespace-nowrap font-bold mr-1 sm:mr-2 flex items-center gap-1.5 sm:gap-2 ${
-                  activeTab === tab
+                  tab === "SGR AI"
+                    ? activeTab === tab
+                      ? "border-cyan-600 text-cyan-600 bg-cyan-50"
+                      : "border-transparent text-cyan-600 hover:bg-cyan-50"
+                    : activeTab === tab
                     ? "border-cyan-600 text-cyan-600 bg-cyan-50"
                     : "border-transparent text-gray-700 hover:text-gray-900 hover:bg-gray-50"
                 }`}
@@ -711,14 +719,25 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
                     <Menu className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#00C853' }} />
                     <span>{selectedSubject}</span>
                   </>
+                ) : tab === "SGR AI" ? (
+                  <span className="flex items-center gap-1.5">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+                    </span>
+                    SGR AI
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white leading-none">NEW</span>
+                  </span>
                 ) : (
                   tab
                 )}
-                <span className={`text-[10px] sm:text-xs font-bold ml-0.5 ${
-                  activeTab === tab ? "text-red-500" : "text-red-400"
-                }`}>
-                  {tabCounts[tab] || 0}
-                </span>
+                {tab !== "SGR AI" && (
+                  <span className={`text-[10px] sm:text-xs font-bold ml-0.5 ${
+                    activeTab === tab ? "text-red-500" : "text-red-400"
+                  }`}>
+                    {tabCounts[tab] || 0}
+                  </span>
+                )}
                 {activeTab === tab && (
                   <motion.div
                     layoutId="activeTab"
@@ -759,7 +778,7 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
             <div className="flex items-center justify-center py-20 text-center">
               <div>
                 <Brain className="w-16 h-16 text-cyan-400 mx-auto mb-4" />
-                <h2 className="text-xl font-bold text-gray-700 mb-2">BS 에이아이</h2>
+                <h2 className="text-xl font-bold text-gray-700 mb-2">SGR AI</h2>
                 <p className="text-gray-500 mb-4">전체화면에서 학습 중입니다</p>
                 <button
                   onClick={() => setEnglishAIFullscreen(true)}
@@ -1414,6 +1433,32 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
                 );
               })}
             </div>
+            {/* 탭 이름/이모지 설정 */}
+            <div className="px-6 py-4 border-t border-gray-100">
+              <p className="text-xs font-bold text-gray-600 mb-3 flex items-center gap-1.5">
+                <span>🎛️</span> 해설·분석·단어 탭 설정
+              </p>
+              <div className="space-y-2">
+                {feedbackTabs.map((tab, ti) => (
+                  <div key={tab.key} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={tab.emoji}
+                      onChange={(e) => setFeedbackTabs(prev => prev.map((t, i) => i === ti ? { ...t, emoji: e.target.value } : t))}
+                      className="w-14 text-center text-base border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-cyan-400"
+                      maxLength={4}
+                    />
+                    <input
+                      type="text"
+                      value={tab.label}
+                      onChange={(e) => setFeedbackTabs(prev => prev.map((t, i) => i === ti ? { ...t, label: e.target.value } : t))}
+                      className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-cyan-400"
+                      placeholder="탭 이름"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
             {/* 저장 버튼 */}
             <div className="px-6 py-4 border-t border-gray-100 flex gap-3 justify-end">
               <button
@@ -1428,6 +1473,7 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
                   const saved = JSON.parse(localStorage.getItem('questionEdits') || '{}');
                   const merged = { ...saved, ...questionEdits };
                   localStorage.setItem('questionEdits', JSON.stringify(merged));
+                  localStorage.setItem('feedbackTabsConfig', JSON.stringify(feedbackTabs));
                   setShowQuestionEditModal(false);
                   setEditingMaterial(null);
                 }}
@@ -1446,6 +1492,7 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
           materialTitle={selectedMaterial.title}
           material={selectedMaterial}
           questionEdits={questionEdits}
+          feedbackTabs={feedbackTabs}
           onExit={() => {
             setShowPracticeTest(false);
             setSelectedMaterial(null);
@@ -1556,11 +1603,14 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
             {/* Fullscreen Header */}
             <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-gray-200 bg-gradient-to-r from-cyan-50 to-white shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center shadow-md">
                   <Brain className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-lg font-bold text-gray-800">BS 에이아이</h1>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-lg font-bold text-gray-800">SGR AI</h1>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-sm">AI 분석</span>
+                  </div>
                   <p className="text-xs text-gray-400">{selectedSubject} · {selectedCategory || '전체'}</p>
                 </div>
               </div>

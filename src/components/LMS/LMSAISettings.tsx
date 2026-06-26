@@ -106,7 +106,7 @@ export default function LMSAISettings() {
           AI 설정
         </h2>
         <p className="text-sm text-gray-500 mt-1">
-          BS 에이아이와 교과서 뽀개기에서 사용하는 AI 엔진을 설정합니다.
+          SGR AI와 교과서 뽀개기에서 사용하는 AI 엔진을 설정합니다.
         </p>
       </div>
 
@@ -250,7 +250,7 @@ export default function LMSAISettings() {
         <div className="space-y-2.5 text-sm text-gray-600">
           <div className="flex items-start gap-2">
             <div className="w-1.5 h-1.5 bg-cyan-500 rounded-full mt-1.5 shrink-0" />
-            <span><strong>BS 에이아이:</strong> 지문 입력 시 자동 분석 (문장, 단어, 문법, 문제 생성)</span>
+            <span><strong>SGR AI:</strong> 지문 입력 시 자동 분석 (문장, 단어, 문법, 문제 생성)</span>
           </div>
           <div className="flex items-start gap-2">
             <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-1.5 shrink-0" />

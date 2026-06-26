@@ -20,10 +20,23 @@ interface Question {
   calculatorAllowed?: boolean;
 }
 
+export interface FeedbackTabConfig {
+  key: 'explanation' | 'analysis' | 'vocab';
+  label: string;
+  emoji: string;
+}
+
+export const DEFAULT_FEEDBACK_TABS: FeedbackTabConfig[] = [
+  { key: 'explanation', label: '해설', emoji: '🔍' },
+  { key: 'analysis',    label: '분석', emoji: '📐' },
+  { key: 'vocab',       label: '단어', emoji: '🗂️' },
+];
+
 interface InteractivePracticeTestProps {
   materialTitle: string;
   material?: any;
   questionEdits?: {[key: string]: {explanation: string, analysis: string, vocab: string}};
+  feedbackTabs?: FeedbackTabConfig[];
   onExit: () => void;
 }
 
@@ -75,7 +88,7 @@ const sampleQuestions: Question[] = [
   }
 ];
 
-export function InteractivePracticeTest({ materialTitle, material, questionEdits = {}, onExit }: InteractivePracticeTestProps) {
+export function InteractivePracticeTest({ materialTitle, material, questionEdits = {}, feedbackTabs = DEFAULT_FEEDBACK_TABS, onExit }: InteractivePracticeTestProps) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<{[key: number]: number}>({});
   const [answeredQuestions, setAnsweredQuestions] = useState<Set<number>>(new Set());
@@ -528,26 +541,28 @@ export function InteractivePracticeTest({ materialTitle, material, questionEdits
                   const isCorrectOption = index === currentQuestion.correctAnswer;
                   const isWrongSelected = isAnswered && isSelected && !isCorrectOption;
 
-                  let borderClass = 'border-gray-200 hover:border-gray-300';
-                  let bgClass = 'bg-white';
-                  let letterBg = 'bg-gray-100 text-gray-600';
+                  // 심플 스타일: 배경 전체 색칠 X, 테두리+텍스트만
+                  let borderClass = 'border-gray-200 hover:border-gray-400';
+                  let textClass = 'text-gray-800';
+                  let letterBg = 'bg-gray-100 text-gray-500';
+                  let rowExtra = '';
 
                   if (isAnswered) {
                     if (isCorrectOption) {
-                      borderClass = 'border-green-400';
-                      bgClass = 'bg-green-50';
+                      borderClass = 'border-green-500';
                       letterBg = 'bg-green-500 text-white';
+                      textClass = 'text-green-800 font-medium';
                     } else if (isWrongSelected) {
                       borderClass = 'border-red-400';
-                      bgClass = 'bg-red-50';
-                      letterBg = 'bg-red-500 text-white';
+                      letterBg = 'bg-red-400 text-white';
+                      textClass = 'text-red-600 line-through';
                     } else {
-                      borderClass = 'border-gray-200';
-                      bgClass = 'bg-white opacity-60';
+                      borderClass = 'border-gray-100';
+                      textClass = 'text-gray-400';
+                      letterBg = 'bg-gray-50 text-gray-300';
                     }
                   } else if (isSelected) {
-                    borderClass = 'border-blue-400 shadow-sm';
-                    bgClass = 'bg-blue-50';
+                    borderClass = 'border-blue-400';
                     letterBg = 'bg-blue-500 text-white';
                   }
 
@@ -557,18 +572,18 @@ export function InteractivePracticeTest({ materialTitle, material, questionEdits
                       onClick={() => handleAnswerSelect(index)}
                       disabled={isAnswered}
                       whileTap={!isAnswered ? { scale: 0.98 } : undefined}
-                      className={`w-full text-left p-4 sm:p-5 rounded-xl border-2 transition-all ${borderClass} ${bgClass} ${isAnswered ? 'cursor-default' : 'cursor-pointer'}`}
+                      className={`w-full text-left px-4 py-3 sm:py-3.5 rounded-xl border transition-all bg-white ${borderClass} ${isAnswered ? 'cursor-default' : 'cursor-pointer'}`}
                     >
                       <div className="flex items-center gap-3">
-                        <span className={`flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-base font-semibold ${letterBg}`}>
+                        <span className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${letterBg}`}>
                           {letter}
                         </span>
-                        <span className="flex-1 text-base sm:text-lg text-gray-800">{option}</span>
+                        <span className={`flex-1 text-base transition-colors ${textClass}`}>{option}</span>
                         {isAnswered && isCorrectOption && (
-                          <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
+                          <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
                         )}
                         {isWrongSelected && (
-                          <X className="w-5 h-5 text-red-500 flex-shrink-0" />
+                          <X className="w-4 h-4 text-red-400 flex-shrink-0" />
                         )}
                       </div>
                     </motion.button>
@@ -586,58 +601,44 @@ export function InteractivePracticeTest({ materialTitle, material, questionEdits
                     transition={{ duration: 0.3 }}
                     className="mt-6 space-y-4"
                   >
-                    {/* Correct / Incorrect banner */}
-                    {isCurrentCorrect ? (
-                      <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-                        <p className="text-green-700 font-semibold text-sm sm:text-base">
-                          정답입니다! 정답은 {getCorrectLetter(currentQuestion)}입니다.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                        <p className="text-red-600 font-semibold text-sm sm:text-base">
-                          오답입니다. 정답은 {getCorrectLetter(currentQuestion)}입니다.
-                        </p>
-                      </div>
-                    )}
+                    {/* Correct / Incorrect — 심플 인라인 표시 */}
+                    <div className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold ${
+                      isCurrentCorrect
+                        ? 'text-green-700 bg-green-50 border border-green-200'
+                        : 'text-red-600 bg-red-50 border border-red-200'
+                    }`}>
+                      {isCurrentCorrect
+                        ? <><CheckCircle2 className="w-4 h-4 flex-shrink-0" /> 정답입니다</>
+                        : <><X className="w-4 h-4 flex-shrink-0" /> 오답 · 정답은 <span className="ml-1 font-bold underline">{getCorrectLetter(currentQuestion)}</span></>
+                      }
+                    </div>
 
-                    {/* 해석 / 분석 / 단어 탭 */}
+                    {/* 해설 / 분석 / 단어 탭 — feedbackTabs 설정 기반 */}
                     <div className="rounded-2xl overflow-hidden border border-gray-100 shadow-sm bg-white">
-                      {/* 탭 헤더 */}
-                      <div className="grid grid-cols-3 border-b border-gray-100">
-                        <button
-                          onClick={() => { setShowInterpretation(!showInterpretation); setShowAnalysis(false); setShowVocab(false); }}
-                          className={`py-3.5 flex flex-col items-center gap-1 transition-all text-xs font-semibold ${
-                            showInterpretation
-                              ? 'bg-gradient-to-b from-amber-400 to-orange-400 text-white'
-                              : 'bg-white text-gray-500 hover:bg-amber-50 hover:text-amber-600'
-                          }`}
-                        >
-                          <span className="text-lg">💡</span>
-                          해설
-                        </button>
-                        <button
-                          onClick={() => { setShowAnalysis(!showAnalysis); setShowInterpretation(false); setShowVocab(false); }}
-                          className={`py-3.5 flex flex-col items-center gap-1 transition-all text-xs font-semibold border-l border-r border-gray-100 ${
-                            showAnalysis
-                              ? 'bg-gradient-to-b from-blue-500 to-indigo-500 text-white'
-                              : 'bg-white text-gray-500 hover:bg-blue-50 hover:text-blue-600'
-                          }`}
-                        >
-                          <span className="text-lg">📊</span>
-                          분석
-                        </button>
-                        <button
-                          onClick={() => { setShowVocab(!showVocab); setShowInterpretation(false); setShowAnalysis(false); }}
-                          className={`py-3.5 flex flex-col items-center gap-1 transition-all text-xs font-semibold ${
-                            showVocab
-                              ? 'bg-gradient-to-b from-violet-500 to-purple-500 text-white'
-                              : 'bg-white text-gray-500 hover:bg-violet-50 hover:text-violet-600'
-                          }`}
-                        >
-                          <span className="text-lg">📖</span>
-                          단어
-                        </button>
+                      <div className={`grid border-b border-gray-100`} style={{ gridTemplateColumns: `repeat(${feedbackTabs.length}, 1fr)` }}>
+                        {feedbackTabs.map((tab, ti) => {
+                          const isActive = (tab.key === 'explanation' && showInterpretation) ||
+                                           (tab.key === 'analysis' && showAnalysis) ||
+                                           (tab.key === 'vocab' && showVocab);
+                          return (
+                            <button
+                              key={tab.key}
+                              onClick={() => {
+                                setShowInterpretation(tab.key === 'explanation' ? !showInterpretation : false);
+                                setShowAnalysis(tab.key === 'analysis' ? !showAnalysis : false);
+                                setShowVocab(tab.key === 'vocab' ? !showVocab : false);
+                              }}
+                              className={`py-3 flex flex-col items-center gap-1 transition-all text-xs font-semibold ${ti > 0 ? 'border-l border-gray-100' : ''} ${
+                                isActive
+                                  ? 'bg-gray-800 text-white'
+                                  : 'bg-white text-gray-400 hover:bg-gray-50 hover:text-gray-700'
+                              }`}
+                            >
+                              <span className="text-base">{tab.emoji}</span>
+                              {tab.label}
+                            </button>
+                          );
+                        })}
                       </div>
 
                       {/* 탭 콘텐츠 */}

@@ -1751,35 +1751,170 @@ function Stage4KillerTest({ questions, sentences }: { questions: KillerQuestion[
   );
 }
 
+// ===================== AI Analysis API Call =====================
+async function analyzePassageWithAI(passage: string): Promise<{
+  sentences: AnalyzedSentence[];
+  vocab: VocaCard[];
+  killerQuestions: KillerQuestion[];
+  paragraphs: { id: number; topic: string; structure: string }[];
+  tbSentences: { id: number; english: string; korean: string; chunks: string[]; importance: "high" | "mid" | "low"; paragraphId: number }[];
+}> {
+  const ANTHROPIC_API_KEY = "dc2213720f4b4a88ae06ddbd434ab1dd.qDGcLtBM9gGqp6ff";
+
+  const prompt = `You are an expert Korean high school English teacher. Analyze the following English passage for Korean students (내신 대비).
+
+PASSAGE:
+"""
+${passage}
+"""
+
+Return ONLY a valid JSON object (no markdown, no explanation) with this exact structure:
+
+{
+  "paragraphs": [
+    { "id": 1, "topic": "단락 주제 (한국어)", "structure": "전개방식 (한국어, 예: 도입, 전개, 결론)" }
+  ],
+  "sentences": [
+    {
+      "id": 1,
+      "english": "exact sentence from passage",
+      "korean": "정확한 한국어 해석",
+      "chunks": ["끊어읽기 단위1", "단위2", "단위3"],
+      "grammarPoints": [
+        {
+          "type": "문법 유형 (예: 동격 that절)",
+          "label": "짧은 레이블 (예: 동격)",
+          "description": "문법 설명 (한국어)",
+          "highlight": "해당 구문 (영어 원문 그대로)",
+          "quizType": "grammar_select_all"
+        }
+      ],
+      "keywords": ["핵심단어1", "핵심단어2"],
+      "connectors": ["연결어1"],
+      "difficulty": "easy|medium|hard",
+      "isKeyExam": true|false,
+      "paragraph": 1,
+      "paragraphTitle": "단락 주제",
+      "paragraphSubtitle": "전개방식"
+    }
+  ],
+  "tbSentences": [
+    {
+      "id": 1,
+      "english": "exact sentence",
+      "korean": "한국어 해석",
+      "chunks": ["chunk1", "chunk2"],
+      "importance": "high|mid|low",
+      "paragraphId": 1
+    }
+  ],
+  "vocab": [
+    {
+      "id": "v1",
+      "word": "영단어",
+      "meaning": "한국어 의미",
+      "pos": "n|v|adj|adv",
+      "synonyms": ["synonym1"],
+      "antonyms": ["antonym1"],
+      "contextSentence": "예문 (지문에서)"
+    }
+  ],
+  "killerQuestions": [
+    {
+      "id": "q1",
+      "type": "Grammar|Blank Inference|Ordering|Content Match",
+      "question": "문제 (한국어/영어 혼용)",
+      "options": ["선택지1", "선택지2", "선택지3", "선택지4", "선택지5"],
+      "answer": 0,
+      "explanation": "해설 (한국어)",
+      "difficulty": "killer|hard|medium"
+    }
+  ]
+}
+
+Rules:
+- Split passage into logical paragraphs (1-4 paragraphs)
+- Extract ALL sentences from the passage
+- sentences and tbSentences should match (same sentences, different format)
+- vocab: pick 6-10 important words
+- killerQuestions: create exactly 4-5 challenging exam questions (Grammar, Blank Inference, Ordering, Content Match types)
+- grammarPoints: identify key grammar for each sentence (can be empty array)
+- isKeyExam: mark ~40% of sentences as true
+- highlight field must be exact substring of the english sentence`;
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": ANTHROPIC_API_KEY,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true",
+    },
+    body: JSON.stringify({
+      model: "claude-glm-5-2",
+      max_tokens: 8000,
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`API Error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const text = data.content?.[0]?.text || "";
+  const clean = text.replace(/```json|```/g, "").trim();
+  return JSON.parse(clean);
+}
+
 // ===================== Main Dashboard (Input) =====================
-function InputDashboard({ onAnalyze }: { onAnalyze: (text: string) => void }) {
+function InputDashboard({ onAnalyze }: { onAnalyze: (text: string, aiData: Awaited<ReturnType<typeof analyzePassageWithAI>> | null) => void }) {
   const [text, setText] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [gauges, setGauges] = useState({ syntax: 0, vocab: 0, exam: 0 });
+  const [analysisStep, setAnalysisStep] = useState("");
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     if (!text.trim()) {
       toast.error("지문을 입력해 주세요.");
       return;
     }
     setIsAnalyzing(true);
-    // Animate gauges
+    setGauges({ syntax: 0, vocab: 0, exam: 0 });
+
+    // Animate gauges while waiting
     let step = 0;
     const interval = setInterval(() => {
       step++;
       setGauges({
-        syntax: Math.min(step * 12, 87),
-        vocab: Math.min(step * 10, 72),
-        exam: Math.min(step * 14, 94),
+        syntax: Math.min(step * 3, 90),
+        vocab: Math.min(step * 2.5, 85),
+        exam: Math.min(step * 3.5, 92),
       });
-      if (step >= 10) {
-        clearInterval(interval);
-        setTimeout(() => {
-          onAnalyze(text);
-          setIsAnalyzing(false);
-        }, 500);
-      }
-    }, 150);
+    }, 200);
+
+    try {
+      setAnalysisStep("구문 분석 중...");
+      setTimeout(() => setAnalysisStep("어휘 등급 분류 중..."), 3000);
+      setTimeout(() => setAnalysisStep("내신 문제 생성 중..."), 6000);
+
+      const aiData = await analyzePassageWithAI(text);
+      clearInterval(interval);
+      setGauges({ syntax: 100, vocab: 100, exam: 100 });
+
+      setTimeout(() => {
+        onAnalyze(text, aiData);
+        setIsAnalyzing(false);
+      }, 500);
+    } catch (err) {
+      clearInterval(interval);
+      console.error("AI analysis error:", err);
+      toast.error("AI 분석 중 오류가 발생했습니다. 샘플 데이터로 진행합니다.");
+      setTimeout(() => {
+        onAnalyze(text, null);
+        setIsAnalyzing(false);
+      }, 500);
+    }
   };
 
   const loadSample = () => {
@@ -1797,7 +1932,7 @@ function InputDashboard({ onAnalyze }: { onAnalyze: (text: string) => void }) {
         <div className="w-16 h-16 bg-gradient-to-br from-cyan-400 to-cyan-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
           <Brain className="w-8 h-8 text-white" />
         </div>
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">BS 에이아이 내신 분석</h1>
+        <h1 className="text-2xl font-bold text-gray-800 mb-2">SGR AI 내신 분석</h1>
         <p className="text-gray-500">지문을 넣으면 AI가 구문 분석, 어휘 등급, 내신 빈출 포인트를 자동으로 분석합니다</p>
       </motion.div>
 
@@ -1827,7 +1962,7 @@ function InputDashboard({ onAnalyze }: { onAnalyze: (text: string) => void }) {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-5 p-4 bg-gray-50 rounded-xl border border-gray-100 space-y-2.5">
           <div className="flex items-center gap-2 mb-1">
             <Sparkles className="w-4 h-4 text-cyan-500 animate-pulse" />
-            <span className="text-sm font-bold text-gray-700">AI 분석 중...</span>
+            <span className="text-sm font-bold text-gray-700">{analysisStep || "AI 분석 중..."}</span>
           </div>
           <AnalysisGauge progress={gauges.syntax} label="구문 난이도" />
           <AnalysisGauge progress={gauges.vocab} label="어휘 등급" />
@@ -1882,21 +2017,34 @@ export default function EnglishAI() {
   const [currentStage, setCurrentStage] = useState(1);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
 
+  // AI-generated data (null = use sample)
+  const [aiSentences, setAiSentences] = useState<AnalyzedSentence[] | null>(null);
+  const [aiVocab, setAiVocab] = useState<VocaCard[] | null>(null);
+  const [aiKillerQuestions, setAiKillerQuestions] = useState<KillerQuestion[] | null>(null);
+  const [aiParagraphs, setAiParagraphs] = useState<typeof SAMPLE_PARAGRAPHS | null>(null);
+  const [aiTbSentences, setAiTbSentences] = useState<typeof SAMPLE_TB_SENTENCES | null>(null);
+
+  // Active data (AI if available, else sample)
+  const activeSentences = aiSentences ?? SAMPLE_SENTENCES;
+  const activeVocab = aiVocab ?? SAMPLE_VOCAB;
+  const activeKillerQuestions = aiKillerQuestions ?? SAMPLE_KILLER_QUESTIONS;
+  const activeParagraphs = aiParagraphs ?? SAMPLE_PARAGRAPHS;
+  const activeTbSentences = aiTbSentences ?? SAMPLE_TB_SENTENCES;
+
   // Build MasteryLesson-compatible object for download helpers
   const buildLessonForDownload = () => ({
     id: 'ai-english-1',
-    title: 'Lesson 1: My New Friends',
+    title: aiSentences ? 'AI 분석 지문' : 'Lesson 1: My New Friends',
     subject: '영어',
-    category: '중등영어1-1',
-    vocabulary: SAMPLE_VOCAB.map(v => ({
+    category: '내신영어',
+    vocabulary: activeVocab.map(v => ({
       id: v.id, word: v.word, meaning: v.meaning, pos: v.pos,
       example: v.contextSentence, exampleKo: '',
       synonym: v.synonyms.join(', '), antonym: v.antonyms.join(', '),
     })),
-    sentences: SAMPLE_TB_SENTENCES,
+    sentences: activeTbSentences,
     problems: [
-      // 빈칸넣기 문제 (구조 암기에서)
-      ...SAMPLE_SENTENCES.filter(s => s.grammarPoints.length > 0).slice(0, 3).map((s, i) => {
+      ...activeSentences.filter(s => s.grammarPoints.length > 0).slice(0, 3).map((s, i) => {
         const gp = s.grammarPoints[0];
         const blanked = s.english.replace(gp.highlight, '_________');
         return {
@@ -1908,18 +2056,7 @@ export default function EnglishAI() {
           explanation: gp.description,
         };
       }),
-      // 순서배열 문제 (구조 파악에서)
-      {
-        id: 'order-1',
-        type: 'multiple_choice' as const,
-        question: '[순서배열] 주어진 글 다음에 이어질 글의 순서로 가장 적절한 것은?\n\n(A) ' +
-          SAMPLE_SENTENCES[3].english + '\n(B) ' + SAMPLE_SENTENCES[4].english + '\n(C) ' + SAMPLE_SENTENCES[5].english,
-        options: ['A. (A)-(B)-(C)', 'B. (A)-(C)-(B)', 'C. (B)-(A)-(C)', 'D. (B)-(C)-(A)', 'E. (C)-(B)-(A)'],
-        answer: 'A',
-        explanation: '본문의 논리적 흐름에 따라 (A) 가정 제시 → (B) 느린 팽창의 경우 → (C) 빠른 팽창의 경우 순서가 적절합니다.',
-      },
-      // 기존 실전 테스트 문제
-      ...SAMPLE_KILLER_QUESTIONS.map((q, i) => ({
+      ...activeKillerQuestions.map((q, i) => ({
         id: q.id,
         type: 'multiple_choice' as const,
         question: q.question,
@@ -1928,7 +2065,7 @@ export default function EnglishAI() {
         explanation: q.explanation,
       })),
     ],
-    paragraphs: SAMPLE_PARAGRAPHS,
+    paragraphs: activeParagraphs,
   });
 
   const handleDownloadPDF = () => {
@@ -1949,17 +2086,28 @@ export default function EnglishAI() {
     toast.success("단어 시험지 PDF 인쇄 창이 열립니다!");
   };
 
-  const handleAnalyze = (text: string) => {
+  const handleAnalyze = (text: string, aiData: Awaited<ReturnType<typeof analyzePassageWithAI>> | null) => {
+    if (aiData) {
+      setAiSentences(aiData.sentences);
+      setAiVocab(aiData.vocab);
+      setAiKillerQuestions(aiData.killerQuestions);
+      setAiParagraphs(aiData.paragraphs);
+      setAiTbSentences(aiData.tbSentences);
+      toast.success("AI 분석 완료! 지문 맞춤 학습 콘텐츠가 생성되었습니다 🎉");
+    } else {
+      setAiSentences(null);
+      setAiVocab(null);
+      setAiKillerQuestions(null);
+      setAiParagraphs(null);
+      setAiTbSentences(null);
+    }
     setIsAnalyzed(true);
     setCurrentStage(1);
-    setUnlockedStage(1);
-    toast.success("AI 분석이 완료되었습니다! Stage 1부터 학습을 시작하세요.");
   };
 
   const handleBack = () => {
     setIsAnalyzed(false);
     setCurrentStage(1);
-    setUnlockedStage(1);
   };
 
   const stages = [
@@ -1987,9 +2135,11 @@ export default function EnglishAI() {
                 </button>
                 <div>
                   <span className="text-xs font-bold text-cyan-600 bg-cyan-50 px-2.5 py-1 rounded-full">
-                    중등영어 등영어1-1
+                    {aiSentences ? "🤖 AI 분석 완료" : "중등영어1-1"}
                   </span>
-                  <h2 className="text-xl font-bold text-gray-800 mt-2">Lesson 1: My New Friends</h2>
+                  <h2 className="text-xl font-bold text-gray-800 mt-2">
+                    {aiSentences ? `AI 맞춤 분석 (${activeSentences.length}문장)` : "Lesson 1: My New Friends"}
+                  </h2>
                 </div>
               </div>
               <div className="relative">
@@ -2072,13 +2222,13 @@ export default function EnglishAI() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
-              {currentStage === 1 && <Stage1DirectReading sentences={SAMPLE_SENTENCES} onComplete={() => {}} />}
-              {currentStage === 2 && <Stage2VocaChallenge vocab={SAMPLE_VOCAB} onComplete={() => {}} />}
-              {currentStage === 3 && <Stage3StructuralMemory sentences={SAMPLE_SENTENCES} onComplete={() => {}} />}
+              {currentStage === 1 && <Stage1DirectReading sentences={activeSentences} onComplete={() => {}} />}
+              {currentStage === 2 && <Stage2VocaChallenge vocab={activeVocab} onComplete={() => {}} />}
+              {currentStage === 3 && <Stage3StructuralMemory sentences={activeSentences} onComplete={() => {}} />}
               {currentStage === 4 && (
-                <Stage4FlowMastery paragraphs={SAMPLE_PARAGRAPHS} sentences={SAMPLE_TB_SENTENCES} onComplete={() => setCurrentStage(5)} />
+                <Stage4FlowMastery paragraphs={activeParagraphs} sentences={activeTbSentences} onComplete={() => setCurrentStage(5)} />
               )}
-              {currentStage === 5 && <Stage4KillerTest questions={SAMPLE_KILLER_QUESTIONS} sentences={SAMPLE_SENTENCES} />}
+              {currentStage === 5 && <Stage4KillerTest questions={activeKillerQuestions} sentences={activeSentences} />}
             </motion.div>
           </AnimatePresence>
 
