@@ -1,5 +1,5 @@
 // ===================== PDF Utilities for SGR Class =====================
-// Opens a print-friendly HTML window that can be saved as PDF (browser Print → PDF)
+// Opens a print-friendly HTML window that auto-prints (browser Print → PDF)
 
 import type {
   SGRLesson,
@@ -9,6 +9,7 @@ import type {
   CompleteSentenceQuestion,
   OutlineQuestion,
   TrueFalseQuestion,
+  GrammarPoint,
 } from "./types";
 
 function esc(s: string): string {
@@ -27,7 +28,132 @@ function renderInline(text: string): string {
   return t;
 }
 
-// Render a question in question-only mode (blanks shown as ___)
+// ─── 자동 생성 유틸리티 ───────────────────────────────
+
+// passage 문장 단위 분할
+function splitSentences(text: string): string[] {
+  return text
+    .replace(/\n/g, " ")
+    .match(/[^.!?]+[.!?]+/g) || [text];
+}
+
+// 단어가 빈칸 후보인지 판별 (길이 4 이상, 관사/전치사 제외)
+const SKIP_WORDS = new Set(["the", "this", "that", "these", "those", "with", "from", "into", "have", "been", "were", "they", "their", "there", "which", "would", "could", "should", "such", "also", "than", "when", "where", "while", "about"]);
+
+function isBlankCandidate(word: string): boolean {
+  const w = word.toLowerCase().replace(/[^a-z']/g, "");
+  return w.length >= 4 && !SKIP_WORDS.has(w);
+}
+
+// 첫 글자 + 빈칸 생성 (예: "geography" → "g_________")
+function firstLetterBlank(word: string): string {
+  const clean = word.replace(/[^a-zA-Z']/g, "");
+  if (clean.length < 2) return word;
+  return clean[0] + "_".repeat(clean.length - 1);
+}
+
+// passage 전체 빈칸넣기 (문장당 1~2개 단어, 첫 글자 제공)
+function generatePassageFillBlank(lesson: SGRLesson, showAnswer: boolean): string {
+  if (lesson.passageParagraphs.length === 0) return "";
+  const rows: string[] = [];
+  let idx = 1;
+  lesson.passageParagraphs.forEach((para, pi) => {
+    const sentences = splitSentences(para.content);
+    sentences.forEach(sent => {
+      const words = sent.split(/\s+/);
+      // 빈칸 후보 인덱스 찾기
+      const candidates: number[] = [];
+      words.forEach((w, i) => { if (isBlankCandidate(w)) candidates.push(i); });
+      // 문장당 최대 1~2개
+      const blankCount = Math.min(candidates.length, sent.length > 80 ? 2 : 1);
+      const blankIndices = candidates.slice(0, blankCount);
+
+      const processed = words.map((w, i) => {
+        if (blankIndices.includes(i)) {
+          if (showAnswer) {
+            const clean = w.replace(/[^a-zA-Z']/g, "");
+            return `<span class="filled">${esc(clean)}</span>` + (w.match(/[^a-zA-Z']*$/)?.[0] || "");
+          }
+          return `<span class="blank-word">${firstLetterBlank(w)}</span>` + (w.match(/[^a-zA-Z']*$/)?.[0] || "");
+        }
+        return esc(w);
+      }).join(" ");
+      rows.push(`<div class="pfill"><span class="clabel">(${idx})</span> ${processed}</div>`);
+      idx++;
+    });
+  });
+  return `
+    <div class="section">
+      <h2 class="section-title">● Passage Fill-in-the-Blanks</h2>
+      <p class="section-sub">빈칸에 알맞은 단어를 쓰세요. (첫 글자가 주어집니다.)</p>
+      ${rows.join("")}
+    </div>`;
+}
+
+// 글의 흐름 (Organization) 빈칸넣기
+function generateOrganizationBlank(lesson: SGRLesson, showAnswer: boolean): string {
+  if (lesson.passageParagraphs.length === 0) return "";
+  // 각 단락의 첫 문장을 주제 문장으로 사용, 빈칸 처리
+  const rows: string[] = [];
+  lesson.passageParagraphs.forEach((para, i) => {
+    const sentences = splitSentences(para.content);
+    const topicSent = sentences[0] || para.content;
+    const words = topicSent.split(/\s+/);
+    const candidates: number[] = [];
+    words.forEach((w, j) => { if (isBlankCandidate(w)) candidates.push(j); });
+    const blankIdx = candidates[0] !== undefined ? candidates[0] : -1;
+
+    const processed = words.map((w, j) => {
+      if (j === blankIdx) {
+        if (showAnswer) {
+          const clean = w.replace(/[^a-zA-Z']/g, "");
+          return `<span class="filled">${esc(clean)}</span>` + (w.match(/[^a-zA-Z']*$/)?.[0] || "");
+        }
+        return `<span class="blank-word">${firstLetterBlank(w)}</span>` + (w.match(/[^a-zA-Z']*$/)?.[0] || "");
+      }
+      return esc(w);
+    }).join(" ");
+    rows.push(`
+      <div class="org-row">
+        <span class="org-num">단락 ${i + 1}</span>
+        <span class="org-text">${processed}</span>
+      </div>`);
+  });
+  return `
+    <div class="section">
+      <h2 class="section-title">● 글의 흐름 (Organization)</h2>
+      <p class="section-sub">각 단락의 주제 문장에서 빈칸을 채우세요.</p>
+      ${rows.join("")}
+    </div>`;
+}
+
+// 주요 구문 (Key Phrases) — directReading의 grammarPoints에서 추출
+function generateKeyPhrases(lesson: SGRLesson): string {
+  const allGps: Array<{ gp: GrammarPoint; eng: string }> = [];
+  lesson.directReading.forEach(d => {
+    (d.grammarPoints || []).forEach(gp => {
+      allGps.push({ gp, eng: d.english });
+    });
+  });
+  if (allGps.length === 0) return "";
+  const rows = allGps.map((item, i) => `
+    <div class="kp-row">
+      <span class="kp-num">${i + 1}</span>
+      <div class="kp-content">
+        <span class="kp-highlight">"${esc(item.gp.highlight)}"</span>
+        <span class="kp-type">[${esc(item.gp.type)}] ${esc(item.gp.label)}</span>
+        <p class="kp-desc">${esc(item.gp.description)}</p>
+      </div>
+    </div>`).join("");
+  return `
+    <div class="section">
+      <h2 class="section-title">● 주요 구문 (Key Phrases)</h2>
+      ${rows}
+    </div>`;
+}
+
+// ─── 기존 렌더링 함수들 ───────────────────────────────
+
 function renderQuestionHtml(q: Question, index: number, showAnswer: boolean): string {
   const num = `<span class="qnum">${index + 1}</span>`;
 
@@ -194,6 +320,10 @@ function buildHtml(lesson: SGRLesson, showAnswer: boolean): string {
     .map((q, i) => renderQuestionHtml(q, i, showAnswer))
     .join("");
   const vocabReviewHtml = renderVocabReviewHtml(lesson, showAnswer);
+  // 새 섹션들
+  const keyPhrasesHtml = generateKeyPhrases(lesson);
+  const orgBlankHtml = generateOrganizationBlank(lesson, showAnswer);
+  const passageBlankHtml = generatePassageFillBlank(lesson, showAnswer);
 
   const modeLabel = showAnswer ? "문제+해답편" : "문제편";
   const title = `Unit ${esc(lesson.unitNumber)}: ${esc(lesson.title)} — ${modeLabel}`;
@@ -225,6 +355,7 @@ function buildHtml(lesson: SGRLesson, showAnswer: boolean): string {
   .answer { margin-top: 6px; margin-left: 26px; padding: 6px 10px; background: #ecfeff; border-left: 3px solid #0891b2; font-size: 13px; color: #0e7490; }
   .expl { color: #555; font-size: 12.5px; }
   .blank { border-bottom: 1px solid #333; display: inline-block; min-width: 60px; }
+  .blank-word { border-bottom: 2px solid #333; display: inline-block; letter-spacing: 1px; font-weight: 600; color: #555; }
   .filled { color: #0891b2; font-weight: 700; border-bottom: 1px solid #0891b2; padding: 0 4px; }
   .wordbank { background: #f1f5f9; border-radius: 20px; padding: 8px 16px; margin: 8px 0; font-size: 13px; }
   .wordbank span { display: inline-block; margin: 0 10px; color: #334155; }
@@ -238,7 +369,20 @@ function buildHtml(lesson: SGRLesson, showAnswer: boolean): string {
   .tfrow { display: flex; align-items: center; padding: 4px 0; font-size: 13.5px; }
   .tftext { flex: 1; margin: 0 6px; }
   .tfbox { border: 1px solid #666; padding: 2px 8px; margin-left: 6px; font-size: 12px; font-weight: 700; }
-  @media print { .noprint { display: none; } }
+  /* 주요 구문 */
+  .kp-row { display: flex; gap: 8px; padding: 8px 0; border-bottom: 1px solid #e2e8f0; }
+  .kp-num { width: 22px; height: 22px; background: #0891b2; color: white; border-radius: 50%; text-align: center; line-height: 22px; font-size: 11px; flex-shrink: 0; }
+  .kp-content { flex: 1; }
+  .kp-highlight { font-weight: 700; color: #0e7490; }
+  .kp-type { font-size: 12px; color: #6366f1; margin-left: 6px; }
+  .kp-desc { font-size: 12.5px; color: #555; margin: 2px 0 0 0; }
+  /* Organization */
+  .org-row { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; border-bottom: 1px solid #e2e8f0; }
+  .org-num { background: #e0f2fe; color: #0e7490; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+  .org-text { font-size: 13.5px; flex: 1; }
+  /* Passage fill blank */
+  .pfill { padding: 6px 0; font-size: 13.5px; line-height: 1.8; }
+  @media print { .noprint { display: none; } body { font-size: 12px; } }
   .noprint { position: fixed; bottom: 20px; right: 20px; z-index: 1000; }
   .noprint button { padding: 10px 20px; background: #0891b2; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
 </style>
@@ -252,9 +396,18 @@ function buildHtml(lesson: SGRLesson, showAnswer: boolean): string {
   ${passageHtml}
   ${lesson.questions.length ? `<div class="section"><h2 class="section-title">● Main Idea and Details</h2>${questionsHtml}</div>` : ""}
   ${vocabReviewHtml}
+  ${keyPhrasesHtml}
+  ${orgBlankHtml}
+  ${passageBlankHtml}
   <div class="noprint">
     <button onclick="window.print()">🖨️ 인쇄 / PDF로 저장</button>
   </div>
+  <script>
+    // 자동 인쇄
+    window.onload = function() {
+      setTimeout(function() { window.print(); }, 500);
+    };
+  </script>
 </body>
 </html>`;
 }

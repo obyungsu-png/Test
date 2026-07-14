@@ -19,7 +19,7 @@ import {
   emptyCompleteSentence, emptyOutline, emptyTrueFalse, emptyDirectReading,
   emptyVocabReviewItem, uid, SAMPLE_LESSON,
 } from "../SGRClass/types";
-import { parseCsvToLesson, lessonToCsv, getCsvTemplate } from "../SGRClass/csvUtils";
+import { parseCsvToLesson, parseCsvToLessons, parseTextToLessons, lessonToCsv, getCsvTemplate, getTextTemplate } from "../SGRClass/csvUtils";
 import { downloadSGRPdf } from "../SGRClass/pdfUtils";
 
 type SubTab = "overview" | "preview" | "passage" | "questions" | "vocabReview" | "directReading";
@@ -100,6 +100,8 @@ export default function LMSSGRClass() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [showCsvHelp, setShowCsvHelp] = useState(false);
   const csvInputRef = useRef<HTMLInputElement>(null);
+  const bulkCsvInputRef = useRef<HTMLInputElement>(null);
+  const textInputRef = useRef<HTMLInputElement>(null);
 
   const selected = useMemo(
     () => lessons.find(l => l.id === selectedId) || null,
@@ -216,6 +218,66 @@ export default function LMSSGRClass() {
     toast.success("CSV 템플릿을 다운로드했습니다.");
   };
 
+  // 대량 CSV 업로드 (여러 레슨)
+  const handleBulkCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const newLessons = parseCsvToLessons(text);
+      if (newLessons.length === 0) {
+        toast.error("파싱된 레슨이 없습니다. META,title 행을 확인하세요.");
+        return;
+      }
+      setLessons(prev => [...newLessons, ...prev]);
+      setSelectedId(newLessons[0].id);
+      setSubTab("overview");
+      setDirty(true);
+      toast.success(`${newLessons.length}개 레슨 대량 업로드 완료`);
+    } catch (err) {
+      console.error(err);
+      toast.error("대량 CSV 파싱에 실패했습니다. 형식을 확인해주세요.");
+    } finally {
+      if (bulkCsvInputRef.current) bulkCsvInputRef.current.value = "";
+    }
+  };
+
+  // 텍스트 대량 업로드
+  const handleTextUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const newLessons = parseTextToLessons(text);
+      if (newLessons.length === 0) {
+        toast.error("파싱된 레슨이 없습니다. ===LESSON=== 구분자를 확인하세요.");
+        return;
+      }
+      setLessons(prev => [...newLessons, ...prev]);
+      setSelectedId(newLessons[0].id);
+      setSubTab("overview");
+      setDirty(true);
+      toast.success(`${newLessons.length}개 레슨 텍스트 업로드 완료`);
+    } catch (err) {
+      console.error(err);
+      toast.error("텍스트 파싱에 실패했습니다. 형식을 확인해주세요.");
+    } finally {
+      if (textInputRef.current) textInputRef.current.value = "";
+    }
+  };
+
+  const handleTextTemplateDownload = () => {
+    const txt = getTextTemplate();
+    const blob = new Blob([txt], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "sgr-class-text-template.txt";
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("텍스트 템플릿을 다운로드했습니다.");
+  };
+
   return (
     <div className="max-w-7xl mx-auto">
       {/* Header */}
@@ -226,10 +288,10 @@ export default function LMSSGRClass() {
             SGR Class 관리
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            수업용 교과서형 자료를 만들고 관리합니다. (CSV 업로드 지원)
+            수업용 교과서형 자료를 만들고 관리합니다. (CSV·TXT 대량 업로드 지원)
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={handleTemplateDownload}
             className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
@@ -240,7 +302,7 @@ export default function LMSSGRClass() {
             onClick={() => csvInputRef.current?.click()}
             className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-cyan-300 text-cyan-700 hover:bg-cyan-50"
           >
-            <Upload className="w-4 h-4" /> CSV 업로드
+            <Upload className="w-4 h-4" /> CSV 1개
           </button>
           <input
             ref={csvInputRef}
@@ -249,10 +311,44 @@ export default function LMSSGRClass() {
             className="hidden"
             onChange={handleCsvUpload}
           />
+          {/* 대량 업로드 */}
+          <div className="w-px h-6 bg-gray-200 mx-1" />
+          <button
+            onClick={() => bulkCsvInputRef.current?.click()}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg bg-cyan-600 text-white hover:bg-cyan-700 font-bold"
+          >
+            <Layers className="w-4 h-4" /> 대량 CSV
+          </button>
+          <input
+            ref={bulkCsvInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={handleBulkCsvUpload}
+          />
+          <button
+            onClick={() => textInputRef.current?.click()}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-indigo-300 text-indigo-700 hover:bg-indigo-50"
+          >
+            <Upload className="w-4 h-4" /> TXT 대량
+          </button>
+          <input
+            ref={textInputRef}
+            type="file"
+            accept=".txt,text/plain"
+            className="hidden"
+            onChange={handleTextUpload}
+          />
+          <button
+            onClick={handleTextTemplateDownload}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+          >
+            <FileText className="w-4 h-4" /> TXT 템플릿
+          </button>
           <button
             onClick={() => setShowCsvHelp(true)}
             className="p-2 text-gray-500 hover:text-cyan-600 hover:bg-cyan-50 rounded-lg"
-            title="CSV 형식 안내"
+            title="업로드 형식 안내"
           >
             <AlertCircle className="w-4 h-4" />
           </button>
@@ -460,7 +556,7 @@ export default function LMSSGRClass() {
               className="bg-white rounded-xl p-6 max-w-2xl w-full shadow-xl max-h-[80vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-800">CSV 형식 안내</h3>
+                <h3 className="text-lg font-bold text-gray-800">업로드 형식 안내</h3>
                 <button
                   onClick={() => setShowCsvHelp(false)}
                   className="p-1 hover:bg-gray-100 rounded"
@@ -468,31 +564,70 @@ export default function LMSSGRClass() {
                   <X className="w-4 h-4" />
                 </button>
               </div>
-              <div className="text-sm text-gray-700 space-y-3">
-                <p>CSV 파일 첫 열은 <b>section</b>, 두번째는 <b>key</b>, 나머지는 <b>value1~value4</b>입니다.</p>
+              <div className="text-sm text-gray-700 space-y-4">
+                {/* CSV 형식 */}
                 <div>
-                  <p className="font-bold mb-1">지원되는 section:</p>
-                  <ul className="list-disc pl-5 space-y-1 text-xs">
+                  <p className="font-bold text-cyan-700 mb-1">① CSV 형식 (단일/대량)</p>
+                  <p>CSV 파일 첫 열은 <b>section</b>, 두번째는 <b>key</b>, 나머지는 <b>value1~value4</b>입니다.</p>
+                  <p className="text-xs text-gray-500 mt-1">대량 업로드: META,title 행이 여러 개 있으면 각각 새 레슨으로 분할됩니다.</p>
+                  <ul className="list-disc pl-5 space-y-1 text-xs mt-2">
                     <li><b>META</b> — key: title, unitNumber, subject, category, previewQuestion, passageTitle, vocabPreviewInstruction</li>
                     <li><b>PREVIEW_CARD</b> — value1: 캡션</li>
                     <li><b>VOCAB_PREVIEW</b> — value1: 단어, value2: 뜻</li>
                     <li><b>PARAGRAPH</b> — value1: 본문 (**굵게**), value2: 이미지 캡션(선택)</li>
-                    <li><b>QUESTION_MC</b> — value1: main_idea|multiple_choice|vocabulary, value2: 질문, value3: 옵션(| 구분), value4: 정답 인덱스(0부터)</li>
-                    <li><b>QUESTION_FILL</b> — value1: 문항(___로 빈칸), value2: 정답</li>
-                    <li><b>QUESTION_COMPLETE</b> — key=wordBank일 때 value1: 단어(|), 아니면 value1: 문장, value2: 정답</li>
-                    <li><b>QUESTION_OUTLINE</b> — key=title: value1(left/right), value2: 제목 / 항목: value1(left/right), value2: 문항, value3: 정답</li>
+                    <li><b>QUESTION_MC</b> — value1: 유형, value2: 질문, value3: 옵션(|), value4: 정답 인덱스</li>
+                    <li><b>QUESTION_FILL</b> — value1: 문항(___), value2: 정답</li>
+                    <li><b>QUESTION_COMPLETE</b> — key=wordBank: value1: 단어(|) / 항목: value1: 문장, value2: 정답</li>
+                    <li><b>QUESTION_OUTLINE</b> — value1: left/right, value2: 제목/문항, value3: 정답</li>
                     <li><b>QUESTION_TF</b> — value1: 문장, value2: T 또는 F</li>
                     <li><b>VOCAB_REVIEW_BANK</b> — value1: 단어</li>
                     <li><b>VOCAB_REVIEW</b> — value1: 문장(___), value2: 정답</li>
-                    <li><b>DIRECT_READING</b> — value1: 영어, value2: 한글, value3: chunks(| 구분)</li>
+                    <li><b>DIRECT_READING</b> — value1: 영어, value2: 한글, value3: chunks(|)</li>
                   </ul>
                 </div>
-                <button
-                  onClick={handleTemplateDownload}
-                  className="mt-2 flex items-center gap-1.5 px-3 py-2 text-sm bg-cyan-600 text-white rounded-lg hover:bg-cyan-700"
-                >
-                  <Download className="w-4 h-4" /> 템플릿 다운로드
-                </button>
+
+                {/* TXT 형식 */}
+                <div className="border-t pt-3">
+                  <p className="font-bold text-indigo-700 mb-1">② TXT 형식 (대량, 간단)</p>
+                  <p>텍스트 파일로 빠르게 여러 레슨을 업로드할 수 있습니다. <code className="bg-gray-100 px-1 rounded">===LESSON===</code> 으로 레슨을 구분합니다.</p>
+                  <pre className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs mt-2 overflow-x-auto">{`===LESSON===
+TITLE: 레슨 제목
+UNIT: 01
+SUBJECT: 영어
+CATEGORY: 중등영어1-1
+PASSAGE_TITLE: 지문 제목
+PREVIEW_QUESTION: preview question
+
+[VOCAB]
+단어 : 뜻
+단어2 : 뜻2
+
+[PASSAGE]
+첫 번째 단락. **굵게** 지원.
+
+두 번째 단락. (빈 줄로 단락 구분)
+
+[DICT]
+English sentence | 한국어 해석
+
+===LESSON===
+(다음 레슨...)`}</pre>
+                </div>
+
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    onClick={handleTemplateDownload}
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm bg-cyan-600 text-white rounded-lg hover:bg-cyan-700"
+                  >
+                    <Download className="w-4 h-4" /> CSV 템플릿
+                  </button>
+                  <button
+                    onClick={handleTextTemplateDownload}
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                  >
+                    <Download className="w-4 h-4" /> TXT 템플릿
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>

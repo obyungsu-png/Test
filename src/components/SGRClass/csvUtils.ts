@@ -356,3 +356,248 @@ VOCAB_REVIEW,,Plains and prairies are major ___ in the Midwest.,landforms,,
 DIRECT_READING,,The United States can be divided into five geographic regions.,미국은 다섯 개의 지리적 지역으로 나뉠 수 있다.,The United States|can be divided|into five geographic regions,
 `;
 }
+
+// ─── 다중 레슨 CSV 파싱 (대량 업로드용) ───────────────
+// META,title 행이 나타날 때마다 새 레슨으로 분할
+export function parseCsvToLessons(csv: string): SGRLesson[] {
+  const lines = csv.split(/\r?\n/);
+  // META,title 행 인덱스 찾기
+  const lessonStarts: number[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const cols = parseCsvLine(lines[i]);
+    if (
+      cols[0]?.trim().toUpperCase() === "META" &&
+      cols[1]?.trim().toLowerCase() === "title"
+    ) {
+      lessonStarts.push(i);
+    }
+  }
+
+  if (lessonStarts.length <= 1) {
+    // 단일 레슨
+    return [parseCsvToLesson(csv)];
+  }
+
+  // 헤더 행이 있으면 포함
+  const headerRow =
+    parseCsvLine(lines[0])[0]?.toLowerCase() === "section" ? lines[0] : null;
+
+  const lessons: SGRLesson[] = [];
+  for (let i = 0; i < lessonStarts.length; i++) {
+    const start = lessonStarts[i];
+    const end = i + 1 < lessonStarts.length ? lessonStarts[i + 1] : lines.length;
+    const chunkLines = (headerRow ? [headerRow] : []).concat(lines.slice(start, end));
+    const chunk = chunkLines.join("\n");
+    try {
+      lessons.push(parseCsvToLesson(chunk));
+    } catch (e) {
+      console.error("레슨 파싱 실패:", e);
+    }
+  }
+  return lessons;
+}
+
+// ─── 텍스트 형식 파싱 (간단한 대량 업로드용) ───────────
+// 형식:
+//   ===LESSON===
+//   TITLE: 제목
+//   UNIT: 01
+//   SUBJECT: 영어
+//   CATEGORY: 중등영어1-1
+//   PASSAGE_TITLE: 지문 제목
+//   PREVIEW_QUESTION: preview question
+//
+//   [VOCAB]
+//   word : meaning
+//   word2 : meaning2
+//
+//   [PASSAGE]
+//   첫 번째 단락.
+//
+//   두 번째 단락.
+//
+//   [DICT]
+//   English sentence | 한국어 해석
+//
+//   ===LESSON===
+//   (다음 레슨...)
+export function parseTextToLessons(text: string): SGRLesson[] {
+  // ===LESSON=== 또는 --- 로 레슨 분할
+  const chunks = text.split(/^===LESSON===|^---$/m).filter((c) => c.trim().length > 0);
+  const lessons: SGRLesson[] = [];
+
+  for (const chunk of chunks) {
+    const lesson = parseTextChunkToLesson(chunk.trim());
+    if (lesson) lessons.push(lesson);
+  }
+
+  if (lessons.length === 0) throw new Error("파싱할 레슨이 없습니다. ===LESSON=== 구분자를 확인하세요.");
+  return lessons;
+}
+
+function parseTextChunkToLesson(chunk: string): SGRLesson | null {
+  const lines = chunk.split(/\r?\n/);
+  const lesson: SGRLesson = {
+    id: uid(),
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    unitNumber: "01",
+    title: "Imported Lesson",
+    subject: "영어",
+    category: "",
+    previewQuestion: "",
+    previewCards: [],
+    vocabularyPreview: [],
+    vocabPreviewInstruction: "Write the correct word next to its meaning.",
+    passageTitle: "",
+    passageParagraphs: [],
+    questions: [],
+    vocabReview: { wordBank: [], items: [] },
+    directReading: [],
+  };
+
+  let section: "meta" | "vocab" | "passage" | "dict" = "meta";
+  let passageBuffer: string[] = [];
+
+  const flushPassage = () => {
+    // 빈 줄로 단락 분할
+    const joined = passageBuffer.join("\n").trim();
+    if (joined) {
+      const paras = joined.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+      paras.forEach((p) => {
+        lesson.passageParagraphs.push({ id: uid(), content: p });
+      });
+    }
+    passageBuffer = [];
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trimEnd();
+    const trimmed = line.trim();
+
+    // 섹션 변경
+    if (/^\[VOCAB\]/i.test(trimmed)) {
+      flushPassage();
+      section = "vocab";
+      continue;
+    }
+    if (/^\[PASSAGE\]/i.test(trimmed)) {
+      section = "passage";
+      continue;
+    }
+    if (/^\[DICT\]/i.test(trimmed)) {
+      flushPassage();
+      section = "dict";
+      continue;
+    }
+
+    if (section === "meta") {
+      // KEY: value 형식
+      const m = trimmed.match(/^([A-Z_]+)\s*:\s*(.*)$/);
+      if (m) {
+        const key = m[1].toUpperCase();
+        const val = m[2];
+        if (key === "TITLE") lesson.title = val;
+        else if (key === "UNIT") lesson.unitNumber = val;
+        else if (key === "SUBJECT") lesson.subject = val;
+        else if (key === "CATEGORY") lesson.category = val;
+        else if (key === "PASSAGE_TITLE") lesson.passageTitle = val;
+        else if (key === "PREVIEW_QUESTION") lesson.previewQuestion = val;
+        else if (key === "VOCAB_INSTRUCTION") lesson.vocabPreviewInstruction = val;
+      }
+      // 빈 줄이 나오면 passage 섹션으로 전환 (메타 다음에 바로 본문)
+      else if (trimmed === "" && lesson.title !== "Imported Lesson") {
+        // 다음 비어있지 않은 행이 [SECTION]이 아니면 passage로 간주
+      }
+    } else if (section === "vocab") {
+      if (trimmed === "") continue;
+      // word : meaning
+      const parts = trimmed.split(/\s*:\s*/);
+      if (parts.length >= 2) {
+        const word = parts[0].trim();
+        const meaning = parts.slice(1).join(":").trim();
+        if (word) {
+          lesson.vocabularyPreview.push({ id: uid(), word, meaning });
+        }
+      }
+    } else if (section === "passage") {
+      passageBuffer.push(line);
+    } else if (section === "dict") {
+      if (trimmed === "") continue;
+      // english | korean
+      const parts = trimmed.split(/\s*\|\s*/);
+      if (parts.length >= 2) {
+        const english = parts[0].trim();
+        const korean = parts.slice(1).join("|").trim();
+        if (english) {
+          // 간단한 청크 분할
+          const chunks = english
+            .split(/(,\s+|\s+which\s+|\s+who\s+|\s+that\s+|\s+because\s+|\s+so\s+|\s+but\s+|\s+and\s+)/i)
+            .reduce((acc: string[], p) => {
+              const last = acc[acc.length - 1] || "";
+              if (p.match(/,\s+|\s+(which|who|that|because|so|but|and)\s+/i)) {
+                if (last) acc[acc.length - 1] = last + p;
+                else acc.push(p);
+              } else {
+                acc.push(p);
+              }
+              return acc;
+            }, [])
+            .filter(Boolean);
+          lesson.directReading.push({
+            id: uid(),
+            english,
+            korean,
+            chunks: chunks.length > 0 ? chunks : [english],
+          });
+        }
+      }
+    }
+  }
+  flushPassage();
+
+  if (lesson.passageParagraphs.length === 0 && lesson.vocabularyPreview.length === 0 && lesson.title === "Imported Lesson") {
+    return null;
+  }
+  return lesson;
+}
+
+// ─── 텍스트 형식 템플릿 ─────────────────────────────
+export function getTextTemplate(): string {
+  return `===LESSON===
+TITLE: The U.S. Geography
+UNIT: 01
+SUBJECT: 영어
+CATEGORY: 중등영어1-1
+PASSAGE_TITLE: The Regions of the United States
+PREVIEW_QUESTION: What are some features of the different regions in the United States?
+
+[VOCAB]
+cash crop : a crop that is grown to be sold for money
+prairie : a flat area covered with tall grasses and few trees
+fertile : rich; productive
+cropland : land suitable for farming
+diverse : varied; having many different types or variations
+
+[PASSAGE]
+The United States can be divided into five geographic regions. Each region has its own **physical environment**, such as **landforms** and climate. These features set each region apart from the other ones.
+
+The Northeast region includes 11 states and the nation's capital, Washington, D.C. The Northeast is often divided into two subregions: New England and the Middle Atlantic States.
+
+The Southeast includes 12 states. A warm climate and a long growing season in the Southeast help farmers grow many different kinds of **cash crops**.
+
+[DICT]
+The United States can be divided into five geographic regions. | 미국은 다섯 개의 지리적 지역으로 나뉠 수 있다.
+The Northeast region includes 11 states and the nation's capital. | 북동부 지역은 11개 주와 국가 수도를 포함한다.
+
+===LESSON===
+TITLE: Sample Lesson 2
+UNIT: 02
+SUBJECT: 영어
+CATEGORY: 중등영어1-1
+PASSAGE_TITLE: Sample Passage
+
+[PASSAGE]
+This is a second lesson. You can add multiple lessons in one text file.
+`;
+}
