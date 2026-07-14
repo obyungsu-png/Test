@@ -4,6 +4,7 @@ import { Button } from "./ui/button";
 import { X, ChevronLeft, ChevronRight, Clock, CheckCircle2, Brain, BookOpen, Calculator, AlertCircle, Highlighter, Pencil, Underline, Lightbulb, BarChart3, BookMarked } from "lucide-react";
 import { extractQuestionsFromMaterial, generateQuestionsWithGLM, ParsedQuestion } from "./utils/questionParser";
 import { toast } from "sonner@2.0.3";
+import { ToeflAiWidget } from "./ToeflAiWidget";
 
 interface Question {
   id: number;
@@ -922,6 +923,20 @@ ${q.passage ? `[지문] ${q.passage.slice(0,300)}` : ''}`;
           )}
         </div>
       </div>
+
+      {/* AI 튜터 FAB */}
+      <ToeflAiWidget
+        position="right"
+        zIndex={60}
+        contextLabel={`시험보기 · ${materialTitle} · Q${currentQuestionIndex + 1}`}
+        questionData={currentQuestion}
+        suggestedQuestions={[
+          '이 문제를 분석해줘',
+          '틀린 이유와 다음에 주의할 점은?',
+          '이 지문의 핵심 어휘를 알려줘',
+          '문법을 설명해 줘',
+        ]}
+      />
     </div>
   );
 }

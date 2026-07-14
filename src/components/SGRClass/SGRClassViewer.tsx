@@ -8,6 +8,7 @@ import {
 import type { SGRLesson, Question, OutlineQuestion } from "./types";
 import { loadLessons, SGR_EVENT } from "./types";
 import { downloadSGRPdf } from "./pdfUtils";
+import { ToeflAiWidget } from "../ToeflAiWidget";
 
 // ─── inline formatter: **bold**, __underline__, ___blank___ ──
 function formatInline(text: string, showAnswer: boolean, answer?: string) {
@@ -674,6 +675,20 @@ export default function SGRClassViewer() {
           </button>
         </div>
       </div>
+
+      {/* AI 튜터 FAB */}
+      <ToeflAiWidget
+        position="right"
+        zIndex={80}
+        contextLabel={`SGR Class · Unit ${selected?.unitNumber || ""} ${selected?.title || ""}`}
+        questionData={selected}
+        suggestedQuestions={[
+          '이 레슨의 핵심 어휘를 설명해줘',
+          '지문의 주제와 요약을 알려줘',
+          '문법 포인트를 분석해줘',
+          '문제 정답과 해설을 알려줘',
+        ]}
+      />
     </div>
   );
 }
