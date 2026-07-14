@@ -1,11 +1,13 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   ChevronLeft, ChevronRight, Download, Moon, Sun,
   BookOpen, ImageIcon, Eye, EyeOff, Sparkles, CheckCircle2,
-  FileText, HelpCircle, Layers, RotateCcw, Play
+  FileText, HelpCircle, Layers, RotateCcw, Play,
+  Highlighter, Underline, BookMarked, Eraser, Volume2,
+  Zap, MousePointer, X
 } from "lucide-react";
-import type { SGRLesson, Question, OutlineQuestion } from "./types";
+import type { SGRLesson, Question, OutlineQuestion, GrammarPoint, DirectReadingItem } from "./types";
 import { loadLessons, SGR_EVENT } from "./types";
 import { downloadSGRPdf } from "./pdfUtils";
 import { ToeflAiWidget } from "../ToeflAiWidget";
@@ -72,7 +74,7 @@ function formatInline(text: string, showAnswer: boolean, answer?: string) {
 // ─── Sub-page components ───────────────────────────
 function PagePreview({ lesson, showAnswer, dark }: { lesson: SGRLesson; showAnswer: boolean; dark: boolean }) {
   return (
-    <div className="max-w-4xl mx-auto p-6 lg:p-10">
+    <div className="max-w-5xl mx-auto p-6 lg:p-10">
       {/* Unit hero */}
       <div className="relative mb-8 rounded-2xl overflow-hidden shadow-lg bg-gradient-to-br from-gray-800 to-gray-700 dark:from-gray-950 dark:to-gray-900">
         <div className="absolute inset-0 opacity-20 bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22><path d=%22M0 60 Q 25 20 50 60 T 100 60 L 100 100 L 0 100 Z%22 fill=%22white%22/></svg>')] bg-repeat-x bg-bottom" />
@@ -172,7 +174,7 @@ function PagePassage({ lesson, dark }: { lesson: SGRLesson; dark: boolean }) {
   const right = lesson.passageParagraphs.slice(half);
 
   return (
-    <div className="max-w-6xl mx-auto p-6 lg:p-10">
+    <div className="max-w-[1100px] mx-auto p-6 lg:p-10">
       {/* Title hero */}
       <div className="relative mb-8">
         <div className="rounded-2xl overflow-hidden bg-gradient-to-r from-slate-700 to-slate-800 dark:from-gray-900 dark:to-black shadow-lg h-40 flex items-end">
@@ -388,7 +390,7 @@ function QuestionRenderer({
 
 function PageQuestions({ lesson, showAnswer }: { lesson: SGRLesson; showAnswer: boolean }) {
   return (
-    <div className="max-w-4xl mx-auto p-6 lg:p-10">
+    <div className="max-w-5xl mx-auto p-6 lg:p-10">
       <div className="flex items-center gap-3 mb-6">
         <span className="inline-block px-4 py-1.5 bg-black text-white rounded-full text-sm font-bold">
           Main Idea and Details
@@ -406,7 +408,7 @@ function PageQuestions({ lesson, showAnswer }: { lesson: SGRLesson; showAnswer: 
 function PageVocabReview({ lesson, showAnswer }: { lesson: SGRLesson; showAnswer: boolean }) {
   const { wordBank, items } = lesson.vocabReview;
   return (
-    <div className="max-w-4xl mx-auto p-6 lg:p-10">
+    <div className="max-w-5xl mx-auto p-6 lg:p-10">
       <div className="flex items-center gap-3 mb-3">
         <span className="w-3 h-3 rounded-full bg-cyan-500" />
         <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Vocabulary Review</h2>
@@ -440,49 +442,231 @@ function PageVocabReview({ lesson, showAnswer }: { lesson: SGRLesson; showAnswer
   );
 }
 
+// ─── 직독직해 페이지 (개선됨) ──────────────────────────
 function PageDirectReading({ lesson, showAnswer }: { lesson: SGRLesson; showAnswer: boolean }) {
+  const [showChunking, setShowChunking] = useState(true);
+  const [revealedSentences, setRevealedSentences] = useState<Set<string>>(new Set());
+  const [expandedGrammar, setExpandedGrammar] = useState<string | null>(null);
+  const [viewedSentences, setViewedSentences] = useState<Set<string>>(new Set());
+
+  const toggleReveal = (id: string) => {
+    setRevealedSentences(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+    setViewedSentences(prev => new Set(prev).add(id));
+  };
+
+  const revealAll = () => {
+    const allIds = new Set(lesson.directReading.map(s => s.id));
+    setRevealedSentences(allIds);
+    setViewedSentences(allIds);
+  };
+  const hideAll = () => setRevealedSentences(new Set());
+
+  const speak = (text: string) => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'en-US';
+      u.rate = 0.85;
+      window.speechSynthesis.speak(u);
+    }
+  };
+
+  // Group by paragraphId
+  const paragraphs = useMemo(() => {
+    const groups: { paragraph: number; title: string; sentences: DirectReadingItem[] }[] = [];
+    lesson.directReading.forEach(s => {
+      const pid = s.paragraphId || 1;
+      const existing = groups.find(g => g.paragraph === pid);
+      if (existing) {
+        existing.sentences.push(s);
+      } else {
+        groups.push({ paragraph: pid, title: s.paragraphTitle || `단락 ${pid}`, sentences: [s] });
+      }
+    });
+    return groups;
+  }, [lesson.directReading]);
+
+  const progressPercent = Math.round((viewedSentences.size / Math.max(1, lesson.directReading.length)) * 100);
+
   if (lesson.directReading.length === 0) {
     return (
-      <div className="max-w-3xl mx-auto p-10 text-center text-gray-500 dark:text-gray-400">
+      <div className="max-w-5xl mx-auto p-10 text-center text-gray-500 dark:text-gray-400">
         직독직해 자료가 없습니다. CMS에서 추가해주세요.
       </div>
     );
   }
+
   return (
-    <div className="max-w-4xl mx-auto p-6 lg:p-10">
-      <div className="flex items-center gap-3 mb-6">
-        <span className="inline-block px-4 py-1.5 bg-black text-white rounded-full text-sm font-bold">
-          직독직해
+    <div className="max-w-[1100px] mx-auto p-4 lg:p-8">
+      {/* Progress Bar */}
+      <div className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-bold text-gray-700 dark:text-gray-200">본문 분석 진행률</span>
+          <span className="text-sm font-bold text-cyan-600 dark:text-cyan-400">{viewedSentences.size}/{lesson.directReading.length} 문장</span>
+        </div>
+        <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+          <motion.div
+            className="h-full bg-gradient-to-r from-cyan-400 to-cyan-600 rounded-full"
+            animate={{ width: `${progressPercent}%` }}
+            transition={{ duration: 0.5 }}
+          />
+        </div>
+      </div>
+
+      {/* Controls */}
+      <div className="flex items-center gap-2 flex-wrap mb-4">
+        <button
+          onClick={() => setShowChunking(!showChunking)}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold transition-all ${showChunking ? 'bg-cyan-600 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}
+        >
+          끊어읽기 {showChunking ? 'ON' : 'OFF'}
+        </button>
+        <button
+          onClick={revealedSentences.size === lesson.directReading.length ? hideAll : revealAll}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold transition-all ${
+            revealedSentences.size === lesson.directReading.length
+              ? 'bg-orange-500 text-white shadow-md'
+              : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'
+          }`}
+        >
+          <Eye className="w-3.5 h-3.5" />
+          {revealedSentences.size === lesson.directReading.length ? '전체 숨기기' : '전체 해석 보기'}
+        </button>
+        <span className="ml-auto text-xs text-gray-400 hidden sm:flex items-center gap-1">
+          <MousePointer className="w-3 h-3" /> 문장을 클릭하여 해석 확인
         </span>
       </div>
-      <div className="space-y-6">
-        {lesson.directReading.map((d, i) => (
-          <div key={d.id} className="p-5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="w-8 h-8 rounded-full bg-cyan-600 text-white flex items-center justify-center font-bold text-sm">
-                {i + 1}
-              </span>
-              {d.chunks.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {d.chunks.map((c, j) => (
-                    <span key={j} className="px-2.5 py-1 bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300 rounded-md text-xs font-medium">
-                      {c}
-                    </span>
-                  ))}
-                </div>
-              )}
+
+      {/* Paragraph Groups */}
+      {paragraphs.map((para) => (
+        <div key={para.paragraph} className="bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden mb-4">
+          {/* Paragraph Header */}
+          <div className="flex items-start gap-3 px-5 py-4 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
+            <span className="w-8 h-8 rounded-full bg-cyan-600 text-white flex items-center justify-center text-sm font-bold shrink-0 mt-0.5">
+              {para.paragraph}
+            </span>
+            <div>
+              <h3 className="text-[15px] font-bold text-gray-800 dark:text-gray-100">{para.title}</h3>
             </div>
-            <p className="text-base text-gray-800 dark:text-gray-100 leading-relaxed mb-2">
-              {d.english}
-            </p>
-            {showAnswer && (
-              <p className="text-base text-cyan-700 dark:text-cyan-300 leading-relaxed border-t border-cyan-100 dark:border-cyan-900 pt-2">
-                {d.korean}
-              </p>
-            )}
           </div>
-        ))}
-      </div>
+
+          {/* Sentences */}
+          <div className="p-3 space-y-2">
+            {para.sentences.map((s) => (
+              <motion.div
+                key={s.id}
+                className={`relative rounded-xl border transition-all overflow-hidden cursor-pointer ${
+                  s.isKeyExam ? 'border-red-200 dark:border-red-900/50 bg-red-50/30 dark:bg-red-950/10' : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800'
+                } ${revealedSentences.has(s.id) ? 'ring-2 ring-cyan-200 dark:ring-cyan-800' : 'hover:border-cyan-300 dark:hover:border-cyan-700'}`}
+                onClick={() => toggleReveal(s.id)}
+              >
+                <div className="px-4 py-3">
+                  <div className="flex items-start gap-2">
+                    {/* Difficulty badge */}
+                    <span className={`mt-1 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${
+                      s.difficulty === 'hard' ? 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400' :
+                      s.difficulty === 'medium' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400' :
+                      'bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-400'
+                    }`}>
+                      {lesson.directReading.indexOf(s) + 1}
+                    </span>
+                    {s.isKeyExam && (
+                      <span className="inline-block text-[10px] px-1.5 py-0.5 bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400 rounded font-bold mt-1 shrink-0">
+                        시험빈출
+                      </span>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      {/* English with chunks */}
+                      <div className="flex items-start gap-2">
+                        <p className="text-[15px] lg:text-[16px] leading-relaxed text-gray-800 dark:text-gray-100 font-medium flex-1">
+                          {showChunking
+                            ? s.chunks.map((chunk, i) => (
+                                <span key={i}>
+                                  {i > 0 && <span className="text-cyan-400 dark:text-cyan-600 mx-0.5 font-bold">/</span>}
+                                  <span className="hover:bg-cyan-50 dark:hover:bg-cyan-950/30 rounded px-0.5 transition-colors">{chunk}</span>
+                                </span>
+                              ))
+                            : s.english
+                          }
+                        </p>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); speak(s.english); }}
+                          className="shrink-0 p-1.5 text-gray-400 hover:text-cyan-600 hover:bg-cyan-50 dark:hover:bg-cyan-950/30 rounded-lg transition-colors"
+                          title="음성 듣기"
+                        >
+                          <Volume2 className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* Korean translation (revealed on click) */}
+                      <AnimatePresence>
+                        {revealedSentences.has(s.id) && (
+                          <motion.p
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="text-sm mt-2 text-cyan-700 dark:text-cyan-300 bg-cyan-50 dark:bg-cyan-950/30 px-3 py-2 rounded-lg border border-cyan-100 dark:border-cyan-900"
+                          >
+                            {s.korean}
+                          </motion.p>
+                        )}
+                      </AnimatePresence>
+
+                      {/* Grammar points */}
+                      {s.grammarPoints && s.grammarPoints.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {s.grammarPoints.map((gp, gi) => (
+                            <button
+                              key={gi}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExpandedGrammar(expandedGrammar === `${s.id}-${gi}` ? null : `${s.id}-${gi}`);
+                              }}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-full text-xs font-medium hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors"
+                            >
+                              <Zap className="w-3 h-3" />
+                              {gp.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Grammar detail expansion */}
+                      <AnimatePresence>
+                        {s.grammarPoints && s.grammarPoints.map((gp, gi) => (
+                          expandedGrammar === `${s.id}-${gi}` && (
+                            <motion.div
+                              key={gi}
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="mt-2 p-3 bg-indigo-50 dark:bg-indigo-950/30 rounded-lg border border-indigo-100 dark:border-indigo-900">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-xs font-bold text-indigo-700 dark:text-indigo-400">{gp.type}</span>
+                                </div>
+                                <p className="text-sm text-indigo-600 dark:text-indigo-300 mb-1">
+                                  <span className="font-medium bg-indigo-100 dark:bg-indigo-900/50 px-1.5 py-0.5 rounded">"{gp.highlight}"</span>
+                                </p>
+                                <p className="text-xs text-indigo-500 dark:text-indigo-400">{gp.description}</p>
+                              </div>
+                            </motion.div>
+                          )
+                        ))}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -507,6 +691,106 @@ export default function SGRClassViewer() {
     if (typeof window === "undefined") return false;
     return localStorage.getItem("sgrClass_dark") === "1";
   });
+
+  // ─── 도구 (하이라이트/밑줄/사전) ───
+  type ToolMode = "none" | "highlight-yellow" | "highlight-pink" | "highlight-blue" | "underline" | "dictionary";
+  const [toolMode, setToolMode] = useState<ToolMode>("none");
+  const [showTools, setShowTools] = useState(false);
+  const [dictResult, setDictResult] = useState<{ word: string; data: any } | null>(null);
+  const [dictLoading, setDictLoading] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const applyHighlight = useCallback(() => {
+    if (toolMode === "none" || toolMode === "dictionary") return;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+    const range = sel.getRangeAt(0);
+    if (!contentRef.current?.contains(range.commonAncestorContainer)) return;
+
+    if (toolMode.startsWith("highlight")) {
+      const color = toolMode === "highlight-yellow" ? "#fef08a" : toolMode === "highlight-pink" ? "#fbcfe8" : "#bfdbfe";
+      const span = document.createElement("span");
+      span.style.backgroundColor = color;
+      span.style.borderRadius = "2px";
+      span.style.padding = "0 1px";
+      try {
+        range.surroundContents(span);
+      } catch {
+        // 부분 선택 시 extractContents 로 폴백
+        const frag = range.extractContents();
+        span.appendChild(frag);
+        range.insertNode(span);
+      }
+    } else if (toolMode === "underline") {
+      const span = document.createElement("span");
+      span.style.textDecoration = "underline";
+      span.style.textDecorationColor = "#2563eb";
+      span.style.textDecorationThickness = "2px";
+      try {
+        range.surroundContents(span);
+      } catch {
+        const frag = range.extractContents();
+        span.appendChild(frag);
+        range.insertNode(span);
+      }
+    }
+    sel.removeAllRanges();
+  }, [toolMode]);
+
+  // 사전: 단어 클릭 시 조회
+  const lookupWord = useCallback(async (word: string) => {
+    const clean = word.replace(/[^a-zA-Z-']/g, "").trim().toLowerCase();
+    if (!clean) return;
+    setDictLoading(true);
+    setDictResult({ word: clean, data: null });
+    try {
+      const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${clean}`);
+      if (res.ok) {
+        const data = await res.json();
+        setDictResult({ word: clean, data });
+      } else {
+        setDictResult({ word: clean, data: null });
+      }
+    } catch {
+      setDictResult({ word: clean, data: null });
+    } finally {
+      setDictLoading(false);
+    }
+  }, []);
+
+  // 컨텐츠 영역 클릭/선택 핸들러
+  const handleContentMouseUp = useCallback(() => {
+    if (toolMode === "none") return;
+    if (toolMode === "dictionary") return; // 사전 모드는 클릭에서 처리
+    applyHighlight();
+  }, [toolMode, applyHighlight]);
+
+  const handleContentClick = useCallback((e: React.MouseEvent) => {
+    if (toolMode !== "dictionary") return;
+    const target = e.target as HTMLElement;
+    if (target.tagName === "BUTTON" || target.closest("button")) return;
+    // 클릭된 단어 추출
+    const sel = window.getSelection();
+    if (sel && !sel.isCollapsed && sel.toString().trim()) {
+      lookupWord(sel.toString().trim());
+      return;
+    }
+    // 단어 더블클릭이 아닌 단순 클릭 → 단어 추출 시도
+    const word = target.textContent?.split(/\s+/).find(w => w.length > 1);
+    if (word) lookupWord(word);
+  }, [toolMode, lookupWord]);
+
+  const clearAllMarks = useCallback(() => {
+    if (!contentRef.current) return;
+    contentRef.current.querySelectorAll('span[style*="background-color"], span[style*="underline"]').forEach(el => {
+      const parent = el.parentNode;
+      if (parent) {
+        while (el.firstChild) parent.insertBefore(el.firstChild, el);
+        parent.removeChild(el);
+        parent.normalize();
+      }
+    });
+  }, []);
 
   const selected = useMemo(
     () => lessons.find(l => l.id === selectedId) || lessons[0],
@@ -547,7 +831,7 @@ export default function SGRClassViewer() {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-cyan-50/40 dark:from-gray-950 dark:to-gray-900 transition-colors">
         {/* Toolbar */}
         <div className="sticky top-0 z-30 backdrop-blur bg-white/90 dark:bg-gray-900/90 border-b border-gray-200 dark:border-gray-700 px-4 lg:px-6 py-3">
-          <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-3">
+          <div className="max-w-[1400px] mx-auto flex flex-wrap items-center gap-3">
             {/* lesson picker */}
             {lessons.length > 1 && (
               <select
@@ -605,6 +889,94 @@ export default function SGRClassViewer() {
               >
                 {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </button>
+
+              {/* 도구 드롭다운 */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowTools(v => !v)}
+                  title="하이라이트 / 밑줄 / 사전"
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${
+                    toolMode !== "none"
+                      ? "bg-indigo-600 text-white"
+                      : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                  }`}
+                >
+                  <Highlighter className="w-4 h-4" />
+                  <span className="hidden sm:inline">도구</span>
+                </button>
+                <AnimatePresence>
+                  {showTools && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowTools(false)} />
+                      <motion.div
+                        initial={{ opacity: 0, y: -8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden z-50"
+                      >
+                        <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-700">
+                          <span className="text-xs font-bold text-gray-500 dark:text-gray-400">하이라이트</span>
+                        </div>
+                        <div className="flex gap-1.5 px-3 py-2">
+                          {[
+                            { mode: "highlight-yellow" as ToolMode, color: "#fef08a", label: "노랑" },
+                            { mode: "highlight-pink" as ToolMode, color: "#fbcfe8", label: "분홍" },
+                            { mode: "highlight-blue" as ToolMode, color: "#bfdbfe", label: "파랑" },
+                          ].map(h => (
+                            <button
+                              key={h.mode}
+                              onClick={() => { setToolMode(toolMode === h.mode ? "none" : h.mode); setShowTools(false); }}
+                              className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-lg border-2 transition-all ${
+                                toolMode === h.mode ? "border-indigo-500 ring-2 ring-indigo-200" : "border-gray-200 dark:border-gray-600 hover:border-gray-300"
+                              }`}
+                            >
+                              <span className="w-6 h-6 rounded" style={{ backgroundColor: h.color }} />
+                              <span className="text-[10px] font-bold text-gray-600 dark:text-gray-300">{h.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                        <div className="border-t border-gray-100 dark:border-gray-700">
+                          <button
+                            onClick={() => { setToolMode(toolMode === "underline" ? "none" : "underline"); setShowTools(false); }}
+                            className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
+                              toolMode === "underline" ? "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 font-bold" : "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+                            }`}
+                          >
+                            <Underline className="w-4 h-4" />
+                            밑줄
+                          </button>
+                          <button
+                            onClick={() => { setToolMode(toolMode === "dictionary" ? "none" : "dictionary"); setShowTools(false); }}
+                            className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
+                              toolMode === "dictionary" ? "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 font-bold" : "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+                            }`}
+                          >
+                            <BookMarked className="w-4 h-4" />
+                            사전 (영영)
+                          </button>
+                          <button
+                            onClick={() => { setToolMode("none"); clearAllMarks(); setShowTools(false); }}
+                            className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 border-t border-gray-100 dark:border-gray-700"
+                          >
+                            <Eraser className="w-4 h-4" />
+                            표시 지우기
+                          </button>
+                        </div>
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* 활성 도구 표시 배지 */}
+              {toolMode !== "none" && (
+                <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-indigo-100 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 rounded-full text-xs font-bold">
+                  {toolMode === "dictionary" ? "📖 사전 모드: 단어를 클릭하세요" : "✏️ 텍스트를 드래그하세요"}
+                  <button onClick={() => setToolMode("none")} className="ml-0.5 hover:bg-indigo-200 dark:hover:bg-indigo-900/40 rounded-full p-0.5">
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
               <div className="relative group">
                 <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold bg-cyan-600 hover:bg-cyan-700 text-white">
                   <Download className="w-4 h-4" />
@@ -630,24 +1002,86 @@ export default function SGRClassViewer() {
         </div>
 
         {/* Page content */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={pageKey + selected.id}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.25 }}
-          >
-            {pageKey === "preview" && <PagePreview lesson={selected} showAnswer={showAnswer} dark={dark} />}
-            {pageKey === "passage" && <PagePassage lesson={selected} dark={dark} />}
-            {pageKey === "questions" && <PageQuestions lesson={selected} showAnswer={showAnswer} />}
-            {pageKey === "vocabReview" && <PageVocabReview lesson={selected} showAnswer={showAnswer} />}
-            {pageKey === "directReading" && <PageDirectReading lesson={selected} showAnswer={showAnswer} />}
-          </motion.div>
+        <div
+          ref={contentRef}
+          onMouseUp={handleContentMouseUp}
+          onClick={handleContentClick}
+          className={toolMode !== "none" && toolMode !== "dictionary" ? "select-text" : ""}
+          style={{ cursor: toolMode === "dictionary" ? "text" : toolMode !== "none" ? "text" : "default" }}
+        >
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={pageKey + selected.id}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.25 }}
+            >
+              {pageKey === "preview" && <PagePreview lesson={selected} showAnswer={showAnswer} dark={dark} />}
+              {pageKey === "passage" && <PagePassage lesson={selected} dark={dark} />}
+              {pageKey === "questions" && <PageQuestions lesson={selected} showAnswer={showAnswer} />}
+              {pageKey === "vocabReview" && <PageVocabReview lesson={selected} showAnswer={showAnswer} />}
+              {pageKey === "directReading" && <PageDirectReading lesson={selected} showAnswer={showAnswer} />}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* 사전 팝업 */}
+        <AnimatePresence>
+          {dictResult && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="fixed bottom-6 right-6 w-80 max-h-[60vh] overflow-y-auto bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50"
+            >
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-cyan-50 dark:bg-cyan-950/30">
+                <div className="flex items-center gap-2">
+                  <BookMarked className="w-4 h-4 text-cyan-600" />
+                  <span className="font-bold text-gray-800 dark:text-gray-100">사전</span>
+                </div>
+                <button onClick={() => setDictResult(null)} className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="p-4">
+                <h3 className="text-lg font-bold text-cyan-700 dark:text-cyan-400 mb-2">{dictResult.word}</h3>
+                {dictLoading ? (
+                  <p className="text-sm text-gray-400">검색 중...</p>
+                ) : dictResult.data && Array.isArray(dictResult.data) && dictResult.data.length > 0 ? (
+                  <div className="space-y-3">
+                    {dictResult.data[0].phonetic && (
+                      <p className="text-sm text-gray-500 dark:text-gray-400 italic">{dictResult.data[0].phonetic}</p>
+                    )}
+                    {dictResult.data[0].meanings?.slice(0, 4).map((m: any, i: number) => (
+                      <div key={i}>
+                        <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 rounded mr-1.5">
+                          {m.partOfSpeech}
+                        </span>
+                        <ol className="mt-1 space-y-0.5">
+                          {m.definitions?.slice(0, 2).map((d: any, j: number) => (
+                            <li key={j} className="text-sm text-gray-700 dark:text-gray-200">
+                              {d.definition}
+                              {d.example && <p className="text-xs text-gray-400 italic mt-0.5">ex) "{d.example}"</p>}
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    ))}
+                    {dictResult.data[0].sourceUrls && (
+                      <p className="text-[10px] text-gray-400 mt-2">출처: {dictResult.data[0].sourceUrls[0]}</p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-400 dark:text-gray-500">검색 결과가 없습니다. AI 튜터에게 물어보세요.</p>
+                )}
+              </div>
+            </motion.div>
+          )}
         </AnimatePresence>
 
         {/* Bottom nav */}
-        <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-6 border-t border-gray-200 dark:border-gray-700 mt-8">
+        <div className="max-w-[1400px] mx-auto flex items-center justify-between px-6 py-6 border-t border-gray-200 dark:border-gray-700 mt-8">
           <button
             onClick={goPrev}
             disabled={currentIdx === 0}

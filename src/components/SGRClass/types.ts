@@ -89,11 +89,24 @@ export interface VocabReview {
 }
 
 // ─── Direct reading (직독직해) ───────────────────────
+export interface GrammarPoint {
+  type: string;           // e.g. "가주어-진주어", "5형식", "관계대명사"
+  label: string;          // short badge label
+  description: string;    // full explanation
+  highlight: string;      // the phrase in the sentence
+}
+
 export interface DirectReadingItem {
   id: string;
   english: string;
   korean: string;
   chunks: string[];       // english broken into chunks
+  paragraphId?: number;
+  paragraphTitle?: string;
+  importance?: "high" | "mid" | "low";
+  difficulty?: "hard" | "medium" | "easy";
+  isKeyExam?: boolean;
+  grammarPoints?: GrammarPoint[];
 }
 
 // ─── Full lesson ───────────────────────────────────
@@ -217,7 +230,7 @@ export function emptyTrueFalse(): TrueFalseQuestion {
   };
 }
 export function emptyDirectReading(): DirectReadingItem {
-  return { id: uid(), english: "", korean: "", chunks: [] };
+  return { id: uid(), english: "", korean: "", chunks: [], grammarPoints: [] };
 }
 export function emptyVocabReviewItem(): VocabReviewItem {
   return { id: uid(), sentence: "", answer: "" };
@@ -383,12 +396,72 @@ export const SAMPLE_LESSON: SGRLesson = {
       english: "The United States can be divided into five geographic regions.",
       korean: "미국은 다섯 개의 지리적 지역으로 나뉠 수 있다.",
       chunks: ["The United States", "can be divided", "into five geographic regions"],
+      paragraphId: 1,
+      paragraphTitle: "지리적 구분",
+      importance: "high",
+      difficulty: "easy",
+      isKeyExam: true,
+      grammarPoints: [
+        { type: "수동태", label: "can be divided", description: "can be + p.p: ~될 수 있다 (수동형 조동사)", highlight: "can be divided" },
+      ],
     },
     {
       id: "d2",
       english: "Each region has its own physical environment, such as landforms and climate.",
       korean: "각 지역은 지형과 기후 같은 고유의 자연환경을 가지고 있다.",
       chunks: ["Each region", "has its own", "physical environment,", "such as landforms and climate"],
+      paragraphId: 1,
+      paragraphTitle: "지리적 구분",
+      importance: "mid",
+      difficulty: "medium",
+      isKeyExam: false,
+      grammarPoints: [
+        { type: "전치사구", label: "such as ~", description: "such as: ~와 같은 (예시 열거)", highlight: "such as landforms and climate" },
+      ],
+    },
+    {
+      id: "d3",
+      english: "The Northeast region is known for its dense forests and heavy snowfall in winter.",
+      korean: "북동부 지역은 울창한 숲과 겨울의 많은 강설로 알려져 있다.",
+      chunks: ["The Northeast region", "is known for", "its dense forests", "and heavy snowfall", "in winter"],
+      paragraphId: 2,
+      paragraphTitle: "북동부 지역",
+      importance: "high",
+      difficulty: "medium",
+      isKeyExam: true,
+      grammarPoints: [
+        { type: "수동태", label: "is known for", description: "be known for: ~로 알려져 있다", highlight: "is known for" },
+      ],
+    },
+    {
+      id: "d4",
+      english: "The Midwest is often called the breadbasket of the nation because of its vast croplands.",
+      korean: "중서부는 광활한 경작지 때문에 국가의 곡창으로 자주 불린다.",
+      chunks: ["The Midwest", "is often called", "the breadbasket of the nation", "because of", "its vast croplands"],
+      paragraphId: 2,
+      paragraphTitle: "중서부 지역",
+      importance: "high",
+      difficulty: "hard",
+      isKeyExam: true,
+      grammarPoints: [
+        { type: "수동태", label: "is called", description: "be called: ~라고 불리다 (5형식 수동)", highlight: "is often called" },
+        { type: "전치사구", label: "because of", description: "because of + 명사: ~때문에 (전치사구)", highlight: "because of its vast croplands" },
+      ],
+    },
+    {
+      id: "d5",
+      english: "The West region stretches from the Rocky Mountains to the Pacific coast, offering diverse landscapes.",
+      korean: "서부 지역은 로키 산맥에서 태평양 해안까지 뻗어 있어, 다양한 풍경을 제공한다.",
+      chunks: ["The West region", "stretches from", "the Rocky Mountains", "to the Pacific coast,", "offering diverse landscapes"],
+      paragraphId: 3,
+      paragraphTitle: "서부 지역",
+      importance: "mid",
+      difficulty: "hard",
+      isKeyExam: false,
+      grammarPoints: [
+        { type: "분사구문", label: "offering ~", description: "현재분사(offer+ing): ~하며 (연속 동작)", highlight: "offering diverse landscapes" },
+        { type: "숙어", label: "stretch from A to B", description: "A에서 B까지 뻗어 있다", highlight: "stretches from the Rocky Mountains to the Pacific coast" },
+      ],
     },
   ],
 };

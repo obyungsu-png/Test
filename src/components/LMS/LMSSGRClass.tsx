@@ -11,6 +11,7 @@ import type {
   SGRLesson, Question, McqQuestion, FillBlankQuestion,
   CompleteSentenceQuestion, OutlineQuestion, TrueFalseQuestion,
   PreviewCard, VocabPreviewItem, PassageParagraph, DirectReadingItem, VocabReviewItem,
+  GrammarPoint,
 } from "../SGRClass/types";
 import {
   loadLessons, saveLessons, emptyLesson, emptyPreviewCard,
@@ -1103,6 +1104,24 @@ function DirectReadingEditor({
   const updateItem = (id: string, patch: Partial<DirectReadingItem>) =>
     onPatch({ directReading: lesson.directReading.map(d => d.id === id ? { ...d, ...patch } : d) });
 
+  const addGrammarPoint = (id: string) => {
+    const d = lesson.directReading.find(x => x.id === id);
+    if (!d) return;
+    const gps = d.grammarPoints || [];
+    updateItem(id, { grammarPoints: [...gps, { type: "", label: "", description: "", highlight: "" }] });
+  };
+  const updateGrammarPoint = (id: string, gi: number, patch: Partial<GrammarPoint>) => {
+    const d = lesson.directReading.find(x => x.id === id);
+    if (!d || !d.grammarPoints) return;
+    const next = d.grammarPoints.map((gp, i) => i === gi ? { ...gp, ...patch } : gp);
+    updateItem(id, { grammarPoints: next });
+  };
+  const removeGrammarPoint = (id: string, gi: number) => {
+    const d = lesson.directReading.find(x => x.id === id);
+    if (!d || !d.grammarPoints) return;
+    updateItem(id, { grammarPoints: d.grammarPoints.filter((_, i) => i !== gi) });
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
@@ -1140,8 +1159,114 @@ function DirectReadingEditor({
               value={d.chunks.join(" | ")}
               onChange={(e) => updateItem(d.id, { chunks: e.target.value.split(/[|]/g).map(c => c.trim()).filter(Boolean) })}
               placeholder="청크 (| 로 구분: e.g. The United States | can be divided | into five regions)"
-              className="w-full px-3 py-1.5 border border-gray-300 rounded text-xs"
+              className="w-full px-3 py-1.5 mb-2 border border-gray-300 rounded text-xs"
             />
+            {/* 메타데이터 row */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 mb-0.5">단락 번호</label>
+                <input
+                  type="number"
+                  value={d.paragraphId || 1}
+                  onChange={(e) => updateItem(d.id, { paragraphId: parseInt(e.target.value) || 1 })}
+                  className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 mb-0.5">단락 제목</label>
+                <input
+                  type="text"
+                  value={d.paragraphTitle || ""}
+                  onChange={(e) => updateItem(d.id, { paragraphTitle: e.target.value })}
+                  placeholder="예: 지리적 구분"
+                  className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 mb-0.5">난이도</label>
+                <select
+                  value={d.difficulty || "medium"}
+                  onChange={(e) => updateItem(d.id, { difficulty: e.target.value as any })}
+                  className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                >
+                  <option value="easy">쉬움</option>
+                  <option value="medium">보통</option>
+                  <option value="hard">어려움</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 mb-0.5">중요도</label>
+                <select
+                  value={d.importance || "mid"}
+                  onChange={(e) => updateItem(d.id, { importance: e.target.value as any })}
+                  className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                >
+                  <option value="high">높음</option>
+                  <option value="mid">중간</option>
+                  <option value="low">낮음</option>
+                </select>
+              </div>
+            </div>
+            <label className="flex items-center gap-2 mb-2 text-xs">
+              <input
+                type="checkbox"
+                checked={d.isKeyExam || false}
+                onChange={(e) => updateItem(d.id, { isKeyExam: e.target.checked })}
+                className="w-3.5 h-3.5"
+              />
+              <span className="font-bold text-red-500">시험 빈출</span>
+            </label>
+
+            {/* 문법 포인트 */}
+            <div className="mt-2 p-2 bg-indigo-50/50 rounded">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] font-bold text-indigo-600">문법 포인트</span>
+                <button
+                  onClick={() => addGrammarPoint(d.id)}
+                  className="text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                >
+                  <Plus className="w-2.5 h-2.5" /> 추가
+                </button>
+              </div>
+              {(d.grammarPoints || []).map((gp, gi) => (
+                <div key={gi} className="grid grid-cols-2 gap-1.5 mb-1.5 p-1.5 bg-white rounded border border-indigo-100">
+                  <input
+                    type="text"
+                    value={gp.type}
+                    onChange={(e) => updateGrammarPoint(d.id, gi, { type: e.target.value })}
+                    placeholder="유형 (예: 수동태)"
+                    className="px-2 py-1 border border-gray-300 rounded text-[11px]"
+                  />
+                  <input
+                    type="text"
+                    value={gp.label}
+                    onChange={(e) => updateGrammarPoint(d.id, gi, { label: e.target.value })}
+                    placeholder="라벨 (예: can be divided)"
+                    className="px-2 py-1 border border-gray-300 rounded text-[11px]"
+                  />
+                  <input
+                    type="text"
+                    value={gp.highlight}
+                    onChange={(e) => updateGrammarPoint(d.id, gi, { highlight: e.target.value })}
+                    placeholder="하이라이트 문구"
+                    className="px-2 py-1 border border-gray-300 rounded text-[11px]"
+                  />
+                  <input
+                    type="text"
+                    value={gp.description}
+                    onChange={(e) => updateGrammarPoint(d.id, gi, { description: e.target.value })}
+                    placeholder="설명"
+                    className="px-2 py-1 border border-gray-300 rounded text-[11px]"
+                  />
+                  <button
+                    onClick={() => removeGrammarPoint(d.id, gi)}
+                    className="col-span-2 text-[10px] text-red-500 hover:text-red-700 flex items-center gap-0.5"
+                  >
+                    <Trash2 className="w-2.5 h-2.5" /> 삭제
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         ))}
         {lesson.directReading.length === 0 && (
