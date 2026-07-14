@@ -11,6 +11,7 @@ import LMSNotices from "./LMSNotices";
 import LMSSettings from "./LMSSettings";
 import LMSAdManagement from "./LMSAdManagement";
 import LMSTextbookMastery from "./LMSTextbookMastery";
+import LMSSGRClass from "./LMSSGRClass";
 import { VocaManagement } from "../VocaManagement";
 
 interface LMSMainContentProps {
@@ -36,6 +37,8 @@ export default function LMSMainContent({
         return <LMSContentManagement selectedSubject={selectedSubject} onSubjectSelect={onSubjectSelect} />;
       case "textbook-mastery":
         return <LMSTextbookMastery />;
+      case "sgr-class":
+        return <LMSSGRClass />;
       case "voca":
         return <VocaManagement />;
       case "categories":

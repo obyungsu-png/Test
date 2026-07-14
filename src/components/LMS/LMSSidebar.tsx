@@ -1,10 +1,10 @@
-import { 
-  LayoutDashboard, 
-  Users, 
-  BookOpen, 
-  Settings, 
-  FileText, 
-  BarChart3, 
+import {
+  LayoutDashboard,
+  Users,
+  BookOpen,
+  Settings,
+  FileText,
+  BarChart3,
   Calendar,
   Globe,
   Upload,
@@ -12,7 +12,8 @@ import {
   Tags,
   Smartphone,
   GraduationCap,
-  Languages
+  Languages,
+  Sparkles
 } from "lucide-react";
 
 interface LMSSidebarProps {
@@ -26,6 +27,7 @@ export default function LMSSidebar({ selectedMenu, onMenuSelect }: LMSSidebarPro
     { id: "users", label: "회원 관리", icon: Users },
     { id: "content", label: "콘텐츠 관리", icon: BookOpen },
     { id: "textbook-mastery", label: "뽀개기 관리", icon: GraduationCap },
+    { id: "sgr-class", label: "SGR Class 관리", icon: Sparkles },
     { id: "voca", label: "Voca 관리", icon: Languages },
     { id: "categories", label: "카테고리 관리", icon: Tags },
     { id: "site-management", label: "사이트 관리", icon: Globe },

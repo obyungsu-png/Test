@@ -12,7 +12,7 @@ import { PracticeTestViewer } from "./PracticeTestViewer";
 import { MyContentRoom } from "./MyContentRoom";
 import { VocaPage } from "./VocaPage";
 import { KoreanVocaPage } from "./KoreanVocaPage";
-import EnglishAI from "./EnglishAI";
+import SGRClassViewer from "./SGRClass/SGRClassViewer";
 import { getFilteredMaterials } from "./utils/materialHelpers";
 import { getCategoryCustomName, updateUploadedMaterial } from "./utils/dataManager";
 import { DEFAULT_TABS, KOREAN_SCHOOL_TABS, INTERNATIONAL_SCHOOL_TABS, CERTIFICATION_TABS, CERTIFICATION_CONTENT_BY_TAB, CERTIFICATION_CONTENT_BY_SUBJECT_AND_CATEGORY } from "./constants/defaultContent";
@@ -107,7 +107,7 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
     if (schoolType === 'korean' && selectedSubject === '서류전형') {
     }
     if (schoolType === 'korean' && selectedSubject !== '영어') {
-      tabs = tabs.filter(tab => tab !== 'Voca' && tab !== 'SGR AI' && tab !== '교과서 뽀개기');
+      tabs = tabs.filter(tab => tab !== 'Voca' && tab !== 'SGR Class' && tab !== '교과서 뽀개기');
     }
     return tabs;
   })();
@@ -590,16 +590,16 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
   // Check if we should show Korean Voca Page
   const showKoreanVocaPage = activeTab === "Voca" && schoolType === 'korean';
   
-  // Check if we should show English AI
-  const showEnglishAI = activeTab === "SGR AI" && schoolType === 'korean';
-  const [englishAIFullscreen, setEnglishAIFullscreen] = useState(false);
+  // Check if we should show SGR Class
+  const showSGRClass = activeTab === "SGR Class" && schoolType === 'korean';
+  const [sgrClassFullscreen, setSgrClassFullscreen] = useState(false);
 
-  // SGR AI 탭 선택 시 자동 전체화면
+  // SGR Class 탭 선택 시 자동 전체화면
   useEffect(() => {
-    if (showEnglishAI) {
-      setEnglishAIFullscreen(true);
+    if (showSGRClass) {
+      setSgrClassFullscreen(true);
     }
-  }, [showEnglishAI]);
+  }, [showSGRClass]);
 
   
   // Check if we should show grid layout for Subject or 보조자료
@@ -768,7 +768,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
                 }}
                 whileTap={{ scale: 0.98 }}
                 className={`px-3 sm:px-5 lg:px-6 py-2.5 sm:py-3.5 lg:py-4 text-sm sm:text-base lg:text-lg border-b-2 transition-all duration-200 relative whitespace-nowrap font-bold mr-1 sm:mr-2 flex items-center gap-1.5 sm:gap-2 ${
-                  tab === "SGR AI"
+                  tab === "SGR Class"
                     ? activeTab === tab
                       ? "border-cyan-600 text-cyan-600 bg-cyan-50"
                       : "border-transparent text-cyan-600 hover:bg-cyan-50"
@@ -782,19 +782,16 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
                     <Menu className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#00C853' }} />
                     <span>{selectedSubject}</span>
                   </>
-                ) : tab === "SGR AI" ? (
+                ) : tab === "SGR Class" ? (
                   <span className="flex items-center gap-1.5">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
-                    </span>
-                    SGR AI
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white leading-none">NEW</span>
+                    <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-600" />
+                    SGR Class
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white leading-none">수업용</span>
                   </span>
                 ) : (
                   tab
                 )}
-                {tab !== "SGR AI" && (
+                {tab !== "SGR Class" && (
                   <span className={`text-[10px] sm:text-xs font-bold ml-0.5 ${
                     activeTab === tab ? "text-red-500" : "text-red-400"
                   }`}>
@@ -837,14 +834,14 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
             <VocaPage />
           ) : showKoreanVocaPage ? (
             <KoreanVocaPage selectedCategory={selectedCategory} />
-          ) : showEnglishAI ? (
+          ) : showSGRClass ? (
             <div className="flex items-center justify-center py-20 text-center">
               <div>
-                <Brain className="w-16 h-16 text-cyan-400 mx-auto mb-4" />
-                <h2 className="text-xl font-bold text-gray-700 mb-2">SGR AI</h2>
+                <BookOpen className="w-16 h-16 text-cyan-400 mx-auto mb-4" />
+                <h2 className="text-xl font-bold text-gray-700 mb-2">SGR Class</h2>
                 <p className="text-gray-500 mb-4">전체화면에서 학습 중입니다</p>
                 <button
-                  onClick={() => setEnglishAIFullscreen(true)}
+                  onClick={() => setSgrClassFullscreen(true)}
                   className="px-6 py-3 bg-cyan-600 text-white rounded-xl font-bold hover:bg-cyan-700 transition-colors"
                 >
                   전체화면 열기
@@ -1629,9 +1626,9 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
 
 
 
-      {/* English AI Fullscreen Overlay */}
+      {/* SGR Class Fullscreen Overlay */}
       <AnimatePresence>
-        {englishAIFullscreen && (
+        {sgrClassFullscreen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -1643,19 +1640,19 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
             <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-gray-200 bg-gradient-to-r from-cyan-50 to-white shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center shadow-md">
-                  <Brain className="w-5 h-5 text-white" />
+                  <BookOpen className="w-5 h-5 text-white" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h1 className="text-lg font-bold text-gray-800">SGR AI</h1>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-sm">AI 분석</span>
+                    <h1 className="text-lg font-bold text-gray-800">SGR Class</h1>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-sm">수업용</span>
                   </div>
                   <p className="text-xs text-gray-400">{selectedSubject} · {selectedCategory || '전체'}</p>
                 </div>
               </div>
               <button
                 onClick={() => {
-                  setEnglishAIFullscreen(false);
+                  setSgrClassFullscreen(false);
                   setActiveTab(tabs[0] || '국어');
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-600 transition-colors"
@@ -1667,7 +1664,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
             {/* Fullscreen Content */}
             <div className="flex-1 overflow-y-auto">
               <div className="max-w-5xl mx-auto">
-                <EnglishAI />
+                <SGRClassViewer />
               </div>
             </div>
           </motion.div>
