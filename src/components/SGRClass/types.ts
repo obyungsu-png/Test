@@ -161,6 +161,49 @@ export function loadLessons(): SGRLesson[] {
 export function saveLessons(lessons: SGRLesson[]) {
   localStorage.setItem(SGR_STORAGE_KEY, JSON.stringify(lessons));
   window.dispatchEvent(new Event(SGR_EVENT));
+  // Supabase에도 비동기 저장 (fire-and-forget)
+  saveLessonsToServer(lessons);
+}
+
+// ─── Supabase 서버 연동 ─────────────────────────────
+
+let _saveToServer: ((lessons: SGRLesson[]) => Promise<void>) | null = null;
+let _loadFromServer: (() => Promise<SGRLesson[]>) | null = null;
+
+/** 서버 저장 함수 등록 (sgrClassApi에서 호출) */
+export function registerServerSaver(fn: (lessons: SGRLesson[]) => Promise<void>) {
+  _saveToServer = fn;
+}
+
+/** 서버 로드 함수 등록 (sgrClassApi에서 호출) */
+export function registerServerLoader(fn: () => Promise<SGRLesson[]>) {
+  _loadFromServer = fn;
+}
+
+/** 서버에 레슨 저장 (fire-and-forget, 실패해도 조용히 넘어감) */
+function saveLessonsToServer(lessons: SGRLesson[]) {
+  if (_saveToServer) {
+    _saveToServer(lessons).catch(err => {
+      console.warn("[SGR Class] 서버 저장 실패 (로컬에는 저장됨):", err);
+    });
+  }
+}
+
+/** 서버에서 레슨 불러오기 (localStorage에 병합) */
+export async function syncFromServer(): Promise<SGRLesson[]> {
+  if (!_loadFromServer) return loadLessons();
+  try {
+    const serverLessons = await _loadFromServer();
+    if (serverLessons && serverLessons.length > 0) {
+      // 서버 데이터가 있으면 localStorage 갱신
+      localStorage.setItem(SGR_STORAGE_KEY, JSON.stringify(serverLessons));
+      window.dispatchEvent(new Event(SGR_EVENT));
+      return serverLessons;
+    }
+  } catch (err) {
+    console.warn("[SGR Class] 서버 불러오기 실패 (로컬 사용):", err);
+  }
+  return loadLessons();
 }
 
 export function uid() {

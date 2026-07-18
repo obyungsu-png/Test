@@ -8,10 +8,11 @@ import {
   Zap, MousePointer, X, Globe
 } from "lucide-react";
 import type { SGRLesson, Question, OutlineQuestion, GrammarPoint, DirectReadingItem } from "./types";
-import { loadLessons, SGR_EVENT } from "./types";
+import { loadLessons, SGR_EVENT, syncFromServer } from "./types";
 import { downloadSGRPdf } from "./pdfUtils";
 import { ToeflAiWidget } from "../ToeflAiWidget";
 import { WordPopup } from "./WordPopup";
+import "../../utils/sgrClassApi"; // 서버 연동 함수 등록
 
 // ─── inline formatter: **bold**, __underline__, ___blank___ ──
 function formatInline(text: string, showAnswer: boolean, answer?: string) {
@@ -1031,6 +1032,13 @@ export default function SGRClassViewer() {
       }
     };
     window.addEventListener(SGR_EVENT, handler);
+    // 마운트 시 Supabase에서 데이터 동기화
+    syncFromServer().then(serverLessons => {
+      setLessons(serverLessons);
+      if (!serverLessons.find(l => l.id === selectedId)) {
+        setSelectedId(serverLessons[0]?.id || "");
+      }
+    });
     return () => window.removeEventListener(SGR_EVENT, handler);
   }, [selectedId]);
 

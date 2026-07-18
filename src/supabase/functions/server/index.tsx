@@ -774,4 +774,35 @@ app.get("/make-server-7db3bef3/ai/test-key", async (c) => {
   }
 });
 
+// ===== SGR Class 수업 자료 관리 API =====
+
+// 모든 SGR Class 레슨 조회
+app.get("/make-server-7db3bef3/sgr-class/lessons", async (c) => {
+  try {
+    const lessons = await kv.get("nstudy_sgr_class_lessons");
+    return c.json({ lessons: lessons || [] });
+  } catch (error) {
+    console.error("Error fetching SGR Class lessons:", error);
+    return c.json({ error: "Failed to fetch lessons", details: String(error) }, 500);
+  }
+});
+
+// SGR Class 레슨 저장 (전체 교체)
+app.post("/make-server-7db3bef3/sgr-class/lessons", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { lessons } = body;
+
+    if (!Array.isArray(lessons)) {
+      return c.json({ error: "Lessons must be an array" }, 400);
+    }
+
+    await kv.set("nstudy_sgr_class_lessons", lessons);
+    return c.json({ success: true, count: lessons.length });
+  } catch (error) {
+    console.error("Error saving SGR Class lessons:", error);
+    return c.json({ error: "Failed to save lessons", details: String(error) }, 500);
+  }
+});
+
 Deno.serve(app.fetch);

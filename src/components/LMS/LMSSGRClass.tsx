@@ -21,6 +21,7 @@ import {
 } from "../SGRClass/types";
 import { parseCsvToLesson, parseCsvToLessons, parseTextToLessons, lessonToCsv, getCsvTemplate, getTextTemplate } from "../SGRClass/csvUtils";
 import { downloadSGRPdf } from "../SGRClass/pdfUtils";
+import "../../utils/sgrClassApi"; // 서버 연동 함수 등록
 
 type SubTab = "overview" | "preview" | "passage" | "questions" | "vocabReview" | "directReading";
 
