@@ -774,6 +774,91 @@ app.get("/make-server-7db3bef3/ai/test-key", async (c) => {
   }
 });
 
+// ===== 사용자 인증 API =====
+
+// 아이디+비밀번호 회원가입 (서버 사이드 Supabase Auth admin 생성)
+app.post("/make-server-7db3bef3/users/register", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { username, password, email } = body;
+
+    if (!username || !password || !email) {
+      return c.json({ error: "username, password, email are required" }, 400);
+    }
+
+    // 아이디 중복 확인
+    const existingUsers = await kv.get("nstudy_users") || [];
+    if (existingUsers.find((u: any) => u.username === username)) {
+      return c.json({ error: "이미 사용 중인 아이디입니다." }, 400);
+    }
+
+    // Supabase Auth에 유저 생성 (admin 권한 필요)
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      // 서비스 키가 없으면 KV에만 저장
+      existingUsers.push({ username, email, createdAt: new Date().toISOString() });
+      await kv.set("nstudy_users", existingUsers);
+      return c.json({ success: true, message: "User registered (KV only)" });
+    }
+
+    const { createClient } = await import("npm:@supabase/supabase-js@2");
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    });
+
+    const { data, error } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true, // 이메일 인증 스킵
+      user_metadata: { username },
+    });
+
+    if (error) {
+      return c.json({ error: `회원가입 실패: ${error.message}` }, 400);
+    }
+
+    // KV에도 저장
+    existingUsers.push({ username, email, userId: data.user?.id, createdAt: new Date().toISOString() });
+    await kv.set("nstudy_users", existingUsers);
+
+    return c.json({ success: true, userId: data.user?.id });
+  } catch (error) {
+    console.error("Error registering user:", error);
+    return c.json({ error: "Failed to register user", details: String(error) }, 500);
+  }
+});
+
+// ===== 수강권 관리 API =====
+
+// 모든 수강권 조회
+app.get("/make-server-7db3bef3/subscriptions", async (c) => {
+  try {
+    const subscriptions = await kv.get("nstudy_subscriptions");
+    return c.json(subscriptions || []);
+  } catch (error) {
+    console.error("Error fetching subscriptions:", error);
+    return c.json({ error: "Failed to fetch subscriptions", details: String(error) }, 500);
+  }
+});
+
+// 수강권 저장 (전체 교체)
+app.post("/make-server-7db3bef3/subscriptions", async (c) => {
+  try {
+    const body = await c.req.json();
+    if (!Array.isArray(body)) {
+      return c.json({ error: "Subscriptions must be an array" }, 400);
+    }
+
+    await kv.set("nstudy_subscriptions", body);
+    return c.json({ success: true, count: body.length });
+  } catch (error) {
+    console.error("Error saving subscriptions:", error);
+    return c.json({ error: "Failed to save subscriptions", details: String(error) }, 500);
+  }
+});
+
 // ===== SGR Class 수업 자료 관리 API =====
 
 // 모든 SGR Class 레슨 조회

@@ -10,6 +10,8 @@ import Component4Page from "./Component4Page";
 import Component5Page from "./Component5Page";
 import { Button } from "./components/ui/button";
 import { MobileBottomNav } from "./components/MobileBottomNav";
+import { supabase } from "./utils/supabase/client";
+import { setCurrentUser, clearCurrentUser } from "./utils/subscriptionUtils";
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<'landing' | 'main' | 'lms' | 'certification' | 'international' | 'korean' | 'component3' | 'component4' | 'component5'>('landing');
@@ -23,6 +25,31 @@ export default function App() {
   const [lmsPwInput, setLmsPwInput] = useState('');
   const [lmsPwError, setLmsPwError] = useState(false);
   const LMS_PASSWORD = 'sw21qa00';
+
+  // ─── Supabase 인증 상태 관리 ───
+  const [session, setSession] = useState<any>(null);
+
+  useEffect(() => {
+    // 초기 세션 로드
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user?.email) {
+        setCurrentUser(session.user.email);
+      }
+    });
+
+    // 인증 상태 변경 리스너
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session?.user?.email) {
+        setCurrentUser(session.user.email);
+      } else {
+        clearCurrentUser();
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const handleLmsPwSubmit = () => {
     if (lmsPwInput === LMS_PASSWORD) {

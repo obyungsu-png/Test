@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion } from "motion/react";
 import { Search, ChevronRight, BookOpen, Globe, Award, Users, TrendingUp, Star, Sparkles, CheckCircle } from "lucide-react";
 import { BrandLogo, BrandIcon } from "./components/BrandLogo";
-import { LoginModal } from "./components/auth/LoginModal";
+import { LoginForm } from "./components/auth/LoginForm";
 import { SignupModal } from "./components/auth/SignupModal";
 import MobileAdBanner from "./components/MobileAdBanner";
 
@@ -461,14 +461,16 @@ export default function LandingPage({ onSchoolTypeSelect, onUserRoleSelect, onCe
       </footer>
 
       {/* Modals */}
-      <LoginModal 
-        isOpen={showLoginModal} 
-        onClose={() => setShowLoginModal(false)}
-        onSwitchToSignup={() => {
-          setShowLoginModal(false);
-          setShowSignupModal(true);
-        }}
-      />
+      {showLoginModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <LoginForm
+            onClose={() => setShowLoginModal(false)}
+            onLoginSuccess={() => {
+              setShowLoginModal(false);
+            }}
+          />
+        </div>
+      )}
       
       <SignupModal 
         isOpen={showSignupModal} 
