@@ -75,7 +75,7 @@ function formatInline(text: string, showAnswer: boolean, answer?: string) {
 // ─── Sub-page components ───────────────────────────
 function PagePreview({ lesson, showAnswer, dark }: { lesson: SGRLesson; showAnswer: boolean; dark: boolean }) {
   return (
-    <div className="max-w-[1400px] mx-auto p-6 lg:p-10">
+    <div className="max-w-[1600px] mx-auto p-6 lg:p-10">
       {/* Unit hero */}
       <div className="relative mb-8 rounded-2xl overflow-hidden shadow-lg bg-gradient-to-br from-gray-800 to-gray-700 dark:from-gray-950 dark:to-gray-900">
         <div className="absolute inset-0 opacity-20 bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22><path d=%22M0 60 Q 25 20 50 60 T 100 60 L 100 100 L 0 100 Z%22 fill=%22white%22/></svg>')] bg-repeat-x bg-bottom" />
@@ -99,7 +99,7 @@ function PagePreview({ lesson, showAnswer, dark }: { lesson: SGRLesson; showAnsw
             <div className="shrink-0 px-4 py-2 bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300 rounded-lg font-bold text-sm shadow-sm">
               Visual<br />Preview
             </div>
-            <p className="text-lg lg:text-xl font-semibold text-gray-800 dark:text-gray-100 pt-1">
+            <p className="text-xl lg:text-2xl font-semibold text-gray-800 dark:text-gray-100 pt-1">
               {lesson.previewQuestion}
             </p>
           </div>
@@ -116,7 +116,7 @@ function PagePreview({ lesson, showAnswer, dark }: { lesson: SGRLesson; showAnsw
                     <ImageIcon className="w-10 h-10 text-gray-400" />
                   )}
                 </div>
-                <p className="text-sm text-gray-700 dark:text-gray-200 text-center italic leading-snug">
+                <p className="text-base text-gray-700 dark:text-gray-200 text-center italic leading-snug">
                   {c.caption}
                 </p>
               </div>
@@ -132,7 +132,7 @@ function PagePreview({ lesson, showAnswer, dark }: { lesson: SGRLesson; showAnsw
             <span className="w-3 h-3 rounded-full bg-cyan-500" />
             <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Vocabulary Preview</h2>
             <span className="text-gray-500 dark:text-gray-400">|</span>
-            <span className="text-gray-600 dark:text-gray-300 text-sm">
+            <span className="text-gray-600 dark:text-gray-300 text-base">
               {lesson.vocabPreviewInstruction}
             </span>
           </div>
@@ -149,7 +149,7 @@ function PagePreview({ lesson, showAnswer, dark }: { lesson: SGRLesson; showAnsw
           {/* Fill blanks */}
           <div className="space-y-3">
             {lesson.vocabularyPreview.map((v, i) => (
-              <div key={v.id} className="flex items-center gap-3 text-lg">
+              <div key={v.id} className="flex items-center gap-3 text-xl">
                 <span className="w-7 shrink-0 font-bold text-cyan-600 dark:text-cyan-400">{i + 1}</span>
                 {showAnswer ? (
                   <span className="inline-block px-3 py-1 border-b-2 border-cyan-500 text-cyan-600 dark:text-cyan-300 font-bold">
@@ -175,7 +175,7 @@ function PagePassage({ lesson, dark }: { lesson: SGRLesson; dark: boolean }) {
   const right = lesson.passageParagraphs.slice(half);
 
   return (
-    <div className="max-w-[1400px] mx-auto p-6 lg:p-10">
+    <div className="max-w-[1600px] mx-auto p-6 lg:p-10">
       {/* Title hero */}
       <div className="relative mb-8">
         <div className="rounded-2xl overflow-hidden bg-gradient-to-r from-slate-700 to-slate-800 dark:from-gray-900 dark:to-black shadow-lg h-40 flex items-end">
@@ -192,7 +192,7 @@ function PagePassage({ lesson, dark }: { lesson: SGRLesson; dark: boolean }) {
         <div className="space-y-4 text-gray-800 dark:text-gray-100">
           {left.map((p, i) => (
             <div key={p.id} className="relative">
-              <p className="text-[16px] lg:text-[17px] leading-relaxed text-justify">
+              <p className="text-[18px] lg:text-[19px] leading-relaxed text-justify">
                 {i === 0 ? (
                   <>
                     <span className="float-left mr-2 text-5xl font-black text-cyan-700 dark:text-cyan-400 leading-none">
@@ -218,7 +218,7 @@ function PagePassage({ lesson, dark }: { lesson: SGRLesson; dark: boolean }) {
         <div className="space-y-4 text-gray-800 dark:text-gray-100">
           {right.map((p) => (
             <div key={p.id} className="relative">
-              <p className="text-[16px] lg:text-[17px] leading-relaxed text-justify">
+              <p className="text-[18px] lg:text-[19px] leading-relaxed text-justify">
                 {formatInline(p.content, false)}
               </p>
               {p.imageCaption && (
@@ -253,7 +253,7 @@ function QuestionRenderer({
       <div className="p-5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
         <div className="flex gap-3 mb-3">
           {numBadge}
-          <p className="text-base lg:text-lg font-semibold text-gray-800 dark:text-gray-100">
+          <p className="text-lg lg:text-xl font-semibold text-gray-800 dark:text-gray-100">
             {q.question}
           </p>
         </div>
@@ -282,7 +282,7 @@ function QuestionRenderer({
       <div className="p-5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
         <div className="flex gap-3">
           {numBadge}
-          <p className="text-base lg:text-lg text-gray-800 dark:text-gray-100">
+          <p className="text-lg lg:text-xl text-gray-800 dark:text-gray-100">
             {formatInline(q.question, showAnswer, q.answer)}
           </p>
         </div>
@@ -295,7 +295,7 @@ function QuestionRenderer({
       <div className="p-5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
         <div className="flex gap-3 mb-3">
           {numBadge}
-          <p className="text-base lg:text-lg font-semibold text-gray-800 dark:text-gray-100">
+          <p className="text-lg lg:text-xl font-semibold text-gray-800 dark:text-gray-100">
             Complete the sentences.
           </p>
         </div>
@@ -308,7 +308,7 @@ function QuestionRenderer({
         )}
         <div className="ml-11 space-y-3">
           {q.sentences.map((s, i) => (
-            <div key={s.id} className="flex gap-2 text-base text-gray-800 dark:text-gray-100">
+            <div key={s.id} className="flex gap-2 text-lg text-gray-800 dark:text-gray-100">
               <span className="font-bold text-cyan-600 dark:text-cyan-400">{String.fromCharCode(97 + i)}.</span>
               <span>{formatInline(s.text, showAnswer, s.answer)}</span>
             </div>
@@ -340,7 +340,7 @@ function QuestionRenderer({
       <div className="p-5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
         <div className="flex gap-3 mb-3">
           {numBadge}
-          <p className="text-base lg:text-lg font-semibold text-gray-800 dark:text-gray-100">
+          <p className="text-lg lg:text-xl font-semibold text-gray-800 dark:text-gray-100">
             Complete the outline.
           </p>
         </div>
@@ -366,7 +366,7 @@ function QuestionRenderer({
         </div>
         <div className="ml-11 space-y-2">
           {q.statements.map((s, i) => (
-            <div key={s.id} className="flex items-center gap-3 text-base text-gray-800 dark:text-gray-100">
+            <div key={s.id} className="flex items-center gap-3 text-lg text-gray-800 dark:text-gray-100">
               <span className="font-bold text-cyan-600 dark:text-cyan-400">{i + 1}</span>
               <span className="flex-1">{s.text}</span>
               <span className={`px-3 py-1 rounded border-2 font-bold text-sm ${
@@ -391,7 +391,7 @@ function QuestionRenderer({
 
 function PageQuestions({ lesson, showAnswer }: { lesson: SGRLesson; showAnswer: boolean }) {
   return (
-    <div className="max-w-[1400px] mx-auto p-6 lg:p-10">
+    <div className="max-w-[1600px] mx-auto p-6 lg:p-10">
       <div className="flex items-center gap-3 mb-6">
         <span className="inline-block px-4 py-1.5 bg-black text-white rounded-full text-sm font-bold">
           Main Idea and Details
@@ -409,12 +409,12 @@ function PageQuestions({ lesson, showAnswer }: { lesson: SGRLesson; showAnswer: 
 function PageVocabReview({ lesson, showAnswer }: { lesson: SGRLesson; showAnswer: boolean }) {
   const { wordBank, items } = lesson.vocabReview;
   return (
-    <div className="max-w-[1400px] mx-auto p-6 lg:p-10">
+    <div className="max-w-[1600px] mx-auto p-6 lg:p-10">
       <div className="flex items-center gap-3 mb-3">
         <span className="w-3 h-3 rounded-full bg-cyan-500" />
         <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Vocabulary Review</h2>
         <span className="text-gray-500 dark:text-gray-400">|</span>
-        <span className="text-gray-600 dark:text-gray-300 text-sm">
+        <span className="text-gray-600 dark:text-gray-300 text-base">
           Complete each sentence. Change the form if necessary.
         </span>
       </div>
@@ -431,7 +431,7 @@ function PageVocabReview({ lesson, showAnswer }: { lesson: SGRLesson; showAnswer
       )}
       <div className="space-y-3">
         {items.map((it, i) => (
-          <div key={it.id} className="flex items-center gap-3 text-lg">
+          <div key={it.id} className="flex items-center gap-3 text-xl">
             <span className="w-7 shrink-0 font-bold text-cyan-600 dark:text-cyan-400">{i + 1}</span>
             <span className="text-gray-700 dark:text-gray-200 flex-1">
               {formatInline(it.sentence, showAnswer, it.answer)}
@@ -576,7 +576,7 @@ function PageDirectReading({ lesson, showAnswer }: { lesson: SGRLesson; showAnsw
   ];
 
   return (
-    <div className="max-w-[1400px] mx-auto p-4 lg:p-8">
+    <div className="max-w-[1600px] mx-auto p-4 lg:p-8">
       {/* Sub tabs */}
       <div className="flex items-center gap-1 mb-4 border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
         {SUB_TABS.map(t => (
@@ -677,7 +677,7 @@ function PageDirectReading({ lesson, showAnswer }: { lesson: SGRLesson; showAnsw
                         <div className="flex-1 min-w-0">
                           {/* English with chunks */}
                           <div className="flex items-start gap-2">
-                            <p className="text-[15px] lg:text-[16px] leading-relaxed text-gray-800 dark:text-gray-100 font-medium flex-1">
+                            <p className="text-[17px] lg:text-[18px] leading-relaxed text-gray-800 dark:text-gray-100 font-medium flex-1">
                               {showChunking
                                 ? s.chunks.map((chunk, i) => (
                                     <span key={i}>
@@ -1055,7 +1055,7 @@ export default function SGRClassViewer() {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-cyan-50/40 dark:from-gray-950 dark:to-gray-900 transition-colors">
         {/* Toolbar */}
         <div className="sticky top-0 z-30 backdrop-blur bg-white/90 dark:bg-gray-900/90 border-b border-gray-200 dark:border-gray-700 px-4 lg:px-6 py-3">
-          <div className="max-w-[1400px] mx-auto flex flex-wrap items-center gap-3">
+          <div className="max-w-[1600px] mx-auto flex flex-wrap items-center gap-3">
             {/* lesson picker */}
             {lessons.length > 1 && (
               <select
@@ -1309,7 +1309,7 @@ export default function SGRClassViewer() {
         )}
 
         {/* Bottom nav */}
-        <div className="max-w-[1400px] mx-auto flex items-center justify-between px-6 py-6 border-t border-gray-200 dark:border-gray-700 mt-8">
+        <div className="max-w-[1600px] mx-auto flex items-center justify-between px-6 py-6 border-t border-gray-200 dark:border-gray-700 mt-8">
           <button
             onClick={goPrev}
             disabled={currentIdx === 0}
