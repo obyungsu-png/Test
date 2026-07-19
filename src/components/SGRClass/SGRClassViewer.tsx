@@ -1,17 +1,18 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   ChevronLeft, ChevronRight, Download, Moon, Sun,
-  BookOpen, ImageIcon, Eye, EyeOff, Sparkles, CheckCircle2,
-  FileText, HelpCircle, Layers, RotateCcw, Play,
-  Highlighter, Underline, BookMarked, Eraser, Volume2,
-  Zap, MousePointer, X, Globe
+  BookOpen, ImageIcon, Eye, EyeOff, Sparkles,
+  FileText, HelpCircle, Layers,
+  Volume2, Zap, MousePointer, Highlighter
 } from "lucide-react";
 import type { SGRLesson, Question, OutlineQuestion, GrammarPoint, DirectReadingItem } from "./types";
 import { loadLessons, SGR_EVENT, syncFromServer } from "./types";
 import { downloadSGRPdf } from "./pdfUtils";
 import { ToeflAiWidget } from "../ToeflAiWidget";
 import { WordPopup } from "./WordPopup";
+import { ReadingReviewPassage } from "./ReadingReviewPassage";
+import { ReadingReviewActions } from "./ReadingReviewToolbar";
 import "../../utils/sgrClassApi"; // 서버 연동 함수 등록
 
 // ─── inline formatter: **bold**, __underline__, ___blank___ ──
@@ -920,18 +921,6 @@ const PAGES: Array<{ key: PageKey; label: string; icon: any }> = [
   { key: "directReading", label: "직독직해", icon: FileText },
 ];
 
-// ─── 도구 색상 ───
-const HIGHLIGHT_COLORS = [
-  { name: "노랑", value: "#fff3a3" },
-  { name: "초록", value: "#c6f7c6" },
-  { name: "핑크", value: "#ffd6e0" },
-];
-const UNDERLINE_COLORS = [
-  { name: "파랑", value: "#1e6b73" },
-  { name: "보라", value: "#7c3aed" },
-  { name: "빨강", value: "#dc2626" },
-];
-
 export default function SGRClassViewer() {
   const [lessons, setLessons] = useState<SGRLesson[]>(loadLessons);
   const [selectedId, setSelectedId] = useState<string>(lessons[0]?.id || "");
@@ -942,84 +931,23 @@ export default function SGRClassViewer() {
     return localStorage.getItem("sgrClass_dark") === "1";
   });
 
-  // ─── 도구 (하이라이트/밑줄/단어 뜻) ───
-  type ToolMode = "none" | "highlight" | "underline" | "word";
-  const [toolMode, setToolMode] = useState<ToolMode>("none");
-  const [activeColor, setActiveColor] = useState<string>(HIGHLIGHT_COLORS[0].value);
-  const [showTools, setShowTools] = useState(false);
+  // Tools (drag-popover based highlight/underline/dictionary)
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [language, setLanguage] = useState<"en" | "ko">("en");
   const [popupData, setPopupData] = useState<{ word: string; context: string; x: number; y: number } | null>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
+  const [clearTrigger, setClearTrigger] = useState(0);
 
-  // selected를 도구 핸들러보다 먼저 정의 (참조 순서 문제 해결)
   const selected = useMemo(
     () => lessons.find(l => l.id === selectedId) || lessons[0],
     [lessons, selectedId]
   );
 
-  const applyHighlight = useCallback(() => {
-    if (toolMode === "none" || toolMode === "word") return;
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
-    const range = sel.getRangeAt(0);
-    if (!contentRef.current?.contains(range.commonAncestorContainer)) return;
+  const handleDictionary = useCallback((data: { word: string; context: string; x: number; y: number }) => {
+    setPopupData(data);
+  }, []);
 
-    const mark = document.createElement(toolMode === "highlight" ? "mark" : "u");
-    if (toolMode === "highlight") {
-      mark.style.backgroundColor = activeColor;
-      mark.style.textDecoration = "none";
-      mark.style.borderRadius = "2px";
-      mark.style.padding = "0 1px";
-    } else {
-      mark.style.backgroundColor = "transparent";
-      mark.style.textDecoration = "underline";
-      mark.style.textDecorationColor = activeColor;
-      mark.style.textDecorationThickness = "2px";
-    }
-    try {
-      range.surroundContents(mark);
-    } catch {
-      const frag = range.extractContents();
-      mark.appendChild(frag);
-      range.insertNode(mark);
-    }
-    sel.removeAllRanges();
-  }, [toolMode, activeColor]);
-
-  // 컨텐츠 영역 클릭/선택 핸들러
-  const handleContentMouseUp = useCallback(() => {
-    if (toolMode === "none" || toolMode === "word") return;
-    applyHighlight();
-  }, [toolMode, applyHighlight]);
-
-  const handleContentClick = useCallback((e: React.MouseEvent) => {
-    if (toolMode !== "word") return;
-    const target = e.target as HTMLElement;
-    if (target.tagName === "BUTTON" || target.closest("button")) return;
-    const sel = window.getSelection();
-    let word = "";
-    if (sel && !sel.isCollapsed && sel.toString().trim()) {
-      word = sel.toString().trim();
-    } else {
-      word = target.textContent?.split(/\s+/).find(w => w.length > 1) || "";
-    }
-    if (word) {
-      const context = selected?.passageParagraphs.map(p => p.content).join(" ") || "";
-      setPopupData({ word, context, x: e.clientX, y: e.clientY + 20 });
-      if (sel) sel.removeAllRanges();
-    }
-  }, [toolMode, selected]);
-
-  const clearAllMarks = useCallback(() => {
-    if (!contentRef.current) return;
-    contentRef.current.querySelectorAll("mark, u").forEach(el => {
-      const parent = el.parentNode;
-      if (parent) {
-        while (el.firstChild) parent.insertBefore(el.firstChild, el);
-        parent.removeChild(el);
-        parent.normalize();
-      }
-    });
+  const handleClearAll = useCallback(() => {
+    setClearTrigger(c => c + 1);
   }, []);
 
   // Sync from CMS
@@ -1122,138 +1050,25 @@ export default function SGRClassViewer() {
                 {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </button>
 
-              {/* 도구 드롭다운 */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowTools(v => !v)}
-                  title="하이라이트 / 밑줄 / 단어 뜻"
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${
-                    toolMode !== "none"
-                      ? "bg-indigo-600 text-white"
-                      : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
-                  }`}
-                >
-                  <Highlighter className="w-4 h-4" />
-                  <span className="hidden sm:inline">도구</span>
-                </button>
-                <AnimatePresence>
-                  {showTools && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setShowTools(false)} />
-                      <motion.div
-                        initial={{ opacity: 0, y: -8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -8 }}
-                        className="absolute right-0 top-full mt-1 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden z-50"
-                      >
-                        {/* 하이라이트 3색 */}
-                        <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-700">
-                          <div className="flex items-center gap-1 mb-2">
-                            <Highlighter className="w-3 h-3 text-gray-400" />
-                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400">하이라이트</span>
-                          </div>
-                          <div className="flex gap-1.5">
-                            {HIGHLIGHT_COLORS.map(c => {
-                              const isActive = toolMode === "highlight" && activeColor === c.value;
-                              return (
-                                <button
-                                  key={c.value}
-                                  onClick={() => {
-                                    if (isActive) { setToolMode("none"); }
-                                    else { setToolMode("highlight"); setActiveColor(c.value); }
-                                    setShowTools(false);
-                                  }}
-                                  className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-lg border-2 transition-all ${
-                                    isActive ? "border-indigo-500 ring-2 ring-indigo-200 dark:ring-indigo-800" : "border-gray-200 dark:border-gray-600 hover:border-gray-300"
-                                  }`}
-                                >
-                                  <span className="w-6 h-6 rounded" style={{ backgroundColor: c.value }} />
-                                  <span className="text-[10px] font-bold text-gray-600 dark:text-gray-300">{c.name}</span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {/* 밑줄 3색 */}
-                        <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-700">
-                          <div className="flex items-center gap-1 mb-2">
-                            <Underline className="w-3 h-3 text-gray-400" />
-                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400">밑줄</span>
-                          </div>
-                          <div className="flex gap-1.5">
-                            {UNDERLINE_COLORS.map(c => {
-                              const isActive = toolMode === "underline" && activeColor === c.value;
-                              return (
-                                <button
-                                  key={c.value}
-                                  onClick={() => {
-                                    if (isActive) { setToolMode("none"); }
-                                    else { setToolMode("underline"); setActiveColor(c.value); }
-                                    setShowTools(false);
-                                  }}
-                                  className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-lg border-2 transition-all ${
-                                    isActive ? "border-indigo-500 ring-2 ring-indigo-200 dark:ring-indigo-800" : "border-gray-200 dark:border-gray-600 hover:border-gray-300"
-                                  }`}
-                                >
-                                  <span className="w-6 h-6 rounded flex items-center justify-center" style={{ backgroundColor: c.value }}>
-                                    <span className="text-white text-[9px] font-bold">U</span>
-                                  </span>
-                                  <span className="text-[10px] font-bold text-gray-600 dark:text-gray-300">{c.name}</span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {/* 단어 뜻 + 언어 토글 + 지우기 */}
-                        <div className="border-t border-gray-100 dark:border-gray-700">
-                          <button
-                            onClick={() => { setToolMode(toolMode === "word" ? "none" : "word"); setShowTools(false); }}
-                            className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
-                              toolMode === "word" ? "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 font-bold" : "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
-                            }`}
-                          >
-                            <BookMarked className="w-4 h-4" />
-                            단어 뜻
-                          </button>
-                          {/* 언어 토글 */}
-                          <div className="flex items-center gap-2 px-4 py-2 border-t border-gray-100 dark:border-gray-700">
-                            <Globe className="w-3.5 h-3.5 text-gray-400" />
-                            <button
-                              onClick={() => setLanguage(language === "en" ? "ko" : "en")}
-                              className="flex items-center gap-1 text-xs"
-                            >
-                              <span className={`px-1.5 py-0.5 rounded ${language === "en" ? "bg-cyan-600 text-white" : "bg-gray-200 dark:bg-gray-600 dark:text-gray-200"}`}>EN</span>
-                              <span className="text-gray-300 dark:text-gray-500">|</span>
-                              <span className={`px-1.5 py-0.5 rounded ${language === "ko" ? "bg-cyan-600 text-white" : "bg-gray-200 dark:bg-gray-600 dark:text-gray-200"}`}>KO</span>
-                            </button>
-                            <span className="text-[10px] text-gray-400 ml-auto">
-                              {language === "en" ? "영영 사전" : "한국어 번역"}
-                            </span>
-                          </div>
-                          <button
-                            onClick={() => { setToolMode("none"); clearAllMarks(); setShowTools(false); }}
-                            className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 transition-colors border-t border-gray-100 dark:border-gray-700"
-                          >
-                            <Eraser className="w-4 h-4" />
-                            표시 지우기
-                          </button>
-                        </div>
-                      </motion.div>
-                    </>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              {/* 활성 도구 표시 배지 */}
-              {toolMode !== "none" && (
-                <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-indigo-100 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 rounded-full text-xs font-bold">
-                  {toolMode === "word" ? `📖 단어 뜻 (${language.toUpperCase()}): 단어를 클릭하세요` : `✏️ 텍스트를 드래그하세요`}
-                  <button onClick={() => setToolMode("none")} className="ml-0.5 hover:bg-indigo-200 dark:hover:bg-indigo-900/40 rounded-full p-0.5">
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
+              {/* Tools button + actions */}
+              <button
+                onClick={() => setToolsOpen(v => !v)}
+                title="Tools: drag to highlight/underline/dictionary"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${
+                  toolsOpen
+                    ? "bg-[#1e6b73] text-white"
+                    : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                }`}
+              >
+                <Highlighter className="w-4 h-4" />
+                <span className="hidden sm:inline">Tools</span>
+              </button>
+              {toolsOpen && (
+                <ReadingReviewActions
+                  onClearAll={handleClearAll}
+                  language={language}
+                  onLanguageChange={setLanguage}
+                />
               )}
               <div className="relative group">
                 <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold bg-cyan-600 hover:bg-cyan-700 text-white">
@@ -1280,12 +1095,10 @@ export default function SGRClassViewer() {
         </div>
 
         {/* Page content */}
-        <div
-          ref={contentRef}
-          onMouseUp={handleContentMouseUp}
-          onClick={handleContentClick}
-          className={toolMode !== "none" && toolMode !== "word" ? "select-text" : ""}
-          style={{ cursor: toolMode === "word" ? "text" : toolMode !== "none" ? "text" : "default" }}
+        <ReadingReviewPassage
+          toolsOpen={toolsOpen}
+          onDictionary={handleDictionary}
+          clearTrigger={clearTrigger}
         >
           <AnimatePresence mode="wait">
             <motion.div
@@ -1302,7 +1115,7 @@ export default function SGRClassViewer() {
               {pageKey === "directReading" && <PageDirectReading lesson={selected} showAnswer={showAnswer} />}
             </motion.div>
           </AnimatePresence>
-        </div>
+        </ReadingReviewPassage>
 
         {/* 단어 뜻 팝업 (createPortal 기반) */}
         {popupData && (
