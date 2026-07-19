@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { Search, ChevronRight, BookOpen, Globe, Award, Users, TrendingUp, Star, Sparkles, CheckCircle } from "lucide-react";
+import { Search, ChevronRight, BookOpen, Globe, Award, Users, TrendingUp, Star, Sparkles, CheckCircle, LogOut, User } from "lucide-react";
 import { BrandLogo, BrandIcon } from "./components/BrandLogo";
 import { LoginForm } from "./components/auth/LoginForm";
-import { SignupModal } from "./components/auth/SignupModal";
+import { supabase } from "./utils/supabase/client";
 import MobileAdBanner from "./components/MobileAdBanner";
 
 interface LandingPageProps {
@@ -15,8 +15,53 @@ interface LandingPageProps {
 
 export default function LandingPage({ onSchoolTypeSelect, onUserRoleSelect, onCertificationTestsSelect, onInternationalSchoolSelect }: LandingPageProps) {
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [showSignupModal, setShowSignupModal] = useState(false);
-  const [hoveredButton, setHoveredButton] = useState<'login' | 'signup' | null>('signup');
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
+
+  // 마운트 시 로그인 상태 복원 (Supabase 세션 + localStorage)
+  useEffect(() => {
+    const stored = localStorage.getItem("toefl_current_user");
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (parsed.username) setCurrentUser(parsed.username);
+      } catch {}
+    }
+    // Supabase 세션 변경 감지
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        // 사용자 메타데이터 또는 이메일에서 username 추출
+        const email = session.user.email || "";
+        const stored = localStorage.getItem("toefl_current_user");
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            if (parsed.username) setCurrentUser(parsed.username);
+            return;
+          } catch {}
+        }
+        // 합성 이메일에서 username 추출 (username@members.allmyexam.com)
+        const username = email.split("@")[0];
+        setCurrentUser(username);
+      } else {
+        setCurrentUser(null);
+        localStorage.removeItem("toefl_current_user");
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLoginSuccess = (username: string) => {
+    const cleanUsername = username.trim().toLowerCase();
+    setCurrentUser(cleanUsername);
+    localStorage.setItem("toefl_current_user", JSON.stringify({ username: cleanUsername, loginAt: new Date().toISOString() }));
+    setShowLoginModal(false);
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setCurrentUser(null);
+    localStorage.removeItem("toefl_current_user");
+  };
 
   const handleUserTypeSelect = (userType: 'learner' | 'teacher' | 'student' | 'certification') => {
     if (userType === 'teacher') {
@@ -65,54 +110,53 @@ export default function LandingPage({ onSchoolTypeSelect, onUserRoleSelect, onCe
 
             {/* Right side */}
             <div className="flex items-center space-x-4">
-              <div className="hidden md:flex items-center relative bg-gray-100 rounded-lg p-1">
-                {/* Sliding background */}
-                <motion.div
-                  className="absolute bg-cyan-600 rounded-md h-8 top-1"
-                  animate={{ 
-                    x: hoveredButton === 'login' ? 2 : hoveredButton === 'signup' ? "calc(100% - 2px)" : "calc(100% - 2px)",
-                    width: "calc(50% - 4px)"
-                  }}
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                />
-                
-                <button 
-                  onClick={() => setShowLoginModal(true)}
-                  onMouseEnter={() => setHoveredButton('login')}
-                  onMouseLeave={() => setHoveredButton('signup')}
-                  className={`relative z-10 px-4 py-2 rounded-md font-medium transition-colors duration-200 ${
-                    hoveredButton === 'login' ? 'text-white' : 'text-gray-700'
-                  }`}
-                >
-                  로그인
-                </button>
-                <button 
-                  onClick={() => setShowSignupModal(true)}
-                  onMouseEnter={() => setHoveredButton('signup')}
-                  onMouseLeave={() => setHoveredButton('signup')}
-                  className={`relative z-10 px-4 py-2 rounded-md font-medium transition-colors duration-200 ${
-                    hoveredButton === 'signup' ? 'text-white' : 'text-gray-700'
-                  }`}
-                >
-                  회원가입
-                </button>
-              </div>
-              
-              {/* Mobile auth buttons */}
-              <div className="flex md:hidden items-center space-x-2">
-                <button 
-                  onClick={() => setShowLoginModal(true)}
-                  className="text-xs px-3 py-1.5 rounded-md font-medium text-gray-600 bg-gray-100"
-                >
-                  로그인
-                </button>
-                <button 
-                  onClick={() => setShowSignupModal(true)}
-                  className="text-xs px-3 py-1.5 rounded-md font-medium text-white bg-cyan-600"
-                >
-                  가입
-                </button>
-              </div>
+              {currentUser ? (
+                <>
+                  {/* 로그인된 사용자 정보 표시 */}
+                  <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-cyan-50 border border-cyan-200 rounded-lg">
+                    <User className="w-4 h-4 text-cyan-600" />
+                    <span className="text-sm font-medium text-cyan-700">{currentUser}</span>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="hidden md:flex items-center gap-1.5 px-4 py-2 rounded-md font-medium text-white bg-cyan-600 hover:bg-cyan-700 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    로그아웃
+                  </button>
+                  {/* 모바일용 */}
+                  <div className="flex md:hidden items-center gap-2">
+                    <span className="text-xs px-2 py-1 rounded-md font-medium text-cyan-700 bg-cyan-50 max-w-[100px] truncate">
+                      {currentUser}
+                    </span>
+                    <button
+                      onClick={handleLogout}
+                      className="text-xs px-3 py-1.5 rounded-md font-medium text-white bg-cyan-600 flex items-center gap-1"
+                    >
+                      <LogOut className="w-3 h-3" />
+                      로그아웃
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="hidden md:block">
+                    <button
+                      onClick={() => setShowLoginModal(true)}
+                      className="px-4 py-2 rounded-md font-medium text-white bg-cyan-600 hover:bg-cyan-700 transition-colors"
+                    >
+                      로그인 / 회원가입
+                    </button>
+                  </div>
+                  {/* 모바일용 */}
+                  <button
+                    onClick={() => setShowLoginModal(true)}
+                    className="md:hidden text-xs px-3 py-1.5 rounded-md font-medium text-white bg-cyan-600"
+                  >
+                    로그인
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -465,22 +509,11 @@ export default function LandingPage({ onSchoolTypeSelect, onUserRoleSelect, onCe
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <LoginForm
             onClose={() => setShowLoginModal(false)}
-            onLoginSuccess={() => {
-              setShowLoginModal(false);
-            }}
+            onLoginSuccess={handleLoginSuccess}
           />
         </div>
       )}
-      
-      <SignupModal 
-        isOpen={showSignupModal} 
-        onClose={() => setShowSignupModal(false)}
-        onSwitchToLogin={() => {
-          setShowSignupModal(false);
-          setShowLoginModal(true);
-        }}
-      />
-      
+
 
     </div>
   );
