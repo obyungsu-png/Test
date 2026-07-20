@@ -1,7 +1,7 @@
 import { BrandLogo } from "./BrandLogo";
 import { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { Menu, X, Home } from "lucide-react";
+import { Menu, X, Home, User, LogOut, LogIn } from "lucide-react";
 import svgPaths from "../imports/svg-vlzq6nziw7";
 import imgRectangle from "figma:asset/5ec0ad51783f7d922cc7ed00747456b04e764c51.png";
 import imgRectangle1 from "figma:asset/7fdcd38dc8fc12623bb87eda47c3f957d8a23210.png";
@@ -10,6 +10,8 @@ import imgRectangle3 from "figma:asset/c3ea6e378709aad25dc0663f0c420e3f85b4d22d.
 import { LoginModal } from "./auth/LoginModal";
 import { SignupModal } from "./auth/SignupModal";
 import { CustomerSupportModal } from "./support/CustomerSupportModal";
+import { LoginForm } from "./auth/LoginForm";
+import { supabase } from "../utils/supabase/client";
 
 interface HeaderProps {
   selectedSubject: string;
@@ -29,6 +31,55 @@ export function Header({ selectedSubject, onSubjectChange, onUploadClick, onHome
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showSignupModal, setShowSignupModal] = useState(false);
   const [showSupportModal, setShowSupportModal] = useState(false);
+  const [showLoginForm, setShowLoginForm] = useState(false);
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
+
+  // ─── Supabase 인증 상태 관리 ───
+  useEffect(() => {
+    // localStorage에서 로그인 정보 복원
+    const stored = localStorage.getItem("toefl_current_user");
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (parsed.username) setCurrentUser(parsed.username);
+      } catch {}
+    }
+    // Supabase 세션 변경 감지
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        const email = session.user.email || "";
+        const stored = localStorage.getItem("toefl_current_user");
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            if (parsed.username) {
+              setCurrentUser(parsed.username);
+              return;
+            }
+          } catch {}
+        }
+        const username = email.split("@")[0];
+        setCurrentUser(username);
+      } else {
+        setCurrentUser(null);
+        localStorage.removeItem("toefl_current_user");
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLoginSuccess = (username: string) => {
+    const cleanUsername = username.trim().toLowerCase();
+    setCurrentUser(cleanUsername);
+    localStorage.setItem("toefl_current_user", JSON.stringify({ username: cleanUsername, loginAt: new Date().toISOString() }));
+    setShowLoginForm(false);
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setCurrentUser(null);
+    localStorage.removeItem("toefl_current_user");
+  };
 
   // Load current notice from localStorage
   useEffect(() => {
@@ -154,9 +205,9 @@ export function Header({ selectedSubject, onSubjectChange, onUploadClick, onHome
           ))}
         </nav>
         
-        {/* Desktop Right side actions - Home Icon */}
-        <div className="hidden md:flex items-center space-x-3 lg:space-x-6">
-          <button 
+        {/* Desktop Right side actions - Home + Login/Logout */}
+        <div className="hidden md:flex items-center space-x-3 lg:space-x-4">
+          <button
             onClick={onHomeClick}
             className="flex items-center space-x-2 text-gray-700 hover:text-cyan-600 hover:bg-cyan-50 px-3 py-2 rounded-lg transition-all duration-200 group"
             title="홈으로 이동"
@@ -164,6 +215,30 @@ export function Header({ selectedSubject, onSubjectChange, onUploadClick, onHome
             <Home className="w-5 h-5 group-hover:scale-110 transition-transform" />
             <span className="text-sm font-medium">home</span>
           </button>
+
+          {currentUser ? (
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-cyan-50 border border-cyan-200 rounded-lg">
+                <User className="w-4 h-4 text-cyan-600" />
+                <span className="text-sm font-medium text-cyan-700 max-w-[120px] truncate">{currentUser}</span>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-white bg-cyan-600 hover:bg-cyan-700 transition-colors text-sm"
+              >
+                <LogOut className="w-4 h-4" />
+                로그아웃
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowLoginForm(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-white bg-cyan-600 hover:bg-cyan-700 transition-colors text-sm"
+            >
+              <LogIn className="w-4 h-4" />
+              로그인
+            </button>
+          )}
         </div>
       </div>
       
@@ -192,13 +267,36 @@ export function Header({ selectedSubject, onSubjectChange, onUploadClick, onHome
               ))}
             </div>
             <div className="flex flex-col space-y-3 pt-4 border-t border-gray-200">
-              <button 
+              <button
                 onClick={onHomeClick}
                 className="flex items-center text-gray-700 hover:text-cyan-600 p-3 rounded-lg hover:bg-cyan-50 transition-colors"
               >
                 <Home className="w-5 h-5 mr-3" />
                 <span className="text-base">home</span>
               </button>
+              {currentUser ? (
+                <>
+                  <div className="flex items-center gap-2 px-3 py-2 bg-cyan-50 rounded-lg">
+                    <User className="w-5 h-5 text-cyan-600" />
+                    <span className="text-sm font-medium text-cyan-700 truncate">{currentUser}</span>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center text-white bg-cyan-600 hover:bg-cyan-700 p-3 rounded-lg transition-colors"
+                  >
+                    <LogOut className="w-5 h-5 mr-3" />
+                    <span className="text-base">로그아웃</span>
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => { setShowLoginForm(true); setMobileMenuOpen(false); }}
+                  className="flex items-center text-white bg-cyan-600 hover:bg-cyan-700 p-3 rounded-lg transition-colors"
+                >
+                  <LogIn className="w-5 h-5 mr-3" />
+                  <span className="text-base">로그인</span>
+                </button>
+              )}
             </div>
           </div>
         </motion.div>
@@ -241,11 +339,19 @@ export function Header({ selectedSubject, onSubjectChange, onUploadClick, onHome
         }}
       />
       
-      <CustomerSupportModal 
-        isOpen={showSupportModal} 
+      <CustomerSupportModal
+        isOpen={showSupportModal}
         onClose={() => setShowSupportModal(false)}
         onLMSClick={onLMSClick}
       />
+
+      {/* LoginForm (Supabase Auth) */}
+      {showLoginForm && (
+        <LoginForm
+          onClose={() => setShowLoginForm(false)}
+          onLoginSuccess={handleLoginSuccess}
+        />
+      )}
     </div>
   );
 }
