@@ -10,6 +10,7 @@ interface WordPopupProps {
   x: number;
   y: number;
   onClose: () => void;
+  onLanguageChange?: (lang: "en" | "ko") => void;
 }
 
 /**
@@ -18,7 +19,7 @@ interface WordPopupProps {
  * - KO: Claude API 프록시 (한국어 번역)
  * - 화면 경계 + AI 튜터 FAB 영역 회피하여 위치 자동 조정
  */
-export function WordPopup({ word, context, language, x, y, onClose }: WordPopupProps) {
+export function WordPopup({ word, context, language, x, y, onClose, onLanguageChange }: WordPopupProps) {
   const [loading, setLoading] = useState(true);
   const [definitions, setDefinitions] = useState<WordDefinition[]>([]);
   const [translation, setTranslation] = useState<WordTranslation | null>(null);
@@ -117,12 +118,31 @@ export function WordPopup({ word, context, language, x, y, onClose }: WordPopupP
             <span className="text-xs text-gray-500 dark:text-gray-400 italic">{translation.partOfSpeech}</span>
           )}
         </div>
-        <button
-          onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xl leading-none"
-        >
-          ×
-        </button>
+        <div className="flex items-center gap-2">
+          {/* EN/KR 토글 */}
+          {onLanguageChange && (
+            <div className="flex items-center gap-0.5 bg-gray-100 dark:bg-gray-700 rounded-md p-0.5">
+              <button
+                onClick={() => onLanguageChange("en")}
+                className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition-colors ${
+                  language === "en" ? "bg-cyan-600 text-white" : "text-gray-500 dark:text-gray-400"
+                }`}
+              >EN</button>
+              <button
+                onClick={() => onLanguageChange("ko")}
+                className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition-colors ${
+                  language === "ko" ? "bg-cyan-600 text-white" : "text-gray-500 dark:text-gray-400"
+                }`}
+              >KR</button>
+            </div>
+          )}
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xl leading-none"
+          >
+            ×
+          </button>
+        </div>
       </div>
 
       {/* 내용 */}

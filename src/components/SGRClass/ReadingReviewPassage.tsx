@@ -17,6 +17,8 @@ interface ReadingReviewPassageProps {
   toolsOpen?: boolean;
   /** 사전 버튼 클릭 시 콜백 — 부모에서 WordPopup 표시 */
   onDictionary: (data: { word: string; context: string; x: number; y: number }) => void;
+  /** AI 튜터 액션 콜백 (explain/translate/analyze/rewrite + 선택된 텍스트) */
+  onAiTutor?: (action: "explain" | "translate" | "analyze" | "rewrite", text: string) => void;
   /** 이 값이 바뀌면 모든 하이라이트/밑줄 제거 */
   clearTrigger?: number;
 }
@@ -30,6 +32,7 @@ export function ReadingReviewPassage({
   className = "",
   toolsOpen = true,
   onDictionary,
+  onAiTutor,
   clearTrigger = 0,
 }: ReadingReviewPassageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -102,7 +105,6 @@ export function ReadingReviewPassage({
   const handleDictionary = useCallback(() => {
     if (!popover) return;
     const words = popover.text.split(/\s+/);
-    // 여러 단어 선택 시 첫 단어만 사전 조회
     const word = words.length === 1 ? popover.text : words[0];
     const context = containerRef.current?.textContent?.slice(0, 500) || "";
     onDictionary({ word, context, x: popover.x, y: popover.y + 20 });
@@ -122,9 +124,11 @@ export function ReadingReviewPassage({
         <SelectionActionPopover
           x={popover.x}
           y={popover.y}
+          selectedText={popover.text}
           onHighlight={color => applyMark("h", color)}
           onUnderline={color => applyMark("u", color)}
           onDictionary={handleDictionary}
+          onAiTutor={onAiTutor}
           onClose={() => setPopover(null)}
         />
       )}

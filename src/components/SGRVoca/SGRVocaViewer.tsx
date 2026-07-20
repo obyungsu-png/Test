@@ -419,6 +419,19 @@ export default function SGRVocaViewer() {
   const [language, setLanguage] = useState<"en" | "ko">("en");
   const [popupData, setPopupData] = useState<{ word: string; context: string; x: number; y: number } | null>(null);
   const [clearTrigger, setClearTrigger] = useState(0);
+  const [aiTutorOpen, setAiTutorOpen] = useState(false);
+  const [aiTutorPrompt, setAiTutorPrompt] = useState<string | undefined>(undefined);
+
+  const handleAiTutor = (action: "explain" | "translate" | "analyze" | "rewrite", text: string) => {
+    const prompts: Record<string, string> = {
+      explain: `다음 텍스트를 설명해줘:\n\n"${text}"`,
+      translate: `다음 텍스트를 한국어로 번역해줘:\n\n"${text}"`,
+      analyze: `다음 텍스트를 문법적으로 분석해줘:\n\n"${text}"`,
+      rewrite: `다음 텍스트를 더 자연스럽게 다시 써줘:\n\n"${text}"`,
+    };
+    setAiTutorPrompt(prompts[action]);
+    setAiTutorOpen(true);
+  };
 
   const selected = useMemo(
     () => lessons.find(l => l.id === selectedId) || lessons[0],
@@ -581,6 +594,7 @@ export default function SGRVocaViewer() {
         <ReadingReviewPassage
           toolsOpen={toolsOpen}
           onDictionary={handleDictionary}
+          onAiTutor={handleAiTutor}
           clearTrigger={clearTrigger}
         >
           <AnimatePresence mode="wait">
@@ -608,6 +622,7 @@ export default function SGRVocaViewer() {
             x={popupData.x}
             y={popupData.y}
             onClose={() => setPopupData(null)}
+            onLanguageChange={setLanguage}
           />
         )}
 
@@ -645,6 +660,9 @@ export default function SGRVocaViewer() {
       <ToeflAiWidget
         position="right"
         zIndex={80}
+        open={aiTutorOpen}
+        onOpenChange={setAiTutorOpen}
+        initialPrompt={aiTutorPrompt}
         contextLabel={`SGR Voca · Unit ${selected?.unitNumber || ""} ${selected?.title || ""}`}
         questionData={selected}
         suggestedQuestions={[

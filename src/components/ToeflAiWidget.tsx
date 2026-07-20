@@ -210,9 +210,10 @@ interface ToeflAiWidgetProps {
   onOpenChange?: (open: boolean) => void;
   showFab?: boolean;
   suggestedQuestions?: string[];
+  initialPrompt?: string;
 }
 
-export function ToeflAiWidget({ position = 'right', contextLabel, questionData, zIndex = 90, open, onOpenChange, showFab = true, suggestedQuestions: propQuestions }: ToeflAiWidgetProps) {
+export function ToeflAiWidget({ position = 'right', contextLabel, questionData, zIndex = 90, open, onOpenChange, showFab = true, suggestedQuestions: propQuestions, initialPrompt }: ToeflAiWidgetProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const isOpen = open !== undefined ? open : internalOpen;
   const setIsOpen = (value: boolean) => {
@@ -232,6 +233,15 @@ export function ToeflAiWidget({ position = 'right', contextLabel, questionData, 
     setChatInput('');
   }, [contextLabel, questionData]);
 
+  // initialPrompt가 설정되면 자동으로 메시지 전송
+  const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialPrompt && initialPrompt.trim()) {
+      setPendingPrompt(initialPrompt);
+    }
+  }, [initialPrompt]);
+
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: isAiLoading ? 'auto' : 'smooth' });
   }, [chatMessages, isAiLoading, streamingText]);
@@ -240,10 +250,11 @@ export function ToeflAiWidget({ position = 'right', contextLabel, questionData, 
     setChatInput(q);
   };
 
-  const handleSendMessage = async () => {
-    if (!chatInput.trim() || isAiLoading) return;
+  const handleSendMessage = async (overrideMessage?: string) => {
+    const msg = overrideMessage ?? chatInput;
+    if (!msg.trim() || isAiLoading) return;
 
-    const userMessage = chatInput;
+    const userMessage = msg;
     setChatInput('');
 
     const newHistory: ChatMessage[] = [
@@ -351,6 +362,14 @@ export function ToeflAiWidget({ position = 'right', contextLabel, questionData, 
       setIsAiLoading(false);
     }
   };
+
+  // pendingPrompt가 설정되면 자동 전송
+  useEffect(() => {
+    if (pendingPrompt && isOpen && !isAiLoading) {
+      handleSendMessage(pendingPrompt);
+      setPendingPrompt(null);
+    }
+  }, [pendingPrompt, isOpen, isAiLoading]);
 
   const fabSideClass = position === 'left' ? 'left-6' : 'right-6';
 
