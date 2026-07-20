@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Highlighter, Underline, BookOpen, Sparkles } from "lucide-react";
+import { Highlighter, Underline, BookOpen, Bot } from "lucide-react";
 import { HIGHLIGHT_COLORS, UNDERLINE_COLORS } from "./ReadingReviewToolbar";
 import { useTapOrHold } from "./useTapOrHold";
 
@@ -26,10 +26,7 @@ const AI_ACTIONS: { key: AiAction; label: string }[] = [
 
 /**
  * 드래그 완료 후 선택 영역 위에 나타나는 액션 팝오버
- * [하이라이트] [밑줄] [사전] [AI튜터]
- *  - 하이라이트/밑줄: 한 가지 색, 길게 누르면 3색 피커
- *  - 사전: 단어 뜻 팝업
- *  - AI튜터: 4개 하위 탭 (explain/translate/analyze/rewrite)
+ * 트렌디한 캡슐 디자인: 아이콘만 보이고, AI 버튼은 별도 스타일
  */
 export function SelectionActionPopover({
   x, y, selectedText, onHighlight, onUnderline, onDictionary, onAiTutor, onClose,
@@ -39,18 +36,18 @@ export function SelectionActionPopover({
   const [highlightPicker, setHighlightPicker] = useState(false);
   const [underlinePicker, setUnderlinePicker] = useState(false);
   const [aiSubOpen, setAiSubOpen] = useState(false);
-  const [currentHighlightColor] = useState(HIGHLIGHT_COLORS[0].value);
-  const [currentUnderlineColor] = useState(UNDERLINE_COLORS[0].value);
+  const [currentHighlightColor, setCurrentHighlightColor] = useState(HIGHLIGHT_COLORS[0].value);
+  const [currentUnderlineColor, setCurrentUnderlineColor] = useState(UNDERLINE_COLORS[0].value);
 
   // 위치 보정
   useEffect(() => {
     if (!ref.current) return;
     const rect = ref.current.getBoundingClientRect();
     let nx = x - rect.width / 2;
-    let ny = y - rect.height - 12;
+    let ny = y - rect.height - 14;
     if (nx < 8) nx = 8;
     if (nx + rect.width > window.innerWidth - 8) nx = window.innerWidth - rect.width - 8;
-    if (ny < 8) ny = y + 30;
+    if (ny < 8) ny = y + 28;
     setPos({ x: nx, y: ny });
   }, [x, y, highlightPicker, underlinePicker, aiSubOpen]);
 
@@ -75,91 +72,87 @@ export function SelectionActionPopover({
     onHold: () => { setUnderlinePicker(v => !v); setHighlightPicker(false); setAiSubOpen(false); },
   });
 
-  const btnBase = "relative flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-150 shrink-0";
+  const iconBtn = "flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200 transition-all duration-150";
 
   return createPortal(
     <div
       ref={ref}
-      className="fixed z-[90] bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-600"
+      className="fixed z-[90] flex items-center gap-0.5 px-1.5 py-1 bg-white dark:bg-gray-800 rounded-full shadow-lg border border-gray-200 dark:border-gray-600"
       style={{ left: pos.x, top: pos.y }}
     >
-      {/* 메인 툴바 */}
-      <div className="flex items-center gap-0.5 p-1.5">
-        {/* 하이라이트 */}
-        <div className="relative">
-          <button
-            {...hTapHold}
-            className={`${btnBase} hover:scale-105`}
-            style={{ backgroundColor: currentHighlightColor }}
-            title="하이라이트 (길게 누르면 색상 선택)"
-          >
-            <Highlighter className="w-4 h-4 text-gray-700" />
-          </button>
-          {highlightPicker && (
-            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 flex items-center gap-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600 p-1.5 z-10">
-              {HIGHLIGHT_COLORS.map(c => (
-                <button
-                  key={`h-${c.value}`}
-                  onClick={() => { onHighlight(c.value); setHighlightPicker(false); }}
-                  className="w-7 h-7 rounded-full border-2 border-gray-300 dark:border-gray-500 hover:scale-110 transition-transform"
-                  style={{ backgroundColor: c.value }}
-                  title={c.name}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* 밑줄 */}
-        <div className="relative">
-          <button
-            {...uTapHold}
-            className={`${btnBase} hover:scale-105`}
-            style={{ backgroundColor: currentUnderlineColor }}
-            title="밑줄 (길게 누르면 색상 선택)"
-          >
-            <Underline className="w-4 h-4 text-white" />
-          </button>
-          {underlinePicker && (
-            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 flex items-center gap-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600 p-1.5 z-10">
-              {UNDERLINE_COLORS.map(c => (
-                <button
-                  key={`u-${c.value}`}
-                  onClick={() => { onUnderline(c.value); setUnderlinePicker(false); }}
-                  className="w-7 h-7 rounded-full border-2 border-gray-300 dark:border-gray-500 hover:scale-110 transition-transform"
-                  style={{ backgroundColor: c.value }}
-                  title={c.name}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* 구분선 */}
-        <div className="w-px h-6 bg-gray-200 dark:bg-gray-600 mx-0.5" />
-
-        {/* 사전 */}
+      {/* 하이라이트 */}
+      <div className="relative">
         <button
-          onClick={() => { onDictionary(); }}
-          className={`${btnBase} bg-cyan-50 dark:bg-cyan-900/30 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:scale-105`}
-          title="단어 뜻 보기"
+          {...hTapHold}
+          className={iconBtn}
+          title="하이라이트"
         >
-          <BookOpen className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+          <Highlighter className="w-4 h-4" />
         </button>
-
-        {/* AI 튜터 */}
-        <button
-          onClick={() => { setAiSubOpen(v => !v); setHighlightPicker(false); setUnderlinePicker(false); }}
-          className={`${btnBase} ${aiSubOpen ? "bg-violet-600 text-white" : "bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900/50"} hover:scale-105`}
-          title="AI 튜터"
-        >
-          <Sparkles className="w-4 h-4" />
-        </button>
+        {highlightPicker && (
+          <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 flex items-center gap-1.5 bg-white dark:bg-gray-800 rounded-full shadow-lg border border-gray-200 dark:border-gray-600 px-2 py-1.5">
+            {HIGHLIGHT_COLORS.map(c => (
+              <button
+                key={`h-${c.value}`}
+                onClick={() => { onHighlight(c.value); setCurrentHighlightColor(c.value); setHighlightPicker(false); }}
+                className={`w-6 h-6 rounded-full hover:scale-110 transition-transform ${c.value === currentHighlightColor ? 'ring-2 ring-offset-1 ring-gray-400' : ''}`}
+                style={{ backgroundColor: c.value }}
+                title={c.name}
+              />
+            ))}
+          </div>
+        )}
       </div>
+
+      {/* 밑줄 */}
+      <div className="relative">
+        <button
+          {...uTapHold}
+          className={iconBtn}
+          title="밑줄"
+        >
+          <Underline className="w-4 h-4" />
+        </button>
+        {underlinePicker && (
+          <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 flex items-center gap-1.5 bg-white dark:bg-gray-800 rounded-full shadow-lg border border-gray-200 dark:border-gray-600 px-2 py-1.5">
+            {UNDERLINE_COLORS.map(c => (
+              <button
+                key={`u-${c.value}`}
+                onClick={() => { onUnderline(c.value); setCurrentUnderlineColor(c.value); setUnderlinePicker(false); }}
+                className={`w-6 h-6 rounded-full hover:scale-110 transition-transform ${c.value === currentUnderlineColor ? 'ring-2 ring-offset-1 ring-gray-400' : ''}`}
+                style={{ backgroundColor: c.value }}
+                title={c.name}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 사전 */}
+      <button
+        onClick={() => { onDictionary(); }}
+        className={iconBtn}
+        title="단어 뜻 보기"
+      >
+        <BookOpen className="w-4 h-4" />
+      </button>
+
+      {/* AI 튜터 */}
+      <button
+        onClick={() => { setAiSubOpen(v => !v); setHighlightPicker(false); setUnderlinePicker(false); }}
+        className={`flex items-center justify-center w-8 h-8 rounded-full transition-all duration-150 ${
+          aiSubOpen
+            ? "bg-violet-600 text-white"
+            : "bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 hover:bg-violet-200 dark:hover:bg-violet-900/50"
+        }`}
+        title="AI 튜터"
+      >
+        <Bot className="w-4 h-4" />
+      </button>
 
       {/* AI 튜터 하위 탭 */}
       {aiSubOpen && (
-        <div className="flex items-center gap-1 px-2 pb-1.5 pt-0.5 border-t border-gray-100 dark:border-gray-700">
+        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 flex items-center gap-1 bg-white dark:bg-gray-800 rounded-full shadow-lg border border-gray-200 dark:border-gray-600 px-2 py-1">
           {AI_ACTIONS.map(act => (
             <button
               key={act.key}
@@ -168,7 +161,7 @@ export function SelectionActionPopover({
                 setAiSubOpen(false);
                 onClose();
               }}
-              className="px-2.5 py-1 rounded-md text-xs font-semibold text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/30 hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-colors"
+              className="px-2.5 py-1 rounded-full text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-violet-100 dark:hover:bg-violet-900/30 hover:text-violet-700 dark:hover:text-violet-300 transition-colors"
             >
               {act.label}
             </button>
