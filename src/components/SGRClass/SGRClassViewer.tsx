@@ -13,7 +13,6 @@ import { ToeflAiWidget } from "../ToeflAiWidget";
 import { WordPopup } from "./WordPopup";
 import { ReadingReviewPassage } from "./ReadingReviewPassage";
 import { ReadingReviewActions } from "./ReadingReviewToolbar";
-import { ToolsToolbar } from "./ToolsToolbar";
 import "../../utils/sgrClassApi"; // 서버 연동 함수 등록
 
 // ─── inline formatter: **bold**, __underline__, ___blank___ ──
@@ -934,10 +933,6 @@ export default function SGRClassViewer() {
 
   // Tools (drag-popover based highlight/underline/dictionary)
   const [toolsOpen, setToolsOpen] = useState(false);
-  const [activeTool, setActiveTool] = useState<"highlight" | "underline" | null>(null);
-  const [activeColor, setActiveColor] = useState<string | undefined>(undefined);
-  const [dictMode, setDictMode] = useState(false);
-  const [aiTutorOpen, setAiTutorOpen] = useState(false);
   const [language, setLanguage] = useState<"en" | "ko">("en");
   const [popupData, setPopupData] = useState<{ word: string; context: string; x: number; y: number } | null>(null);
   const [clearTrigger, setClearTrigger] = useState(0);
@@ -1055,40 +1050,25 @@ export default function SGRClassViewer() {
                 {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </button>
 
-              {/* Tools toolbar (highlight/underline/eraser/dictionary/AI tutor) */}
-              <ToolsToolbar
-                themeColor="#0e7490"
-                activeTool={activeTool}
-                activeColor={activeColor}
-                onToolChange={(tool, color) => {
-                  setActiveTool(tool);
-                  setActiveColor(color);
-                  setToolsOpen(!!tool);
-                  setDictMode(false);
-                }}
-                onClearAll={handleClearAll}
-                onDictionary={() => {
-                  setDictMode(v => !v);
-                  setToolsOpen(true);
-                  setActiveTool(null);
-                }}
-                onAiTutor={() => setAiTutorOpen(true)}
-                toolsOpen={toolsOpen}
-                onToolsToggle={setToolsOpen}
-              />
-              {/* Dictionary mode: EN/KR toggle (우측 상단) */}
-              {dictMode && (
-                <div className="flex items-center gap-1 ml-1 px-2 py-1 rounded-lg bg-cyan-50 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-800">
-                  <span className="text-xs font-bold text-cyan-700 dark:text-cyan-300">사전</span>
-                  <button
-                    onClick={() => setLanguage("en")}
-                    className={`px-1.5 py-0.5 rounded text-xs font-bold ${language === "en" ? "bg-cyan-600 text-white" : "text-gray-500"}`}
-                  >EN</button>
-                  <button
-                    onClick={() => setLanguage("ko")}
-                    className={`px-1.5 py-0.5 rounded text-xs font-bold ${language === "ko" ? "bg-cyan-600 text-white" : "text-gray-500"}`}
-                  >KR</button>
-                </div>
+              {/* Tools button + actions */}
+              <button
+                onClick={() => setToolsOpen(v => !v)}
+                title="Tools: drag to highlight/underline/dictionary"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${
+                  toolsOpen
+                    ? "bg-[#1e6b73] text-white"
+                    : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                }`}
+              >
+                <Highlighter className="w-4 h-4" />
+                <span className="hidden sm:inline">Tools</span>
+              </button>
+              {toolsOpen && (
+                <ReadingReviewActions
+                  onClearAll={handleClearAll}
+                  language={language}
+                  onLanguageChange={setLanguage}
+                />
               )}
               <div className="relative group">
                 <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold bg-cyan-600 hover:bg-cyan-700 text-white">
@@ -1183,8 +1163,6 @@ export default function SGRClassViewer() {
       <ToeflAiWidget
         position="right"
         zIndex={80}
-        open={aiTutorOpen}
-        onOpenChange={setAiTutorOpen}
         contextLabel={`SGR Class · Unit ${selected?.unitNumber || ""} ${selected?.title || ""}`}
         questionData={selected}
         suggestedQuestions={[
