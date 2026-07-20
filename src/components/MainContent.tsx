@@ -13,6 +13,8 @@ import { MyContentRoom } from "./MyContentRoom";
 import { VocaPage } from "./VocaPage";
 import { KoreanVocaPage } from "./KoreanVocaPage";
 import SGRClassViewer from "./SGRClass/SGRClassViewer";
+import SGRWritingViewer from "./SGRWriting/SGRWritingViewer";
+import SGRVocaViewer from "./SGRVoca/SGRVocaViewer";
 import { getFilteredMaterials } from "./utils/materialHelpers";
 import { getCategoryCustomName, updateUploadedMaterial } from "./utils/dataManager";
 import { DEFAULT_TABS, KOREAN_SCHOOL_TABS, INTERNATIONAL_SCHOOL_TABS, CERTIFICATION_TABS, CERTIFICATION_CONTENT_BY_TAB, CERTIFICATION_CONTENT_BY_SUBJECT_AND_CATEGORY } from "./constants/defaultContent";
@@ -107,7 +109,7 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
     if (schoolType === 'korean' && selectedSubject === '서류전형') {
     }
     if (schoolType === 'korean' && selectedSubject !== '영어') {
-      tabs = tabs.filter(tab => tab !== 'Voca' && tab !== 'SGR Class' && tab !== '교과서 뽀개기');
+      tabs = tabs.filter(tab => tab !== 'Voca' && tab !== 'SGR Class' && tab !== 'SGR Writing' && tab !== 'SGR Voca' && tab !== '교과서 뽀개기');
     }
     return tabs;
   })();
@@ -601,6 +603,28 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
     }
   }, [showSGRClass]);
 
+  // Check if we should show SGR Writing
+  const showSGRWriting = activeTab === "SGR Writing" && schoolType === 'korean';
+  const [sgrWritingFullscreen, setSgrWritingFullscreen] = useState(false);
+
+  // SGR Writing 탭 선택 시 자동 전체화면
+  useEffect(() => {
+    if (showSGRWriting) {
+      setSgrWritingFullscreen(true);
+    }
+  }, [showSGRWriting]);
+
+  // Check if we should show SGR Voca
+  const showSGRVoca = activeTab === "SGR Voca" && schoolType === 'korean';
+  const [sgrVocaFullscreen, setSgrVocaFullscreen] = useState(false);
+
+  // SGR Voca 탭 선택 시 자동 전체화면
+  useEffect(() => {
+    if (showSGRVoca) {
+      setSgrVocaFullscreen(true);
+    }
+  }, [showSGRVoca]);
+
   
   // Check if we should show grid layout for Subject or 보조자료
   const showGridLayout = (activeTab === "Subject" || activeTab === "보조자료") && schoolType === 'international' && selectedSubject === 'AP';
@@ -772,6 +796,14 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
                     ? activeTab === tab
                       ? "border-cyan-600 text-cyan-600 bg-cyan-50"
                       : "border-transparent text-cyan-600 hover:bg-cyan-50"
+                    : tab === "SGR Writing"
+                    ? activeTab === tab
+                      ? "border-indigo-600 text-indigo-600 bg-indigo-50"
+                      : "border-transparent text-indigo-600 hover:bg-indigo-50"
+                    : tab === "SGR Voca"
+                    ? activeTab === tab
+                      ? "border-rose-600 text-rose-600 bg-rose-50"
+                      : "border-transparent text-rose-600 hover:bg-rose-50"
                     : activeTab === tab
                     ? "border-cyan-600 text-cyan-600 bg-cyan-50"
                     : "border-transparent text-gray-700 hover:text-gray-900 hover:bg-gray-50"
@@ -788,10 +820,22 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
                     SGR Class
                     <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white leading-none">수업용</span>
                   </span>
+                ) : tab === "SGR Writing" ? (
+                  <span className="flex items-center gap-1.5">
+                    <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
+                    SGR Writing
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 text-white leading-none">수업용</span>
+                  </span>
+                ) : tab === "SGR Voca" ? (
+                  <span className="flex items-center gap-1.5">
+                    <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-rose-600" />
+                    SGR Voca
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 text-white leading-none">수업용</span>
+                  </span>
                 ) : (
                   tab
                 )}
-                {tab !== "SGR Class" && (
+                {tab !== "SGR Class" && tab !== "SGR Writing" && tab !== "SGR Voca" && (
                   <span className={`text-[10px] sm:text-xs font-bold ml-0.5 ${
                     activeTab === tab ? "text-red-500" : "text-red-400"
                   }`}>
@@ -843,6 +887,34 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
                 <button
                   onClick={() => setSgrClassFullscreen(true)}
                   className="px-6 py-3 bg-cyan-600 text-white rounded-xl font-bold hover:bg-cyan-700 transition-colors"
+                >
+                  전체화면 열기
+                </button>
+              </div>
+            </div>
+          ) : showSGRWriting ? (
+            <div className="flex items-center justify-center py-20 text-center">
+              <div>
+                <BookOpen className="w-16 h-16 text-indigo-400 mx-auto mb-4" />
+                <h2 className="text-xl font-bold text-gray-700 mb-2">SGR Writing</h2>
+                <p className="text-gray-500 mb-4">전체화면에서 학습 중입니다</p>
+                <button
+                  onClick={() => setSgrWritingFullscreen(true)}
+                  className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors"
+                >
+                  전체화면 열기
+                </button>
+              </div>
+            </div>
+          ) : showSGRVoca ? (
+            <div className="flex items-center justify-center py-20 text-center">
+              <div>
+                <BookOpen className="w-16 h-16 text-rose-400 mx-auto mb-4" />
+                <h2 className="text-xl font-bold text-gray-700 mb-2">SGR Voca</h2>
+                <p className="text-gray-500 mb-4">전체화면에서 학습 중입니다</p>
+                <button
+                  onClick={() => setSgrVocaFullscreen(true)}
+                  className="px-6 py-3 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 transition-colors"
                 >
                   전체화면 열기
                 </button>
@@ -1665,6 +1737,96 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
             <div className="flex-1 overflow-y-auto">
               <div className="max-w-7xl mx-auto">
                 <SGRClassViewer />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* SGR Writing Fullscreen Overlay */}
+      <AnimatePresence>
+        {sgrWritingFullscreen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-[90] bg-white flex flex-col"
+          >
+            {/* Fullscreen Header */}
+            <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-white shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-md">
+                  <BookOpen className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-lg font-bold text-gray-800">SGR Writing</h1>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-sm">수업용</span>
+                  </div>
+                  <p className="text-xs text-gray-400">{selectedSubject} · {selectedCategory || '전체'}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setSgrWritingFullscreen(false);
+                  setActiveTab(tabs[0] || '국어');
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-600 transition-colors"
+              >
+                <X className="w-4 h-4" />
+                닫기
+              </button>
+            </div>
+            {/* Fullscreen Content */}
+            <div className="flex-1 overflow-y-auto">
+              <div className="max-w-7xl mx-auto">
+                <SGRWritingViewer />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* SGR Voca Fullscreen Overlay */}
+      <AnimatePresence>
+        {sgrVocaFullscreen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-[90] bg-white flex flex-col"
+          >
+            {/* Fullscreen Header */}
+            <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-gray-200 bg-gradient-to-r from-rose-50 to-white shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center shadow-md">
+                  <BookOpen className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-lg font-bold text-gray-800">SGR Voca</h1>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-sm">수업용</span>
+                  </div>
+                  <p className="text-xs text-gray-400">{selectedSubject} · {selectedCategory || '전체'}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setSgrVocaFullscreen(false);
+                  setActiveTab(tabs[0] || '국어');
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-600 transition-colors"
+              >
+                <X className="w-4 h-4" />
+                닫기
+              </button>
+            </div>
+            {/* Fullscreen Content */}
+            <div className="flex-1 overflow-y-auto">
+              <div className="max-w-7xl mx-auto">
+                <SGRVocaViewer />
               </div>
             </div>
           </motion.div>

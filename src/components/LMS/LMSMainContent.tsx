@@ -12,6 +12,8 @@ import LMSSettings from "./LMSSettings";
 import LMSAdManagement from "./LMSAdManagement";
 import LMSTextbookMastery from "./LMSTextbookMastery";
 import LMSSGRClass from "./LMSSGRClass";
+import LMSSGRWriting from "./LMSSGRWriting";
+import LMSSGRVoca from "./LMSSGRVoca";
 import { VocaManagement } from "../VocaManagement";
 
 interface LMSMainContentProps {
@@ -39,6 +41,10 @@ export default function LMSMainContent({
         return <LMSTextbookMastery />;
       case "sgr-class":
         return <LMSSGRClass />;
+      case "sgr-writing":
+        return <LMSSGRWriting />;
+      case "sgr-voca":
+        return <LMSSGRVoca />;
       case "voca":
         return <VocaManagement />;
       case "categories":
