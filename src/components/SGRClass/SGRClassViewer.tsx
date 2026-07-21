@@ -11,6 +11,7 @@ import { loadLessons, SGR_EVENT, syncFromServer } from "./types";
 import { downloadSGRPdf } from "./pdfUtils";
 import { ToeflAiWidget } from "../ToeflAiWidget";
 import { WordPopup } from "./WordPopup";
+import { AiActionPopup } from "./AiActionPopup";
 import { ReadingReviewPassage } from "./ReadingReviewPassage";
 import { ReadingReviewActions } from "./ReadingReviewToolbar";
 import "../../utils/sgrClassApi"; // 서버 연동 함수 등록
@@ -938,16 +939,21 @@ export default function SGRClassViewer() {
   const [clearTrigger, setClearTrigger] = useState(0);
   const [aiTutorOpen, setAiTutorOpen] = useState(false);
   const [aiTutorPrompt, setAiTutorPrompt] = useState<string | undefined>(undefined);
+  const [aiActionPopup, setAiActionPopup] = useState<{
+    action: "explain" | "translate" | "analyze" | "rewrite";
+    text: string;
+    x: number;
+    y: number;
+  } | null>(null);
 
   const handleAiTutor = (action: "explain" | "translate" | "analyze" | "rewrite", text: string) => {
-    const prompts: Record<string, string> = {
-      explain: `다음 텍스트를 설명해줘:\n\n"${text}"`,
-      translate: `다음 텍스트를 한국어로 번역해줘:\n\n"${text}"`,
-      analyze: `다음 텍스트를 문법적으로 분석해줘:\n\n"${text}"`,
-      rewrite: `다음 텍스트를 더 자연스럽게 다시 써줘:\n\n"${text}"`,
-    };
-    setAiTutorPrompt(prompts[action]);
-    setAiTutorOpen(true);
+    // 말풍선으로 결과 표시
+    const selection = window.getSelection();
+    const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+    const rect = range?.getBoundingClientRect();
+    const x = rect ? rect.left + rect.width / 2 - 160 : window.innerWidth / 2 - 160;
+    const y = rect ? rect.bottom + 10 : window.innerHeight / 2;
+    setAiActionPopup({ action, text, x, y });
   };
 
   const selected = useMemo(
@@ -1141,6 +1147,17 @@ export default function SGRClassViewer() {
             y={popupData.y}
             onClose={() => setPopupData(null)}
             onLanguageChange={setLanguage}
+          />
+        )}
+
+        {/* AI 액션 말풍선 */}
+        {aiActionPopup && (
+          <AiActionPopup
+            action={aiActionPopup.action}
+            selectedText={aiActionPopup.text}
+            x={aiActionPopup.x}
+            y={aiActionPopup.y}
+            onClose={() => setAiActionPopup(null)}
           />
         )}
 
