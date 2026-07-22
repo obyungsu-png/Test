@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { Search } from "lucide-react";
 import { getWordDefinitions, WordDefinition } from "./dictionaryApi";
 import { translateWord, WordTranslation } from "./wordTranslate";
 
@@ -17,42 +18,51 @@ interface WordPopupProps {
  * 단어 뜻 팝업 — createPortal로 body에 렌더링
  * - EN: Free Dictionary API (영영 사전)
  * - KO: Claude API 프록시 (한국어 번역)
+ * - API 호출은 유저가 [검색] 버튼을 누를 때만 수행 (자동 호출 X)
  * - 화면 경계 + AI 튜터 FAB 영역 회피하여 위치 자동 조정
  */
 export function WordPopup({ word, context, language, x, y, onClose, onLanguageChange }: WordPopupProps) {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [definitions, setDefinitions] = useState<WordDefinition[]>([]);
   const [translation, setTranslation] = useState<WordTranslation | null>(null);
   const [error, setError] = useState(false);
+  const [hasFetched, setHasFetched] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
   const [adjustedPos, setAdjustedPos] = useState({ x, y });
 
-  useEffect(() => {
-    let cancelled = false;
+  // API 호출 — 유저가 [검색] 버튼 클릭 시에만 실행
+  const fetchWordData = useCallback(async () => {
+    if (loading) return;
     setLoading(true);
     setError(false);
     setDefinitions([]);
     setTranslation(null);
 
-    (async () => {
+    try {
       if (language === "en") {
         const defs = await getWordDefinitions(word);
-        if (cancelled) return;
         if (defs.length === 0) setError(true);
         else setDefinitions(defs);
       } else {
         const trans = await translateWord(word, context);
-        if (cancelled) return;
         if (!trans) setError(true);
         else setTranslation(trans);
       }
-      if (!cancelled) setLoading(false);
-    })();
+      setHasFetched(true);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [word, language, context, loading]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [word, language, context]);
+  // 언어 토글 시 기존 결과 초기화 (재검색 필요 상태로)
+  useEffect(() => {
+    setHasFetched(false);
+    setDefinitions([]);
+    setTranslation(null);
+    setError(false);
+  }, [language]);
 
   // 팝업 위치 조정 (화면 경계 + AI 튜터 위젯 영역 회피)
   useEffect(() => {
@@ -152,33 +162,51 @@ export function WordPopup({ word, context, language, x, y, onClose, onLanguageCh
           <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">검색 중...</span>
         </div>
       ) : error ? (
-        <p className="text-sm text-gray-500 dark:text-gray-400 py-2">
-          이 단어의 정의를 찾을 수 없습니다. AI 튜터에게 물어보세요.
-        </p>
-      ) : language === "en" ? (
-        <div className="space-y-2">
-          {definitions.map((def, i) => (
-            <div key={i} className="text-sm">
-              <span className="text-xs text-gray-400 italic mr-1">{def.partOfSpeech}</span>
-              <span className="text-gray-800 dark:text-gray-200">{def.definition}</span>
-              {def.example && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 italic mt-0.5">"{def.example}"</p>
-              )}
-            </div>
-          ))}
+        <div className="py-2">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+            이 단어의 정의를 찾을 수 없습니다. AI 튜터에게 물어보세요.
+          </p>
+          <button
+            onClick={() => { setHasFetched(false); fetchWordData(); }}
+            className="w-full px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-bold transition-colors"
+          >
+            다시 시도
+          </button>
         </div>
-      ) : (
-        <div className="space-y-2">
-          <div>
-            <span className="text-xs text-gray-400 dark:text-gray-500 mr-1">뜻:</span>
-            <span className="text-base font-semibold text-cyan-700 dark:text-cyan-400">
-              {translation?.koreanMeaning}
-            </span>
+      ) : hasFetched ? (
+        language === "en" ? (
+          <div className="space-y-2">
+            {definitions.map((def, i) => (
+              <div key={i} className="text-sm">
+                <span className="text-xs text-gray-400 italic mr-1">{def.partOfSpeech}</span>
+                <span className="text-gray-800 dark:text-gray-200">{def.definition}</span>
+                {def.example && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 italic mt-0.5">"{def.example}"</p>
+                )}
+              </div>
+            ))}
           </div>
-          {translation?.englishExplanation && (
-            <p className="text-xs text-gray-600 dark:text-gray-300 italic">{translation.englishExplanation}</p>
-          )}
-        </div>
+        ) : (
+          <div className="space-y-2">
+            <div>
+              <span className="text-xs text-gray-400 dark:text-gray-500 mr-1">뜻:</span>
+              <span className="text-base font-semibold text-cyan-700 dark:text-cyan-400">
+                {translation?.koreanMeaning}
+              </span>
+            </div>
+            {translation?.englishExplanation && (
+              <p className="text-xs text-gray-600 dark:text-gray-300 italic">{translation.englishExplanation}</p>
+            )}
+          </div>
+        )
+      ) : (
+        <button
+          onClick={fetchWordData}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-bold transition-colors shadow-sm"
+        >
+          <Search className="w-4 h-4" />
+          단어 검색
+        </button>
       )}
     </div>,
     document.body

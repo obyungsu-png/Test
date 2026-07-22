@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Bot, Loader2 } from "lucide-react";
+import { Bot, Loader2, Sparkles } from "lucide-react";
 
 type AiAction = "explain" | "translate" | "analyze" | "rewrite";
 
@@ -33,66 +33,58 @@ const GLM_MODEL = "glm-4-flash";
 /**
  * AI 액션 결과를 사전 말풍선처럼 보여주는 팝업
  * explain, translate, analyze, rewrite 버튼 클릭 시 나타남
+ * API 호출은 유저가 [요청] 버튼을 누를 때만 수행 (자동 호출 X)
  */
 export function AiActionPopup({ action, selectedText, x, y, onClose }: AiActionPopupProps) {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [result, setResult] = useState("");
   const [error, setError] = useState(false);
+  const [hasFetched, setHasFetched] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
   const [adjustedPos, setAdjustedPos] = useState({ x, y });
 
-  // AI API 호출
-  useEffect(() => {
-    let cancelled = false;
+  // API 호출 — 유저가 [요청] 버튼 클릭 시에만 실행
+  const fetchAiResult = useCallback(async () => {
+    if (loading || hasFetched) return;
     setLoading(true);
     setError(false);
     setResult("");
 
-    (async () => {
-      try {
-        const prompt = ACTION_PROMPTS[action] + `"${selectedText}"`;
-        const systemPrompt =
-          "영어 학습 튜터 AI. 한국어로 간결·실용적으로 답변. 마크다운 금지. <b>강조</b>, <u>항목명</u> 태그 사용 가능.";
+    try {
+      const prompt = ACTION_PROMPTS[action] + `"${selectedText}"`;
+      const systemPrompt =
+        "영어 학습 튜터 AI. 한국어로 간결·실용적으로 답변. 마크다운 금지. <b>강조</b>, <u>항목명</u> 태그 사용 가능.";
 
-        const response = await fetch(GLM_API_ENDPOINT, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${GLM_API_KEY}`,
-          },
-          body: JSON.stringify({
-            model: GLM_MODEL,
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: prompt },
-            ],
-            max_tokens: 800,
-            temperature: 0.6,
-            stream: false,
-          }),
-        });
+      const response = await fetch(GLM_API_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${GLM_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: GLM_MODEL,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: prompt },
+          ],
+          max_tokens: 800,
+          temperature: 0.6,
+          stream: false,
+        }),
+      });
 
-        if (!response.ok) throw new Error(`API 오류 (${response.status})`);
+      if (!response.ok) throw new Error(`API 오류 (${response.status})`);
 
-        const data = await response.json();
-        const content = data.choices?.[0]?.message?.content || "응답을 받지 못했어요.";
-
-        if (!cancelled) {
-          setResult(content);
-          setLoading(false);
-        }
-      } catch (err: any) {
-        if (!cancelled) {
-          setError(true);
-          setLoading(false);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [action, selectedText]);
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content || "응답을 받지 못했어요.";
+      setResult(content);
+      setHasFetched(true);
+    } catch (err: any) {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [action, selectedText, loading, hasFetched]);
 
   // 팝업 위치 조정
   useEffect(() => {
@@ -200,13 +192,29 @@ export function AiActionPopup({ action, selectedText, x, y, onClose }: AiActionP
           </span>
         </div>
       ) : error ? (
-        <p className="text-sm text-red-500 dark:text-red-400 py-2">
-          응답을 가져오지 못했어요. 다시 시도해주세요.
-        </p>
-      ) : (
+        <div className="py-2">
+          <p className="text-sm text-red-500 dark:text-red-400 mb-3">
+            응답을 가져오지 못했어요.
+          </p>
+          <button
+            onClick={() => { setHasFetched(false); fetchAiResult(); }}
+            className="w-full px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold transition-colors"
+          >
+            다시 시도
+          </button>
+        </div>
+      ) : hasFetched ? (
         <div className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed max-h-[300px] overflow-y-auto">
           {renderContent(result)}
         </div>
+      ) : (
+        <button
+          onClick={fetchAiResult}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold transition-colors shadow-sm"
+        >
+          <Sparkles className="w-4 h-4" />
+          AI {ACTION_LABELS[action]} 요청
+        </button>
       )}
     </div>,
     document.body

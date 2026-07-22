@@ -308,12 +308,10 @@ export function ToeflAiWidget({ position = 'right', contextLabel, questionData, 
     setChatInput('');
   }, [contextLabel, questionData]);
 
-  // initialPrompt가 설정되면 자동으로 메시지 전송
-  const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
-
+  // initialPrompt가 있으면 입력창에 미리 채움 (자동 전송 X — 유저가 직접 [전송] 버튼 클릭)
   useEffect(() => {
     if (initialPrompt && initialPrompt.trim()) {
-      setPendingPrompt(initialPrompt);
+      setChatInput(initialPrompt);
     }
   }, [initialPrompt]);
 
@@ -437,14 +435,6 @@ export function ToeflAiWidget({ position = 'right', contextLabel, questionData, 
       setIsAiLoading(false);
     }
   };
-
-  // pendingPrompt가 설정되면 자동 전송
-  useEffect(() => {
-    if (pendingPrompt && isOpen && !isAiLoading) {
-      handleSendMessage(pendingPrompt);
-      setPendingPrompt(null);
-    }
-  }, [pendingPrompt, isOpen, isAiLoading]);
 
   const fabSideClass = position === 'left' ? 'left-6' : 'right-6';
 
