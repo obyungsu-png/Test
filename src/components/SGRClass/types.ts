@@ -109,11 +109,137 @@ export interface DirectReadingItem {
   grammarPoints?: GrammarPoint[];
 }
 
+// ─── 책 종류 (bookType) ─────────────────────────────
+// 하나의 SGR Class 인스턴스에 여러 책 유형의 레슨이 공존한다.
+// - "sgr_original": 기본 SGR Class 형식
+// - "reading_explore": Reading Explorer 형식 (사진 2-4)
+// - 추후 확장 가능
+export type BookType = "sgr_original" | "reading_explore" | string;
+
+export const BOOK_TYPE_META: Record<string, { label: string; color: string; description: string }> = {
+  sgr_original: {
+    label: "SGR 기본",
+    color: "from-cyan-500 to-blue-600",
+    description: "기본 SGR Class 형식 (Preview / Passage / Questions / Vocab / 직독직해)",
+  },
+  reading_explore: {
+    label: "Reading Explore",
+    color: "from-violet-500 to-fuchsia-600",
+    description: "Reading Explorer 스타일 (Reading / Comprehension / Reading Skill / Vocabulary Practice)",
+  },
+};
+
+// ─── Reading Explore 컨텐츠 ─────────────────────────
+export interface RELabeledParagraph {
+  id: string;
+  label: string;        // "A", "B", "C" ...
+  content: string;      // supports **bold** / __underline__ / ==red== 표시
+  imageCaption?: string;
+}
+
+export interface REFootnote {
+  id: string;
+  marker: string;       // "1", "2", ...
+  text: string;         // 짧은 정의
+}
+
+export interface REReading {
+  headline: string;             // 큰 제목
+  headlineAccent?: string;      // 강조 부분 (색이 다른 부분)
+  intro?: string;               // italic 도입 문장
+  paragraphs: RELabeledParagraph[];
+  subheads?: Array<{ afterParagraphId: string; text: string }>; // 특정 단락 뒤에 소제목
+  footnotes: REFootnote[];
+}
+
+export interface REComprehensionMcq {
+  id: string;
+  category: string;             // "MAIN IDEA" | "DETAIL" | "VOCABULARY" | "INFERENCE" ...
+  question: string;
+  options: string[];
+  answer: number;
+}
+
+export interface REMatchingItem {
+  id: string;
+  statement: string;
+  answer: string;               // "a" | "b" | "c" ...
+}
+
+export interface REMatchingBlock {
+  category: string;             // "APPLYING IDEAS"
+  instruction: string;
+  choices: Array<{ letter: string; text: string }>;
+  items: REMatchingItem[];
+}
+
+export interface REConceptMapNode {
+  id: string;
+  /** 배치: 중심(center) / 주요(major) / 세부(leaf) */
+  kind: "center" | "major" | "leaf";
+  /** major의 부모는 center id, leaf의 부모는 major id */
+  parentId?: string;
+  /** 노드 내 표시 텍스트. ___ 위치에 빈칸 정답을 넣는다 */
+  text: string;
+  /** 빈칸 정답 (순서대로) */
+  answers?: string[];
+}
+
+export interface REConceptMap {
+  title: string;                // "Organizing Information (1)—Creating a Concept Map"
+  intro: string;                // 스킬 설명
+  nodes: REConceptMapNode[];
+}
+
+export interface REVocabCompletion {
+  bank: string[];
+  /** 문단 내 여러 빈칸을 원문 순서대로 배치 */
+  text: string;                 // 본문. ___ 로 빈칸 표시
+  answers: string[];            // 빈칸 정답 순서대로
+}
+
+export interface REDefinitionMatchItem {
+  id: string;
+  word: string;
+  definition: string;
+}
+
+export interface REWordFormItem {
+  id: string;
+  sentence: string;             // "I find that singing is really ___."
+  options: string[];            // ["embarrassed", "embarrassing"]
+  answer: number;
+}
+
+export interface REWordForms {
+  explanation: string;
+  items: REWordFormItem[];
+}
+
+export interface REVocabularyPractice {
+  completion: REVocabCompletion;
+  definitionMatch: REDefinitionMatchItem[];
+  wordForms: REWordForms;
+}
+
+export interface ReadingExploreContent {
+  reading: REReading;
+  comprehension: {
+    mcq: REComprehensionMcq[];
+    matching?: REMatchingBlock;
+  };
+  readingSkill: REConceptMap;
+  vocabPractice: REVocabularyPractice;
+}
+
 // ─── Full lesson ───────────────────────────────────
 export interface SGRLesson {
   id: string;
   createdAt: number;
   updatedAt: number;
+
+  /** 책 종류 - 없으면 "sgr_original" */
+  bookType?: BookType;
 
   // meta
   unitNumber: string;         // "01"
@@ -141,6 +267,9 @@ export interface SGRLesson {
 
   // (optional) Direct reading tool - authored in CMS
   directReading: DirectReadingItem[];
+
+  /** bookType === "reading_explore" 일 때 사용 */
+  readingExplore?: ReadingExploreContent;
 }
 
 // ─── Storage ───────────────────────────────────────
