@@ -25,8 +25,8 @@ interface WordPopupProps {
 /**
  * 단어 뜻 팝업 — createPortal로 body에 렌더링
  * - EN: Free Dictionary API (영영 사전)
- * - KO: Claude API 프록시 (한국어 번역)
- * - CH: Claude API 프록시 (중국어 번역 + 병음)
+ * - KO: Claude API (apiclaude.cc, 한국어 번역)
+ * - CH: Claude API (apiclaude.cc, 중국어 번역 + 병음)
  * - 열리자마자 자동으로 단어를 검색 (별도 버튼 없음)
  * - 언어 변경 시에도 자동 재검색
  */
