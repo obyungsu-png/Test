@@ -12,6 +12,7 @@ import { ToeflAiWidget } from "../ToeflAiWidget";
 import { WordPopup } from "../SGRClass/WordPopup";
 import { AiActionPopup } from "../SGRClass/AiActionPopup";
 import { ReadingReviewPassage } from "../SGRClass/ReadingReviewPassage";
+import { DrawingCanvas } from "../SGRClass/DrawingCanvas";
 import { ReadingReviewActions } from "../SGRClass/ReadingReviewToolbar";
 
 type PageKey = "wordlist" | "exerciseAB" | "exerciseC" | "reading";
@@ -428,6 +429,7 @@ export default function SGRVocaViewer() {
     x: number;
     y: number;
   } | null>(null);
+  const [drawOpen, setDrawOpen] = useState(false);
 
   const handleAiTutor = (action: "explain" | "translate" | "analyze" | "rewrite", text: string) => {
     const selection = window.getSelection();
@@ -449,6 +451,10 @@ export default function SGRVocaViewer() {
 
   const handleClearAll = useCallback(() => {
     setClearTrigger(c => c + 1);
+  }, []);
+
+  const handleDraw = useCallback(() => {
+    setDrawOpen(true);
   }, []);
 
   const handleSelect = useCallback((id: string, idx: number) => {
@@ -600,6 +606,7 @@ export default function SGRVocaViewer() {
           toolsOpen={toolsOpen}
           onDictionary={handleDictionary}
           onAiTutor={handleAiTutor}
+          onDraw={handleDraw}
           clearTrigger={clearTrigger}
         >
           <AnimatePresence mode="wait">
@@ -641,6 +648,9 @@ export default function SGRVocaViewer() {
             onClose={() => setAiActionPopup(null)}
           />
         )}
+
+        {/* 필기 캔버스 */}
+        <DrawingCanvas active={drawOpen} onClose={() => setDrawOpen(false)} />
 
         {/* Bottom nav */}
         <div className="max-w-[1600px] mx-auto flex items-center justify-between px-6 py-6 border-t border-gray-200 dark:border-gray-700 mt-8">
