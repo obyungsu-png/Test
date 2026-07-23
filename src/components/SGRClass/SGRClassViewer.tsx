@@ -6,7 +6,7 @@ import {
   FileText, HelpCircle, Layers,
   Volume2, Zap, MousePointer, Highlighter
 } from "lucide-react";
-import type { SGRLesson, Question, OutlineQuestion, GrammarPoint, DirectReadingItem } from "./types";
+import type { SGRLesson, Question, OutlineQuestion, DirectReadingItem } from "./types";
 import { loadLessons, SGR_EVENT, syncFromServer } from "./types";
 import { downloadSGRPdf } from "./pdfUtils";
 import { ToeflAiWidget } from "../ToeflAiWidget";
@@ -485,11 +485,12 @@ function firstLetterBlank(word: string): string {
 }
 
 // ─── 직독직해 페이지 (passage 전체 자동 직독직해 + 서브탭) ──
-type DirectReadingSubTab = "direct" | "organization" | "phrases" | "fillblank";
+type DirectReadingSubTab = "direct" | "outline" | "fillblank";
 
 function PageDirectReading({ lesson, showAnswer }: { lesson: SGRLesson; showAnswer: boolean }) {
   const [subTab, setSubTab] = useState<DirectReadingSubTab>("direct");
   const [showChunking, setShowChunking] = useState(true);
+  const [showKeyPhrases, setShowKeyPhrases] = useState(false);
   const [revealedSentences, setRevealedSentences] = useState<Set<string>>(new Set());
   const [expandedGrammar, setExpandedGrammar] = useState<string | null>(null);
   const [viewedSentences, setViewedSentences] = useState<Set<string>>(new Set());
@@ -560,23 +561,53 @@ function PageDirectReading({ lesson, showAnswer }: { lesson: SGRLesson; showAnsw
 
   const progressPercent = Math.round((viewedSentences.size / Math.max(1, autoDirectReading.length)) * 100);
 
-  // 주요 구문 목록
-  const allGrammarPoints = useMemo(() => {
-    const all: Array<{ gp: GrammarPoint; eng: string }> = [];
-    autoDirectReading.forEach(d => {
-      (d.grammarPoints || []).forEach(gp => {
-        all.push({ gp, eng: d.english });
-      });
-    });
-    return all;
-  }, [autoDirectReading]);
-
   const SUB_TABS: Array<{ id: DirectReadingSubTab; label: string }> = [
     { id: "direct", label: "직독직해" },
-    { id: "organization", label: "글의 흐름" },
-    { id: "phrases", label: "주요 구문" },
+    { id: "outline", label: "Outline" },
     { id: "fillblank", label: "빈칸넣기" },
   ];
+
+  // 렛슨의 outline 문제 (Complete the outline) 를 찾아 outline 탭에서 사용
+  const outlineQ = useMemo<OutlineQuestion | null>(() => {
+    const q = lesson.questions.find((x) => x.type === "outline") as
+      | OutlineQuestion
+      | undefined;
+    return q || null;
+  }, [lesson.questions]);
+
+  // ─── 빈칸넣기(passage 전체) 데이터 준비 ─────────────
+  // 핵심단어 후보 = 4자 이상 & SKIP_WORDS 제외. 문단당 최대 4개.
+  const fillBlankData = useMemo(() => {
+    return lesson.passageParagraphs.map((para, pi) => {
+      const words = para.content.split(/(\s+)/); // 공백을 유지해서 분할
+      const wordIndices: number[] = [];
+      words.forEach((w, i) => {
+        if (/\S/.test(w) && isBlankCandidate(w.replace(/[^a-zA-Z']/g, "")))
+          wordIndices.push(i);
+      });
+      // 균등하게 분포된 4개 뽑기
+      const pickCount = Math.min(4, wordIndices.length);
+      const step = wordIndices.length / Math.max(1, pickCount);
+      const blankIdxSet = new Set<number>();
+      for (let k = 0; k < pickCount; k++) {
+        blankIdxSet.add(wordIndices[Math.floor(k * step)]);
+      }
+      let blankNumber = 0;
+      const blanks: Array<{ number: number; answer: string }> = [];
+      const nodes: Array<{ kind: "text" | "blank"; content: string; number?: number; answer?: string }> = [];
+      words.forEach((w, i) => {
+        if (blankIdxSet.has(i)) {
+          blankNumber += 1;
+          const answer = w.replace(/[^a-zA-Z']/g, "");
+          blanks.push({ number: blankNumber, answer });
+          nodes.push({ kind: "blank", content: w, number: blankNumber, answer });
+        } else {
+          nodes.push({ kind: "text", content: w });
+        }
+      });
+      return { paragraphNumber: pi + 1, nodes, blanks };
+    });
+  }, [lesson.passageParagraphs]);
 
   return (
     <div className="max-w-[1600px] mx-auto p-4 lg:p-8">
@@ -633,6 +664,18 @@ function PageDirectReading({ lesson, showAnswer }: { lesson: SGRLesson; showAnsw
             >
               <Eye className="w-3.5 h-3.5" />
               {revealedSentences.size === autoDirectReading.length ? '전체 숨기기' : '전체 해석 보기'}
+            </button>
+            <button
+              onClick={() => setShowKeyPhrases((v) => !v)}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold transition-all ${
+                showKeyPhrases
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'
+              }`}
+              title="핵심 문법 / 주요 구문 표시"
+            >
+              <Zap className="w-3.5 h-3.5" />
+              주요구문 {showKeyPhrases ? 'ON' : 'OFF'}
             </button>
             <span className="ml-auto text-xs text-gray-400 hidden sm:flex items-center gap-1">
               <MousePointer className="w-3 h-3" /> 문장을 클릭하여 해석 확인
@@ -740,7 +783,7 @@ function PageDirectReading({ lesson, showAnswer }: { lesson: SGRLesson; showAnsw
                           {/* Grammar detail expansion */}
                           <AnimatePresence>
                             {s.grammarPoints && s.grammarPoints.map((gp, gi) => (
-                              expandedGrammar === `${s.id}-${gi}` && (
+                              (showKeyPhrases || expandedGrammar === `${s.id}-${gi}`) && (
                                 <motion.div
                                   key={gi}
                                   initial={{ height: 0, opacity: 0 }}
@@ -751,6 +794,7 @@ function PageDirectReading({ lesson, showAnswer }: { lesson: SGRLesson; showAnsw
                                   <div className="mt-2 p-3 bg-indigo-50 dark:bg-indigo-950/30 rounded-lg border border-indigo-100 dark:border-indigo-900">
                                     <div className="flex items-center gap-2 mb-1">
                                       <span className="text-xs font-bold text-indigo-700 dark:text-indigo-400">{gp.type}</span>
+                                      <span className="text-xs font-bold text-indigo-600 dark:text-indigo-300">{gp.label}</span>
                                     </div>
                                     <p className="text-sm text-indigo-600 dark:text-indigo-300 mb-1">
                                       <span className="font-medium bg-indigo-100 dark:bg-indigo-900/50 px-1.5 py-0.5 rounded">"{gp.highlight}"</span>
@@ -761,6 +805,12 @@ function PageDirectReading({ lesson, showAnswer }: { lesson: SGRLesson; showAnsw
                               )
                             ))}
                           </AnimatePresence>
+                          {/* 문법 포인트가 아예 없을 때 주요구문 ON이면 안내 표시 */}
+                          {showKeyPhrases && (!s.grammarPoints || s.grammarPoints.length === 0) && (
+                            <p className="mt-2 text-xs text-gray-400 dark:text-gray-500 italic">
+                              이 문장에 등록된 주요구문이 없습니다.
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -772,139 +822,126 @@ function PageDirectReading({ lesson, showAnswer }: { lesson: SGRLesson; showAnsw
         </>
       )}
 
-      {/* ─── 글의 흐름 (organization) 탭 ─── */}
-      {subTab === "organization" && (
+      {/* ─── Outline 탭 (Complete the outline 스타일) ─── */}
+      {subTab === "outline" && (
         <div className="space-y-3">
           <div className="p-4 bg-cyan-50 dark:bg-cyan-950/30 rounded-xl border border-cyan-200 dark:border-cyan-800">
-            <h3 className="text-base font-bold text-cyan-700 dark:text-cyan-300 mb-1">글의 흐름 (Organization)</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-300">각 단락의 주제 문장에서 빈칸을 채우세요.</p>
+            <h3 className="text-base font-bold text-cyan-700 dark:text-cyan-300 mb-1">Outline</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              지문의 핵심 구조를 두 축으로 정리했습니다. 빈칸에 알맞은 단어를 채워보세요.
+            </p>
           </div>
-          {lesson.passageParagraphs.map((para, pi) => {
-            const sentences = splitSentences(para.content);
-            const topicSent = sentences[0] || para.content;
-            const words = topicSent.split(/\s+/);
-            const candidates: number[] = [];
-            words.forEach((w, j) => { if (isBlankCandidate(w)) candidates.push(j); });
-            const blankIdx = candidates[0] !== undefined ? candidates[0] : -1;
-            return (
-              <div key={para.id} className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-                <div className="flex items-start gap-3">
-                  <span className="shrink-0 px-3 py-1 bg-cyan-600 text-white rounded-full text-sm font-bold">
-                    단락 {pi + 1}
-                  </span>
-                  <p className="text-gray-800 dark:text-gray-100 leading-relaxed flex-1">
-                    {words.map((w, j) => (
-                      <span key={j}>
-                        {j === blankIdx ? (
-                          showAnswer ? (
-                            <span className="inline-block px-2 border-b-2 border-cyan-500 text-cyan-600 dark:text-cyan-300 font-bold">
-                              {w.replace(/[^a-zA-Z']/g, "")}
-                            </span>
-                          ) : (
-                            <span className="inline-block px-2 border-b-2 border-gray-400 dark:border-gray-500 font-mono font-bold text-gray-500">
-                              {firstLetterBlank(w)}
-                            </span>
-                          )
-                        ) : (
-                          <span>{w}</span>
-                        )}
-                        {j < words.length - 1 ? " " : ""}
-                      </span>
-                    ))}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* ─── 주요 구문 탭 ─── */}
-      {subTab === "phrases" && (
-        <div className="space-y-3">
-          <div className="p-4 bg-indigo-50 dark:bg-indigo-950/30 rounded-xl border border-indigo-200 dark:border-indigo-800">
-            <h3 className="text-base font-bold text-indigo-700 dark:text-indigo-300 mb-1">주요 구문 (Key Phrases)</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-300">문장의 핵심 문법 포인트와 구문을 확인하세요.</p>
-          </div>
-          {allGrammarPoints.length > 0 ? (
-            allGrammarPoints.map((item, i) => (
-              <div key={i} className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-                <div className="flex items-start gap-3">
-                  <span className="shrink-0 w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center text-sm font-bold">
-                    {i + 1}
-                  </span>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-500 dark:text-gray-400 italic mb-1">"{item.eng}"</p>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="inline-block text-xs font-bold px-2 py-0.5 bg-indigo-100 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 rounded">
-                        {item.gp.type}
-                      </span>
-                      <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">{item.gp.label}</span>
-                    </div>
-                    <p className="text-sm text-gray-700 dark:text-gray-200 mb-1">
-                      <span className="font-medium bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded">"{item.gp.highlight}"</span>
-                    </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">{item.gp.description}</p>
+          {outlineQ ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[
+                { title: outlineQ.leftTitle, items: outlineQ.leftItems },
+                { title: outlineQ.rightTitle, items: outlineQ.rightItems },
+              ].map((col, ci) => (
+                <div
+                  key={ci}
+                  className="rounded-2xl border-2 border-cyan-200 dark:border-cyan-800 bg-white dark:bg-gray-800 p-4"
+                >
+                  <div className="pb-2 mb-3 border-b border-cyan-200 dark:border-cyan-800 text-center">
+                    <span className="inline-block px-4 py-1 bg-black text-white rounded-full text-sm font-bold">
+                      {col.title}
+                    </span>
                   </div>
+                  <ul className="space-y-2 text-sm text-gray-800 dark:text-gray-100">
+                    {col.items.map((it) => (
+                      <li key={it.id} className="flex gap-2">
+                        <span className="text-cyan-600 dark:text-cyan-400">•</span>
+                        <span>{formatInline(it.text, showAnswer, it.answer)}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-              </div>
-            ))
+              ))}
+            </div>
           ) : (
-            <div className="p-8 text-center text-gray-400 dark:text-gray-500">
-              <Zap className="w-10 h-10 mx-auto mb-2 opacity-40" />
-              <p className="text-sm">주요 구문 데이터가 없습니다.</p>
-              <p className="text-xs mt-1">CMS 직독직해 탭에서 문법 포인트를 추가하거나, AI 튜터에게 문장 분석을 요청해보세요.</p>
+            <div className="p-8 text-center text-gray-400 dark:text-gray-500 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl">
+              <p className="text-sm">이 레슨에는 등록된 Outline 데이터가 없습니다.</p>
+              <p className="text-xs mt-1">CMS의 Questions 탭에서 “Complete the outline” 문제를 추가해주세요.</p>
             </div>
           )}
         </div>
       )}
 
-      {/* ─── 빈칸넣기 탭 ─── */}
+      {/* ─── 빈칸넣기 탭 (Passage 전체 통합 뷰) ─── */}
       {subTab === "fillblank" && (
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div className="p-4 bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-200 dark:border-amber-800">
-            <h3 className="text-base font-bold text-amber-700 dark:text-amber-300 mb-1">Passage 빈칸넣기</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-300">빈칸에 알맞은 단어를 쓰세요. (첫 글자가 주어집니다.)</p>
+            <h3 className="text-base font-bold text-amber-700 dark:text-amber-300 mb-1">
+              Passage 빈칸넣기
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              지문 전체에서 핵심 단어·구문·문법 요소를 빈칸으로 표시했습니다. 알맞은 단어를 채워보세요.
+            </p>
           </div>
-          {lesson.passageParagraphs.map((para, pi) => {
-            const sentences = splitSentences(para.content);
-            return sentences.map((sent, si) => {
-              const words = sent.split(/\s+/);
-              const candidates: number[] = [];
-              words.forEach((w, i) => { if (isBlankCandidate(w)) candidates.push(i); });
-              const blankCount = Math.min(candidates.length, sent.length > 80 ? 2 : 1);
-              const blankIndices = candidates.slice(0, blankCount);
-              return (
-                <div key={`${pi}-${si}`} className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-                  <div className="flex items-start gap-3">
-                    <span className="shrink-0 text-xs font-bold text-cyan-600 dark:text-cyan-400 mt-0.5">
-                      ({pi + 1}-{si + 1})
+
+          {/* 지문 전체 (한 번에 보여줌) */}
+          <div className="p-6 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+            {lesson.passageTitle && (
+              <h4 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4 pb-2 border-b border-gray-100 dark:border-gray-700">
+                {lesson.passageTitle}
+              </h4>
+            )}
+            <div className="space-y-4 text-[16px] leading-[1.9] text-gray-800 dark:text-gray-100">
+              {fillBlankData.map((para) => (
+                <p key={para.paragraphNumber}>
+                  <span className="mr-2 text-xs font-bold text-cyan-600 dark:text-cyan-400">
+                    ({para.paragraphNumber})
+                  </span>
+                  {para.nodes.map((n, i) => {
+                    if (n.kind === "text") return <span key={i}>{n.content}</span>;
+                    return showAnswer ? (
+                      <span
+                        key={i}
+                        className="inline-block px-1.5 mx-0.5 border-b-2 border-cyan-500 text-cyan-600 dark:text-cyan-300 font-bold"
+                      >
+                        {n.answer}
+                      </span>
+                    ) : (
+                      <span
+                        key={i}
+                        className="inline-block min-w-[70px] px-2 mx-0.5 border-b-2 border-gray-400 dark:border-gray-500 text-gray-500 dark:text-gray-400 font-mono font-bold text-center"
+                        title={`빈칸 ${n.number}`}
+                      >
+                        ({n.number})
+                      </span>
+                    );
+                  })}
+                </p>
+              ))}
+            </div>
+          </div>
+
+          {/* 정답 리스트 */}
+          <div className="p-4 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700">
+            <h4 className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">
+              빈칸 정답 목록
+            </h4>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 text-sm">
+              {fillBlankData.flatMap((p) => p.blanks).map((b, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-2 p-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700"
+                >
+                  <span className="shrink-0 w-6 h-6 rounded-full bg-cyan-600 text-white text-xs font-bold flex items-center justify-center">
+                    {b.number}
+                  </span>
+                  {showAnswer ? (
+                    <span className="font-bold text-cyan-700 dark:text-cyan-300">
+                      {b.answer}
                     </span>
-                    <p className="text-gray-800 dark:text-gray-100 leading-relaxed flex-1">
-                      {words.map((w, i) => (
-                        <span key={i}>
-                          {blankIndices.includes(i) ? (
-                            showAnswer ? (
-                              <span className="inline-block px-2 mx-0.5 border-b-2 border-cyan-500 text-cyan-600 dark:text-cyan-300 font-bold">
-                                {w.replace(/[^a-zA-Z']/g, "")}
-                              </span>
-                            ) : (
-                              <span className="inline-block px-2 mx-0.5 border-b-2 border-gray-400 dark:border-gray-500 font-mono font-bold text-gray-500">
-                                {firstLetterBlank(w)}
-                              </span>
-                            )
-                          ) : (
-                            <span>{w}</span>
-                          )}
-                          {i < words.length - 1 ? " " : ""}
-                        </span>
-                      ))}
-                    </p>
-                  </div>
+                  ) : (
+                    <span className="font-mono text-gray-400 dark:text-gray-500">
+                      {firstLetterBlank(b.answer)}
+                    </span>
+                  )}
                 </div>
-              );
-            });
-          })}
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -934,7 +971,7 @@ export default function SGRClassViewer() {
 
   // Tools (drag-popover based highlight/underline/dictionary)
   const [toolsOpen, setToolsOpen] = useState(false);
-  const [language, setLanguage] = useState<"en" | "ko">("en");
+  const [language, setLanguage] = useState<"en" | "ko" | "ch">("en");
   const [popupData, setPopupData] = useState<{ word: string; context: string; x: number; y: number } | null>(null);
   const [clearTrigger, setClearTrigger] = useState(0);
   const [aiTutorOpen, setAiTutorOpen] = useState(false);
@@ -1087,6 +1124,7 @@ export default function SGRClassViewer() {
                   onClearAll={handleClearAll}
                   language={language}
                   onLanguageChange={setLanguage}
+                  enableChinese
                 />
               )}
               <div className="relative group">
@@ -1147,6 +1185,7 @@ export default function SGRClassViewer() {
             y={popupData.y}
             onClose={() => setPopupData(null)}
             onLanguageChange={setLanguage}
+            availableLanguages={["en", "ko", "ch"]}
           />
         )}
 

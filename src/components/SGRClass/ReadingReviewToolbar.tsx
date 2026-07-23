@@ -14,15 +14,19 @@ export const UNDERLINE_COLORS = [
   { name: "빨강", value: "#dc2626" },
 ];
 
+export type ReadingLang = "en" | "ko" | "ch";
+
 interface ReadingReviewToolbarProps {
   activeTool: "highlight" | "underline" | null;
   activeColor?: string;
   onToolChange: (tool: "highlight" | "underline" | null, color?: string) => void;
   onClearAll: () => void;
-  language: "en" | "ko";
-  onLanguageChange: (lang: "en" | "ko") => void;
+  language: ReadingLang;
+  onLanguageChange: (lang: ReadingLang) => void;
   /** 색상 스와치만 표시 (지우기/EN-KO는 ReadingReviewActions 사용) */
   colorsOnly?: boolean;
+  /** true면 EN/KO/CH 3언어. 기본 false → EN/KO. */
+  enableChinese?: boolean;
 }
 
 export function ReadingReviewToolbar({
@@ -33,7 +37,19 @@ export function ReadingReviewToolbar({
   language,
   onLanguageChange,
   colorsOnly = false,
+  enableChinese = false,
 }: ReadingReviewToolbarProps) {
+  const langs: ReadingLang[] = enableChinese ? ["en", "ko", "ch"] : ["en", "ko"];
+  const cycleLang = () => {
+    const i = langs.indexOf(language);
+    onLanguageChange(langs[(i + 1) % langs.length]);
+  };
+  const langBtnClass = (l: ReadingLang) =>
+    `px-1.5 py-0.5 rounded ${
+      language === l
+        ? "bg-[#1e6b73] text-white"
+        : "bg-gray-200 dark:bg-gray-600 dark:text-gray-200"
+    }`;
   return (
     <div className="flex flex-wrap items-center gap-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 shadow-sm">
       {/* 하이라이트 색상 3종 — 다시 누륩면 해제 (토글) */}
@@ -99,14 +115,20 @@ export function ReadingReviewToolbar({
 
           {/* 언어 토글 */}
           <button
-            onClick={() => onLanguageChange(language === "en" ? "ko" : "en")}
+            onClick={cycleLang}
             className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             title="단어 뜻 언어 전환"
           >
             <Globe size={14} />
-            <span className={`px-1.5 py-0.5 rounded ${language === "en" ? "bg-[#1e6b73] text-white" : "bg-gray-200 dark:bg-gray-600 dark:text-gray-200"}`}>EN</span>
+            <span className={langBtnClass("en")}>EN</span>
             <span className="text-gray-300 dark:text-gray-500">|</span>
-            <span className={`px-1.5 py-0.5 rounded ${language === "ko" ? "bg-[#1e6b73] text-white" : "bg-gray-200 dark:bg-gray-600 dark:text-gray-200"}`}>KO</span>
+            <span className={langBtnClass("ko")}>KO</span>
+            {enableChinese && (
+              <>
+                <span className="text-gray-300 dark:text-gray-500">|</span>
+                <span className={langBtnClass("ch")}>CH</span>
+              </>
+            )}
           </button>
         </>
       )}
@@ -116,12 +138,35 @@ export function ReadingReviewToolbar({
 
 interface ReadingReviewActionsProps {
   onClearAll: () => void;
-  language: "en" | "ko";
-  onLanguageChange: (lang: "en" | "ko") => void;
+  language: ReadingLang;
+  onLanguageChange: (lang: ReadingLang) => void;
+  /** true면 EN/KO/CH 3언어. 기본 false → EN/KO. */
+  enableChinese?: boolean;
 }
 
-/** 지우기 + EN/KO 토글만 (다크모드 버튼 옆 배치용) */
-export function ReadingReviewActions({ onClearAll, language, onLanguageChange }: ReadingReviewActionsProps) {
+/** 지우기 + EN/KO(/CH) 토글만 (다크모드 버튼 옆 배치용) */
+export function ReadingReviewActions({
+  onClearAll,
+  language,
+  onLanguageChange,
+  enableChinese = false,
+}: ReadingReviewActionsProps) {
+  const langs: ReadingLang[] = enableChinese ? ["en", "ko", "ch"] : ["en", "ko"];
+  const cycleLang = () => {
+    const i = langs.indexOf(language);
+    onLanguageChange(langs[(i + 1) % langs.length]);
+  };
+  const pill = (l: ReadingLang, text: string) => (
+    <span
+      className={`px-1.5 py-0.5 rounded ${
+        language === l
+          ? "bg-cyan-600 text-white"
+          : "bg-gray-200 dark:bg-gray-600 dark:text-gray-200"
+      }`}
+    >
+      {text}
+    </span>
+  );
   return (
     <div className="flex items-center gap-2">
       <button
@@ -133,14 +178,20 @@ export function ReadingReviewActions({ onClearAll, language, onLanguageChange }:
         <span className="hidden sm:inline">지우기</span>
       </button>
       <button
-        onClick={() => onLanguageChange(language === "en" ? "ko" : "en")}
+        onClick={cycleLang}
         className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
         title="단어 뜻 언어 전환"
       >
         <Globe size={14} />
-        <span className={`px-1.5 py-0.5 rounded ${language === "en" ? "bg-cyan-600 text-white" : "bg-gray-200 dark:bg-gray-600 dark:text-gray-200"}`}>EN</span>
+        {pill("en", "EN")}
         <span className="text-gray-300 dark:text-gray-500">|</span>
-        <span className={`px-1.5 py-0.5 rounded ${language === "ko" ? "bg-cyan-600 text-white" : "bg-gray-200 dark:bg-gray-600 dark:text-gray-200"}`}>KO</span>
+        {pill("ko", "KO")}
+        {enableChinese && (
+          <>
+            <span className="text-gray-300 dark:text-gray-500">|</span>
+            {pill("ch", "CH")}
+          </>
+        )}
       </button>
     </div>
   );

@@ -295,7 +295,7 @@ export default function SGRWritingViewer() {
 
   // Tools (drag-popover based highlight/underline/dictionary)
   const [toolsOpen, setToolsOpen] = useState(false);
-  const [language, setLanguage] = useState<"en" | "ko">("en");
+  const [language, setLanguage] = useState<"en" | "ko" | "ch">("en");
   const [popupData, setPopupData] = useState<{ word: string; context: string; x: number; y: number } | null>(null);
   const [clearTrigger, setClearTrigger] = useState(0);
   const [aiTutorOpen, setAiTutorOpen] = useState(false);
