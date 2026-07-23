@@ -109,11 +109,143 @@ export interface DirectReadingItem {
   grammarPoints?: GrammarPoint[];
 }
 
+// ─── 책 종류 (bookType) ─────────────────────────────
+// 하나의 SGR Class 인스턴스에 여러 책 유형의 레슨이 공존한다.
+// - "sgr_original": 기본 SGR Class 형식
+// - "reading_explore": Reading Explorer 형식 (사진 2-4)
+// - 추후 확장 가능
+export type BookType = "american_textbook" | "reading_explore" | string;
+
+export const BOOK_TYPE_META: Record<string, { label: string; color: string; description: string }> = {
+  american_textbook: {
+    label: "American Textbook",
+    color: "from-cyan-500 to-blue-600",
+    description: "기본 American Textbook 형식 (Preview / Passage / Questions / Vocab / 직독직해)",
+  },
+  reading_explore: {
+    label: "Reading Explorer",
+    color: "from-violet-500 to-fuchsia-600",
+    description: "Reading / Comprehension / Reading Skill / Vocabulary Practice 4단 구성",
+  },
+};
+
+/** 예전 값(sgr_original) 및 미지정 → american_textbook 로 정규화 */
+export function normalizeBookType(bt?: string | null): BookType {
+  if (!bt || bt === "sgr_original") return "american_textbook";
+  return bt as BookType;
+}
+
+// ─── Reading Explore 컨텐츠 ─────────────────────────
+export interface RELabeledParagraph {
+  id: string;
+  label: string;        // "A", "B", "C" ...
+  content: string;      // supports **bold** / __underline__ / ==red== 표시
+  imageCaption?: string;
+}
+
+export interface REFootnote {
+  id: string;
+  marker: string;       // "1", "2", ...
+  text: string;         // 짧은 정의
+}
+
+export interface REReading {
+  headline: string;             // 큰 제목
+  headlineAccent?: string;      // 강조 부분 (색이 다른 부분)
+  intro?: string;               // italic 도입 문장
+  paragraphs: RELabeledParagraph[];
+  subheads?: Array<{ afterParagraphId: string; text: string }>; // 특정 단락 뒤에 소제목
+  footnotes: REFootnote[];
+}
+
+export interface REComprehensionMcq {
+  id: string;
+  category: string;             // "MAIN IDEA" | "DETAIL" | "VOCABULARY" | "INFERENCE" ...
+  question: string;
+  options: string[];
+  answer: number;
+}
+
+export interface REMatchingItem {
+  id: string;
+  statement: string;
+  answer: string;               // "a" | "b" | "c" ...
+}
+
+export interface REMatchingBlock {
+  category: string;             // "APPLYING IDEAS"
+  instruction: string;
+  choices: Array<{ letter: string; text: string }>;
+  items: REMatchingItem[];
+}
+
+export interface REConceptMapNode {
+  id: string;
+  /** 배치: 중심(center) / 주요(major) / 세부(leaf) */
+  kind: "center" | "major" | "leaf";
+  /** major의 부모는 center id, leaf의 부모는 major id */
+  parentId?: string;
+  /** 노드 내 표시 텍스트. ___ 위치에 빈칸 정답을 넣는다 */
+  text: string;
+  /** 빈칸 정답 (순서대로) */
+  answers?: string[];
+}
+
+export interface REConceptMap {
+  title: string;                // "Organizing Information (1)—Creating a Concept Map"
+  intro: string;                // 스킬 설명
+  nodes: REConceptMapNode[];
+}
+
+export interface REVocabCompletion {
+  bank: string[];
+  /** 문단 내 여러 빈칸을 원문 순서대로 배치 */
+  text: string;                 // 본문. ___ 로 빈칸 표시
+  answers: string[];            // 빈칸 정답 순서대로
+}
+
+export interface REDefinitionMatchItem {
+  id: string;
+  word: string;
+  definition: string;
+}
+
+export interface REWordFormItem {
+  id: string;
+  sentence: string;             // "I find that singing is really ___."
+  options: string[];            // ["embarrassed", "embarrassing"]
+  answer: number;
+}
+
+export interface REWordForms {
+  explanation: string;
+  items: REWordFormItem[];
+}
+
+export interface REVocabularyPractice {
+  completion: REVocabCompletion;
+  definitionMatch: REDefinitionMatchItem[];
+  wordForms: REWordForms;
+}
+
+export interface ReadingExploreContent {
+  reading: REReading;
+  comprehension: {
+    mcq: REComprehensionMcq[];
+    matching?: REMatchingBlock;
+  };
+  readingSkill: REConceptMap;
+  vocabPractice: REVocabularyPractice;
+}
+
 // ─── Full lesson ───────────────────────────────────
 export interface SGRLesson {
   id: string;
   createdAt: number;
   updatedAt: number;
+
+  /** 책 종류 - 없으면 "sgr_original" */
+  bookType?: BookType;
 
   // meta
   unitNumber: string;         // "01"
@@ -141,20 +273,37 @@ export interface SGRLesson {
 
   // (optional) Direct reading tool - authored in CMS
   directReading: DirectReadingItem[];
+
+  /** bookType === "reading_explore" 일 때 사용 */
+  readingExplore?: ReadingExploreContent;
 }
 
 // ─── Storage ───────────────────────────────────────
 export const SGR_STORAGE_KEY = "sgrClass_lessons";
 export const SGR_EVENT = "sgrClassUpdated";
 
+/** 저장된 레슨을 현행 데이터 스키마로 정규화 */
+function migrateLessons(list: SGRLesson[]): SGRLesson[] {
+  return list.map((l) => ({
+    ...l,
+    bookType: normalizeBookType((l as any).bookType),
+  }));
+}
+
+/** 초기 시드에 두 개의 book type 샘플을 포함 (Reading Explorer 자리 확보) */
+function initialSeed(): SGRLesson[] {
+  return [SAMPLE_LESSON, SAMPLE_READING_EXPLORE_LESSON];
+}
+
 export function loadLessons(): SGRLesson[] {
   try {
     const raw = localStorage.getItem(SGR_STORAGE_KEY);
-    if (!raw) return [SAMPLE_LESSON];
+    if (!raw) return initialSeed();
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : [SAMPLE_LESSON];
+    if (!Array.isArray(parsed) || parsed.length === 0) return initialSeed();
+    return migrateLessons(parsed);
   } catch {
-    return [SAMPLE_LESSON];
+    return initialSeed();
   }
 }
 
@@ -279,9 +428,10 @@ export function emptyVocabReviewItem(): VocabReviewItem {
   return { id: uid(), sentence: "", answer: "" };
 }
 
-// ─── Sample lesson (matches uploaded textbook screenshots) ─
+// ─── Sample lesson (American Textbook 자리 채움) ─
 export const SAMPLE_LESSON: SGRLesson = {
   id: "sample-us-geography",
+  bookType: "american_textbook",
   createdAt: Date.now(),
   updatedAt: Date.now(),
   unitNumber: "01",
@@ -507,4 +657,149 @@ export const SAMPLE_LESSON: SGRLesson = {
       ],
     },
   ],
+};
+
+// ─── Sample lesson (Reading Explorer 자리 채움 · 실제 컨텐츠는 CMS/CSV에서 등록) ─
+export const SAMPLE_READING_EXPLORE_LESSON: SGRLesson = {
+  id: "sample-reading-explore",
+  bookType: "reading_explore",
+  createdAt: Date.now(),
+  updatedAt: Date.now(),
+  unitNumber: "01",
+  title: "Sample Reading Explorer Unit",
+  subject: "영어",
+  category: "샘플",
+  previewQuestion: "",
+  previewCards: [],
+  vocabularyPreview: [],
+  vocabPreviewInstruction: "",
+  passageTitle: "",
+  passageParagraphs: [],
+  questions: [],
+  vocabReview: { wordBank: [], items: [] },
+  directReading: [],
+  readingExplore: {
+    reading: {
+      headline: "SAMPLE",
+      headlineAccent: "PLACEHOLDER",
+      intro: "This unit is a structural placeholder — replace with your own passage in the CMS.",
+      paragraphs: [
+        {
+          id: "p1",
+          label: "A",
+          content:
+            "Type your first paragraph here. You can mark ==key vocab== to render in red, wrap key phrases in **bold**, or add __underline__ where useful.",
+        },
+        {
+          id: "p2",
+          label: "B",
+          content:
+            "This is the second paragraph slot. Add as many as you need. Each paragraph gets its own letter label on the left.",
+          imageCaption: "Image caption goes here",
+        },
+      ],
+      subheads: [],
+      footnotes: [
+        { id: "f1", marker: "1", text: "Add short vocabulary notes here." },
+      ],
+    },
+    comprehension: {
+      mcq: [
+        {
+          id: "cq1",
+          category: "MAIN IDEA",
+          question: "What is the main idea of the passage?",
+          options: [
+            "Option A placeholder.",
+            "Option B placeholder.",
+            "Option C placeholder.",
+          ],
+          answer: 0,
+        },
+        {
+          id: "cq2",
+          category: "DETAIL",
+          question: "Which detail matches the passage?",
+          options: [
+            "Detail option A.",
+            "Detail option B.",
+            "Detail option C.",
+          ],
+          answer: 1,
+        },
+      ],
+      matching: {
+        category: "APPLYING IDEAS",
+        instruction:
+          "Read the statements (1-4). Match each statement to a choice (a-c).",
+        choices: [
+          { letter: "a", text: "Choice A description." },
+          { letter: "b", text: "Choice B description." },
+          { letter: "c", text: "Choice C description." },
+        ],
+        items: [
+          { id: "m1", statement: "Sample statement one.", answer: "a" },
+          { id: "m2", statement: "Sample statement two.", answer: "b" },
+          { id: "m3", statement: "Sample statement three.", answer: "c" },
+          { id: "m4", statement: "Sample statement four.", answer: "a" },
+        ],
+      },
+    },
+    readingSkill: {
+      title: "Organizing Information — Creating a Concept Map",
+      intro:
+        "Fill in the blanks in this concept map with information drawn from your reading passage.",
+      nodes: [
+        { id: "n_center", kind: "center", text: "Main Topic" },
+        { id: "n_major1", kind: "major", parentId: "n_center", text: "Key Idea 1" },
+        { id: "n_major2", kind: "major", parentId: "n_center", text: "Key Idea 2" },
+        {
+          id: "n_leaf1",
+          kind: "leaf",
+          parentId: "n_major1",
+          text: "Detail: ___ supports Key Idea 1.",
+          answers: ["evidence"],
+        },
+        {
+          id: "n_leaf2",
+          kind: "leaf",
+          parentId: "n_major2",
+          text: "Detail: uses ___ as an example.",
+          answers: ["example"],
+        },
+      ],
+    },
+    vocabPractice: {
+      completion: {
+        bank: ["word1", "word2", "word3", "word4"],
+        text:
+          "Use the words in the box to complete this short paragraph. First blank goes here ___. Second blank goes here ___. Third blank ___. Final blank ___.",
+        answers: ["word1", "word2", "word3", "word4"],
+      },
+      definitionMatch: [
+        { id: "d1", word: "word1", definition: "definition of word 1" },
+        { id: "d2", word: "word2", definition: "definition of word 2" },
+        { id: "d3", word: "word3", definition: "definition of word 3" },
+        { id: "d4", word: "word4", definition: "definition of word 4" },
+      ],
+      wordForms: {
+        explanation:
+          "Some adjectives end with -ed or -ing. The -ed form describes how you feel; the -ing form describes what causes the feeling.",
+        items: [
+          {
+            id: "wf1",
+            sentence: "1. I felt very ___ during the lecture.",
+            options: ["bored", "boring"],
+            answer: 0,
+          },
+          {
+            id: "wf2",
+            sentence: "2. The movie was really ___.",
+            options: ["excited", "exciting"],
+            answer: 1,
+          },
+        ],
+      },
+    },
+  },
 };

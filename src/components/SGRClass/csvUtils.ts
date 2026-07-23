@@ -128,6 +128,7 @@ export function parseCsvToLesson(csv: string): SGRLesson {
         else if (k === "previewQuestion") lesson.previewQuestion = v1 || "";
         else if (k === "passageTitle") lesson.passageTitle = v1 || "";
         else if (k === "vocabPreviewInstruction") lesson.vocabPreviewInstruction = v1 || lesson.vocabPreviewInstruction;
+        else if (k === "bookType") lesson.bookType = (v1 || "sgr_original") as any;
         break;
       }
       case "PREVIEW_CARD": {
@@ -265,6 +266,7 @@ export function lessonToCsv(lesson: SGRLesson): string {
   rows.push(["META", "previewQuestion", lesson.previewQuestion]);
   rows.push(["META", "passageTitle", lesson.passageTitle]);
   rows.push(["META", "vocabPreviewInstruction", lesson.vocabPreviewInstruction]);
+  if (lesson.bookType) rows.push(["META", "bookType", lesson.bookType]);
 
   // preview cards
   lesson.previewCards.forEach(c => rows.push(["PREVIEW_CARD", "", c.caption]));

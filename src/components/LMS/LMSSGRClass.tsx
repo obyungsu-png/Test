@@ -11,8 +11,9 @@ import type {
   SGRLesson, Question, McqQuestion, FillBlankQuestion,
   CompleteSentenceQuestion, OutlineQuestion, TrueFalseQuestion,
   PreviewCard, VocabPreviewItem, PassageParagraph, DirectReadingItem, VocabReviewItem,
-  GrammarPoint,
+  GrammarPoint, BookType,
 } from "../SGRClass/types";
+import { BOOK_TYPE_META, normalizeBookType } from "../SGRClass/types";
 import {
   loadLessons, saveLessons, emptyLesson, emptyPreviewCard,
   emptyVocabPreview, emptyParagraph, emptyMcq, emptyFillBlank,
@@ -109,15 +110,29 @@ export default function LMSSGRClass() {
     [lessons, selectedId]
   );
 
+  const [bookTypeFilter, setBookTypeFilter] = useState<BookType | "all">("all");
+
   const filteredLessons = useMemo(() => {
-    if (!search.trim()) return lessons;
-    const s = search.toLowerCase();
-    return lessons.filter(l =>
-      l.title.toLowerCase().includes(s) ||
-      l.unitNumber.includes(s) ||
-      (l.category || "").toLowerCase().includes(s)
-    );
-  }, [lessons, search]);
+    const s = search.trim().toLowerCase();
+    return lessons.filter(l => {
+      if (bookTypeFilter !== "all" && normalizeBookType(l.bookType) !== bookTypeFilter) return false;
+      if (!s) return true;
+      return (
+        l.title.toLowerCase().includes(s) ||
+        l.unitNumber.includes(s) ||
+        (l.category || "").toLowerCase().includes(s)
+      );
+    });
+  }, [lessons, search, bookTypeFilter]);
+
+  const bookTypeCounts = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const l of lessons) {
+      const bt = normalizeBookType(l.bookType);
+      map[bt] = (map[bt] || 0) + 1;
+    }
+    return map;
+  }, [lessons]);
 
   // Helpers to mutate the selected lesson
   const patchSelected = (patch: Partial<SGRLesson>) => {
@@ -392,6 +407,37 @@ export default function LMSSGRClass() {
             placeholder="검색..."
             className="w-full px-3 py-1.5 mb-2 border border-gray-300 rounded-lg text-sm"
           />
+          {/* 책 종류 필터 */}
+          <div className="flex flex-wrap gap-1 mb-2">
+            <button
+              onClick={() => setBookTypeFilter("all")}
+              className={`text-[11px] font-bold px-2 py-1 rounded-full transition-colors ${
+                bookTypeFilter === "all"
+                  ? "bg-gray-800 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              전체 ({lessons.length})
+            </button>
+            {Object.entries(BOOK_TYPE_META).map(([id, meta]) => {
+              const active = bookTypeFilter === id;
+              const cnt = bookTypeCounts[id] || 0;
+              return (
+                <button
+                  key={id}
+                  onClick={() => setBookTypeFilter(id as BookType)}
+                  className={`text-[11px] font-bold px-2 py-1 rounded-full transition-colors ${
+                    active
+                      ? "bg-cyan-600 text-white"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                  title={meta.description}
+                >
+                  {meta.label} ({cnt})
+                </button>
+              );
+            })}
+          </div>
           <div className="space-y-1 max-h-[560px] overflow-y-auto pr-1">
             {filteredLessons.length === 0 && (
               <p className="text-xs text-gray-400 py-4 text-center">
@@ -409,8 +455,13 @@ export default function LMSSGRClass() {
                   onClick={() => setSelectedId(l.id)}
                   className="flex-1 text-left px-3 py-2"
                 >
-                  <div className="text-[10px] font-bold text-cyan-600">
-                    Unit {l.unitNumber}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-bold text-cyan-600">
+                      Unit {l.unitNumber}
+                    </span>
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                      {BOOK_TYPE_META[normalizeBookType(l.bookType)]?.label || l.bookType}
+                    </span>
                   </div>
                   <div className="text-sm font-semibold text-gray-800 truncate">
                     {l.title || "(제목 없음)"}
@@ -572,7 +623,7 @@ export default function LMSSGRClass() {
                   <p>CSV 파일 첫 열은 <b>section</b>, 두번째는 <b>key</b>, 나머지는 <b>value1~value4</b>입니다.</p>
                   <p className="text-xs text-gray-500 mt-1">대량 업로드: META,title 행이 여러 개 있으면 각각 새 레슨으로 분할됩니다.</p>
                   <ul className="list-disc pl-5 space-y-1 text-xs mt-2">
-                    <li><b>META</b> — key: title, unitNumber, subject, category, previewQuestion, passageTitle, vocabPreviewInstruction</li>
+                    <li><b>META</b> — key: title, unitNumber, subject, category, previewQuestion, passageTitle, vocabPreviewInstruction, <b>bookType</b> (american_textbook | reading_explore)</li>
                     <li><b>PREVIEW_CARD</b> — value1: 캡션</li>
                     <li><b>VOCAB_PREVIEW</b> — value1: 단어, value2: 뜻</li>
                     <li><b>PARAGRAPH</b> — value1: 본문 (**굵게**), value2: 이미지 캡션(선택)</li>
@@ -653,6 +704,23 @@ function OverviewEditor({
         <Field label="제목" value={lesson.title} onChange={(v) => onPatch({ title: v })} placeholder="The U.S. Geography" />
         <Field label="과목" value={lesson.subject} onChange={(v) => onPatch({ subject: v })} placeholder="영어" />
         <Field label="카테고리" value={lesson.category || ""} onChange={(v) => onPatch({ category: v })} placeholder="중등영어1-1" />
+        <div>
+          <label className="block text-xs font-bold text-gray-600 mb-1">책 종류 (Book Type)</label>
+          <select
+            value={normalizeBookType(lesson.bookType)}
+            onChange={(e) => onPatch({ bookType: e.target.value as BookType })}
+            className="w-full text-sm px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-800"
+          >
+            {Object.entries(BOOK_TYPE_META).map(([id, meta]) => (
+              <option key={id} value={id}>
+                {meta.label}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-gray-500">
+            {BOOK_TYPE_META[normalizeBookType(lesson.bookType)]?.description}
+          </p>
+        </div>
       </div>
       <div className="mt-6 p-4 bg-gray-50 rounded-lg text-sm text-gray-600">
         <p className="font-bold mb-2">📝 편집 팁</p>

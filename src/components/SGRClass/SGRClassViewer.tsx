@@ -6,8 +6,9 @@ import {
   FileText, HelpCircle, Layers,
   Volume2, Zap, MousePointer, Highlighter
 } from "lucide-react";
-import type { SGRLesson, Question, OutlineQuestion, DirectReadingItem } from "./types";
-import { loadLessons, SGR_EVENT, syncFromServer } from "./types";
+import type { SGRLesson, Question, OutlineQuestion, DirectReadingItem, BookType } from "./types";
+import { loadLessons, SGR_EVENT, syncFromServer, BOOK_TYPE_META, normalizeBookType } from "./types";
+import { ReadingExploreRenderer } from "./ReadingExploreRenderer";
 import { downloadSGRPdf } from "./pdfUtils";
 import { ToeflAiWidget } from "../ToeflAiWidget";
 import { WordPopup } from "./WordPopup";
@@ -16,6 +17,7 @@ import { ReadingReviewPassage } from "./ReadingReviewPassage";
 import { ReadingReviewActions } from "./ReadingReviewToolbar";
 import { DrawingCanvas } from "./DrawingCanvas";
 import "../../utils/sgrClassApi"; // 서버 연동 함수 등록
+import { useAnswers, isTextCorrect, type AnswerValue } from "./answerState";
 
 // ─── inline formatter: **bold**, __underline__, ___blank___ ──
 function formatInline(text: string, showAnswer: boolean, answer?: string) {
@@ -242,9 +244,13 @@ function PagePassage({ lesson, dark }: { lesson: SGRLesson; dark: boolean }) {
 }
 
 function QuestionRenderer({
-  q, index, showAnswer,
+  q, index, showAnswer, answers, onAnswer,
 }: {
-  q: Question; index: number; showAnswer: boolean;
+  q: Question;
+  index: number;
+  showAnswer: boolean;
+  answers: Record<string, AnswerValue>;
+  onAnswer: (key: string, v: AnswerValue) => void;
 }) {
   const numBadge = (
     <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-cyan-600 text-white font-bold text-sm shrink-0">
@@ -253,6 +259,8 @@ function QuestionRenderer({
   );
 
   if (q.type === "main_idea" || q.type === "multiple_choice" || q.type === "vocabulary") {
+    const picked = answers[q.id];
+    const pickedIdx = typeof picked === "number" ? picked : null;
     return (
       <div className="p-5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
         <div className="flex gap-3 mb-3">
@@ -262,33 +270,53 @@ function QuestionRenderer({
           </p>
         </div>
         <div className="ml-11 space-y-2">
-          {q.options.map((o, i) => (
-            <div
-              key={i}
-              className={`p-3 rounded-lg border-2 transition-colors ${
-                showAnswer && i === q.answer
-                  ? "border-cyan-500 bg-cyan-50 dark:bg-cyan-950/40 text-cyan-800 dark:text-cyan-200 font-bold"
-                  : "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-200"
-              }`}
-            >
-              <span className="font-bold mr-2">{String.fromCharCode(97 + i)}.</span>
-              {o}
-              {showAnswer && i === q.answer && <span className="ml-2">✓</span>}
-            </div>
-          ))}
+          {q.options.map((o, i) => {
+            const isCorrect = i === q.answer;
+            const isPicked = pickedIdx === i;
+            let cls =
+              "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:border-cyan-300 dark:hover:border-cyan-700";
+            if (showAnswer && isCorrect) {
+              cls = "border-cyan-500 bg-cyan-50 dark:bg-cyan-950/40 text-cyan-800 dark:text-cyan-200 font-bold";
+            } else if (isPicked && showAnswer && !isCorrect) {
+              cls = "border-red-400 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300";
+            } else if (isPicked) {
+              cls = "border-cyan-500 bg-cyan-50/60 dark:bg-cyan-950/20 text-cyan-800 dark:text-cyan-200";
+            }
+            return (
+              <button
+                type="button"
+                key={i}
+                onClick={() => onAnswer(q.id, isPicked ? null : i)}
+                className={`w-full text-left p-3 rounded-lg border-2 transition-colors ${cls}`}
+              >
+                <span className="font-bold mr-2">{String.fromCharCode(97 + i)}.</span>
+                {o}
+                {showAnswer && isCorrect && <span className="ml-2">✓</span>}
+                {isPicked && showAnswer && !isCorrect && <span className="ml-2">✗</span>}
+                {isPicked && !showAnswer && (
+                  <span className="ml-2 text-cyan-500">●</span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
     );
   }
 
   if (q.type === "fill_blank") {
+    const key = `${q.id}:0`;
+    const val = typeof answers[key] === "string" ? (answers[key] as string) : "";
+    const correct = isTextCorrect(val, q.answer);
     return (
       <div className="p-5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
         <div className="flex gap-3">
           {numBadge}
-          <p className="text-lg lg:text-xl text-gray-800 dark:text-gray-100">
-            {formatInline(q.question, showAnswer, q.answer)}
-          </p>
+          <div className="flex-1">
+            <p className="text-lg lg:text-xl text-gray-800 dark:text-gray-100">
+              {renderWithInput(q.question, val, (v) => onAnswer(key, v), showAnswer, q.answer, correct)}
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -311,19 +339,26 @@ function QuestionRenderer({
           </div>
         )}
         <div className="ml-11 space-y-3">
-          {q.sentences.map((s, i) => (
-            <div key={s.id} className="flex gap-2 text-lg text-gray-800 dark:text-gray-100">
-              <span className="font-bold text-cyan-600 dark:text-cyan-400">{String.fromCharCode(97 + i)}.</span>
-              <span>{formatInline(s.text, showAnswer, s.answer)}</span>
-            </div>
-          ))}
+          {q.sentences.map((s, i) => {
+            const key = `${q.id}:${s.id}`;
+            const val = typeof answers[key] === "string" ? (answers[key] as string) : "";
+            const correct = isTextCorrect(val, s.answer);
+            return (
+              <div key={s.id} className="flex gap-2 text-lg text-gray-800 dark:text-gray-100">
+                <span className="font-bold text-cyan-600 dark:text-cyan-400">{String.fromCharCode(97 + i)}.</span>
+                <span className="flex-1">
+                  {renderWithInput(s.text, val, (v) => onAnswer(key, v), showAnswer, s.answer, correct)}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
     );
   }
 
   if (q.type === "outline") {
-    const col = (title: string, items: OutlineQuestion["leftItems"]) => (
+    const col = (title: string, items: OutlineQuestion["leftItems"], side: string) => (
       <div className="rounded-xl border-2 border-cyan-200 dark:border-cyan-800 bg-white dark:bg-gray-800 p-4">
         <div className="pb-2 mb-3 border-b border-cyan-200 dark:border-cyan-800 text-center">
           <span className="inline-block px-4 py-1 bg-black text-white rounded-full text-sm font-bold">
@@ -331,12 +366,22 @@ function QuestionRenderer({
           </span>
         </div>
         <ul className="space-y-2 text-sm text-gray-800 dark:text-gray-100">
-          {items.map((it) => (
-            <li key={it.id} className="flex gap-2">
-              <span className="text-cyan-600 dark:text-cyan-400">•</span>
-              <span>{formatInline(it.text, showAnswer, it.answer)}</span>
-            </li>
-          ))}
+          {items.map((it) => {
+            const key = `${q.id}:${side}:${it.id}`;
+            const val = typeof answers[key] === "string" ? (answers[key] as string) : "";
+            const hasBlank = /___/.test(it.text) && it.answer;
+            const correct = hasBlank ? isTextCorrect(val, it.answer || "") : false;
+            return (
+              <li key={it.id} className="flex gap-2">
+                <span className="text-cyan-600 dark:text-cyan-400">•</span>
+                <span className="flex-1">
+                  {hasBlank
+                    ? renderWithInput(it.text, val, (v) => onAnswer(key, v), showAnswer, it.answer || "", correct)
+                    : formatInline(it.text, showAnswer, it.answer)}
+                </span>
+              </li>
+            );
+          })}
         </ul>
       </div>
     );
@@ -349,8 +394,8 @@ function QuestionRenderer({
           </p>
         </div>
         <div className="ml-11 grid grid-cols-1 md:grid-cols-2 gap-4">
-          {col(q.leftTitle, q.leftItems)}
-          {col(q.rightTitle, q.rightItems)}
+          {col(q.leftTitle, q.leftItems, "L")}
+          {col(q.rightTitle, q.rightItems, "R")}
         </div>
       </div>
     );
@@ -369,22 +414,43 @@ function QuestionRenderer({
           </div>
         </div>
         <div className="ml-11 space-y-2">
-          {q.statements.map((s, i) => (
-            <div key={s.id} className="flex items-center gap-3 text-lg text-gray-800 dark:text-gray-100">
-              <span className="font-bold text-cyan-600 dark:text-cyan-400">{i + 1}</span>
-              <span className="flex-1">{s.text}</span>
-              <span className={`px-3 py-1 rounded border-2 font-bold text-sm ${
-                showAnswer && s.answer
-                  ? "border-cyan-500 bg-cyan-100 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300"
-                  : "border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400"
-              }`}>T {showAnswer && s.answer && "✓"}</span>
-              <span className={`px-3 py-1 rounded border-2 font-bold text-sm ${
-                showAnswer && !s.answer
-                  ? "border-cyan-500 bg-cyan-100 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300"
-                  : "border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400"
-              }`}>F {showAnswer && !s.answer && "✓"}</span>
-            </div>
-          ))}
+          {q.statements.map((s, i) => {
+            const key = `${q.id}:${s.id}`;
+            const raw = answers[key];
+            const picked = typeof raw === "boolean" ? raw : null;
+            const pill = (label: string, value: boolean) => {
+              const isPicked = picked === value;
+              const isCorrect = s.answer === value;
+              let cls = "border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-cyan-400";
+              if (showAnswer && isCorrect) {
+                cls = "border-cyan-500 bg-cyan-100 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300";
+              } else if (isPicked && showAnswer && !isCorrect) {
+                cls = "border-red-400 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300";
+              } else if (isPicked) {
+                cls = "border-cyan-500 bg-cyan-50 dark:bg-cyan-950/20 text-cyan-700 dark:text-cyan-300";
+              }
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => onAnswer(key, isPicked ? null : value)}
+                  className={`px-3 py-1 rounded border-2 font-bold text-sm transition-colors ${cls}`}
+                >
+                  {label}
+                  {showAnswer && isCorrect && " ✓"}
+                  {isPicked && showAnswer && !isCorrect && " ✗"}
+                </button>
+              );
+            };
+            return (
+              <div key={s.id} className="flex items-center gap-3 text-lg text-gray-800 dark:text-gray-100">
+                <span className="font-bold text-cyan-600 dark:text-cyan-400">{i + 1}</span>
+                <span className="flex-1">{s.text}</span>
+                {pill("T", true)}
+                {pill("F", false)}
+              </div>
+            );
+          })}
         </div>
       </div>
     );
@@ -393,17 +459,74 @@ function QuestionRenderer({
   return null;
 }
 
+// ─── 텍스트에 ___ 자리마다 입력 필드를 렌더 ─────────
+function renderWithInput(
+  text: string,
+  value: string,
+  onChange: (v: string) => void,
+  showAnswer: boolean,
+  answer: string,
+  correct: boolean
+): React.ReactNode {
+  const parts = text.split(/(?:___|_{2,})/);
+  const first = parts[0] ?? "";
+  const rest = parts.slice(1);
+  return (
+    <>
+      {formatInline(first, false, "")}
+      {rest.map((p, i) => {
+        const inputCls = showAnswer
+          ? correct
+            ? "border-cyan-500 text-cyan-700 dark:text-cyan-300"
+            : "border-red-400 text-red-600 dark:text-red-400"
+          : "border-gray-400 dark:border-gray-500 text-gray-800 dark:text-gray-100 focus:border-cyan-500";
+        return (
+          <span key={i}>
+            <input
+              type="text"
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              className={`inline-block min-w-[80px] max-w-[180px] mx-1 px-2 py-0.5 border-b-2 bg-transparent outline-none font-bold ${inputCls}`}
+              placeholder={showAnswer ? answer : "___"}
+            />
+            {showAnswer && (
+              <span className={`ml-1 text-xs font-bold ${correct ? "text-cyan-600" : "text-red-500"}`}>
+                {correct ? "✓" : `(정답: ${answer})`}
+              </span>
+            )}
+            {formatInline(p, false, "")}
+          </span>
+        );
+      })}
+    </>
+  );
+}
+
 function PageQuestions({ lesson, showAnswer }: { lesson: SGRLesson; showAnswer: boolean }) {
+  const { bucket, set, clear } = useAnswers("sgrClass", lesson.id);
   return (
     <div className="max-w-[1600px] mx-auto p-6 lg:p-10">
       <div className="flex items-center gap-3 mb-6">
         <span className="inline-block px-4 py-1.5 bg-black text-white rounded-full text-sm font-bold">
           Main Idea and Details
         </span>
+        <button
+          onClick={clear}
+          className="ml-auto text-xs font-bold px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+        >
+          내 답안 지우기
+        </button>
       </div>
       <div className="space-y-4">
         {lesson.questions.map((q, i) => (
-          <QuestionRenderer key={q.id} q={q} index={i} showAnswer={showAnswer} />
+          <QuestionRenderer
+            key={q.id}
+            q={q}
+            index={i}
+            showAnswer={showAnswer}
+            answers={bucket}
+            onAnswer={set}
+          />
         ))}
       </div>
     </div>
@@ -904,10 +1027,10 @@ function PageDirectReading({ lesson, showAnswer }: { lesson: SGRLesson; showAnsw
                     ) : (
                       <span
                         key={i}
-                        className="inline-block min-w-[70px] px-2 mx-0.5 border-b-2 border-gray-400 dark:border-gray-500 text-gray-500 dark:text-gray-400 font-mono font-bold text-center"
+                        className="inline-block px-1 mx-0.5 border-b-2 border-gray-400 dark:border-gray-500 text-gray-600 dark:text-gray-300 font-mono font-bold"
                         title={`빈칸 ${n.number}`}
                       >
-                        ({n.number})
+                        {firstLetterBlank(n.answer || "")}
                       </span>
                     );
                   })}
@@ -950,7 +1073,9 @@ function PageDirectReading({ lesson, showAnswer }: { lesson: SGRLesson; showAnsw
 }
 
 // ─── Main Viewer ───────────────────────────────────
-type PageKey = "preview" | "passage" | "questions" | "vocabReview" | "directReading";
+type PageKey =
+  | "preview" | "passage" | "questions" | "vocabReview" | "directReading"
+  | "re_reading" | "re_comprehension" | "re_skill" | "re_vocab";
 
 const PAGES: Array<{ key: PageKey; label: string; icon: any }> = [
   { key: "preview", label: "Preview", icon: Sparkles },
@@ -960,9 +1085,75 @@ const PAGES: Array<{ key: PageKey; label: string; icon: any }> = [
   { key: "directReading", label: "직독직해", icon: FileText },
 ];
 
+const PAGES_RE: Array<{ key: PageKey; label: string; icon: any }> = [
+  { key: "re_reading", label: "Reading", icon: BookOpen },
+  { key: "re_comprehension", label: "Comprehension", icon: HelpCircle },
+  { key: "re_skill", label: "Reading Skill", icon: FileText },
+  { key: "re_vocab", label: "Vocab Practice", icon: Layers },
+];
+
+function getBookType(l: SGRLesson | undefined): BookType {
+  return normalizeBookType(l?.bookType);
+}
+
+function BookTypePicker({
+  groups,
+  onPick,
+}: {
+  groups: Map<BookType, SGRLesson[]>;
+  onPick: (bt: BookType) => void;
+}) {
+  const entries = Array.from(groups.entries());
+  return (
+    <div className="max-w-[1200px] mx-auto p-8">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-2">책 선택</h1>
+        <p className="text-gray-500 dark:text-gray-400">
+          진행할 책 종류를 골라주세요. 각 책마다 화면 형식이 달라집니다.
+        </p>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {entries.map(([bt, list]) => {
+          const meta = BOOK_TYPE_META[bt] || {
+            label: bt,
+            color: "from-gray-500 to-gray-700",
+            description: "커스텀 책 종류",
+          };
+          return (
+            <button
+              key={bt}
+              onClick={() => onPick(bt)}
+              className="group text-left rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 hover:shadow-xl hover:border-cyan-400 transition-all"
+            >
+              <div
+                className={`w-14 h-14 rounded-xl bg-gradient-to-br ${meta.color} flex items-center justify-center shadow-md mb-4`}
+              >
+                <BookOpen className="w-7 h-7 text-white" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-1">
+                {meta.label}
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                {meta.description}
+              </p>
+              <div className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300 font-bold">
+                레슨 {list.length}개
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function SGRClassViewer() {
   const [lessons, setLessons] = useState<SGRLesson[]>(loadLessons);
-  const [selectedId, setSelectedId] = useState<string>(lessons[0]?.id || "");
+  const [selectedBookType, setSelectedBookType] = useState<BookType | null>(() => {
+    if (typeof window === "undefined") return null;
+    return (localStorage.getItem("sgrClass_bookType") as BookType | null) || null;
+  });
+  const [selectedId, setSelectedId] = useState<string>("");
   const [pageKey, setPageKey] = useState<PageKey>("preview");
   const [showAnswer, setShowAnswer] = useState(false);
   const [dark, setDark] = useState<boolean>(() => {
@@ -995,10 +1186,40 @@ export default function SGRClassViewer() {
     setAiActionPopup({ action, text, x, y });
   };
 
+  // 책 종류별로 그룹화
+  const bookGroups = useMemo(() => {
+    const map = new Map<BookType, SGRLesson[]>();
+    for (const l of lessons) {
+      const bt = getBookType(l);
+      if (!map.has(bt)) map.set(bt, []);
+      map.get(bt)!.push(l);
+    }
+    return map;
+  }, [lessons]);
+
+  const availableBookTypes = useMemo(() => Array.from(bookGroups.keys()), [bookGroups]);
+
+  const filteredLessons = useMemo(() => {
+    if (!selectedBookType) return lessons;
+    return bookGroups.get(selectedBookType) || [];
+  }, [lessons, bookGroups, selectedBookType]);
+
+  // 책 종류 바뀌면 첫 레슨으로
+  useEffect(() => {
+    if (!selectedBookType) return;
+    localStorage.setItem("sgrClass_bookType", selectedBookType);
+    if (!filteredLessons.find((l) => l.id === selectedId)) {
+      setSelectedId(filteredLessons[0]?.id || "");
+      setPageKey(selectedBookType === "reading_explore" ? "re_reading" : "preview");
+    }
+  }, [selectedBookType, filteredLessons, selectedId]);
+
   const selected = useMemo(
-    () => lessons.find(l => l.id === selectedId) || lessons[0],
-    [lessons, selectedId]
+    () => filteredLessons.find((l) => l.id === selectedId) || filteredLessons[0],
+    [filteredLessons, selectedId]
   );
+  const currentBookType = selectedBookType || getBookType(selected);
+  const activePages = currentBookType === "reading_explore" ? PAGES_RE : PAGES;
 
   const handleDictionary = useCallback((data: { word: string; context: string; x: number; y: number }) => {
     setPopupData(data);
@@ -1036,17 +1257,40 @@ export default function SGRClassViewer() {
     localStorage.setItem("sgrClass_dark", dark ? "1" : "0");
   }, [dark]);
 
+  // 책 종류 선택 화면: 항상 picker를 거쳐 진입
+  if (!selectedBookType) {
+    return (
+      <BookTypePicker
+        groups={bookGroups}
+        onPick={(bt) => {
+          setSelectedBookType(bt);
+          const first = (bookGroups.get(bt) || [])[0];
+          setSelectedId(first?.id || "");
+          setPageKey(bt === "reading_explore" ? "re_reading" : "preview");
+        }}
+      />
+    );
+  }
+
   if (!selected) {
     return (
-      <div className="min-h-[400px] flex items-center justify-center text-gray-500">
-        아직 등록된 SGR Class 자료가 없습니다. CMS에서 추가해주세요.
+      <div className="min-h-[400px] flex flex-col items-center justify-center gap-3 text-gray-500">
+        <p>아직 등록된 SGR Class 자료가 없습니다. CMS에서 추가해주세요.</p>
+        {selectedBookType && (
+          <button
+            onClick={() => setSelectedBookType(null)}
+            className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 text-sm hover:bg-gray-200"
+          >
+            책 종류 다시 선택
+          </button>
+        )}
       </div>
     );
   }
 
-  const currentIdx = PAGES.findIndex(p => p.key === pageKey);
-  const goPrev = () => setPageKey(PAGES[Math.max(0, currentIdx - 1)].key);
-  const goNext = () => setPageKey(PAGES[Math.min(PAGES.length - 1, currentIdx + 1)].key);
+  const currentIdx = activePages.findIndex(p => p.key === pageKey);
+  const goPrev = () => setPageKey(activePages[Math.max(0, currentIdx - 1)].key);
+  const goNext = () => setPageKey(activePages[Math.min(activePages.length - 1, currentIdx + 1)].key);
 
   return (
     <div className={dark ? "dark" : ""}>
@@ -1054,14 +1298,27 @@ export default function SGRClassViewer() {
         {/* Toolbar */}
         <div className="sticky top-0 z-30 backdrop-blur bg-white/90 dark:bg-gray-900/90 border-b border-gray-200 dark:border-gray-700 px-4 lg:px-6 py-3">
           <div className="max-w-[1600px] mx-auto flex flex-wrap items-center gap-3">
-            {/* lesson picker */}
-            {lessons.length > 1 && (
+            {/* Book type switcher */}
+            {availableBookTypes.length > 1 && (
+              <button
+                onClick={() => setSelectedBookType(null)}
+                className="text-xs font-bold px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-cyan-100 to-blue-100 dark:from-cyan-900/40 dark:to-blue-900/40 text-cyan-800 dark:text-cyan-200 hover:from-cyan-200 hover:to-blue-200"
+                title="다른 책 종류로 전환"
+              >
+                📚 {BOOK_TYPE_META[currentBookType]?.label || currentBookType}
+              </button>
+            )}
+            {/* lesson picker (책 종류 내에서) */}
+            {filteredLessons.length > 1 && (
               <select
                 value={selectedId}
-                onChange={(e) => { setSelectedId(e.target.value); setPageKey("preview"); }}
+                onChange={(e) => {
+                  setSelectedId(e.target.value);
+                  setPageKey(currentBookType === "reading_explore" ? "re_reading" : "preview");
+                }}
                 className="text-sm px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100"
               >
-                {lessons.map(l => (
+                {filteredLessons.map(l => (
                   <option key={l.id} value={l.id}>
                     Unit {l.unitNumber} · {l.title}
                   </option>
@@ -1071,7 +1328,7 @@ export default function SGRClassViewer() {
 
             {/* Page tabs */}
             <div className="flex items-center gap-1 flex-1 overflow-x-auto">
-              {PAGES.map(p => {
+              {activePages.map(p => {
                 const Icon = p.icon;
                 const active = pageKey === p.key;
                 return (
@@ -1178,6 +1435,26 @@ export default function SGRClassViewer() {
               {pageKey === "questions" && <PageQuestions lesson={selected} showAnswer={showAnswer} />}
               {pageKey === "vocabReview" && <PageVocabReview lesson={selected} showAnswer={showAnswer} />}
               {pageKey === "directReading" && <PageDirectReading lesson={selected} showAnswer={showAnswer} />}
+              {(pageKey === "re_reading" || pageKey === "re_comprehension" || pageKey === "re_skill" || pageKey === "re_vocab") &&
+                selected.readingExplore && (
+                  <ReadingExploreRenderer
+                    lesson={selected}
+                    content={selected.readingExplore}
+                    showAnswer={showAnswer}
+                    subTab={
+                      pageKey === "re_reading" ? "reading"
+                      : pageKey === "re_comprehension" ? "comprehension"
+                      : pageKey === "re_skill" ? "readingSkill"
+                      : "vocabPractice"
+                    }
+                  />
+                )}
+              {(pageKey === "re_reading" || pageKey === "re_comprehension" || pageKey === "re_skill" || pageKey === "re_vocab") &&
+                !selected.readingExplore && (
+                  <div className="p-10 text-center text-gray-500 dark:text-gray-400">
+                    이 레슨에는 Reading Explore 데이터가 없습니다. CMS에서 등록해주세요.
+                  </div>
+                )}
             </motion.div>
           </AnimatePresence>
         </ReadingReviewPassage>
@@ -1224,13 +1501,13 @@ export default function SGRClassViewer() {
             <ChevronLeft className="w-4 h-4" /> 이전
           </button>
           <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">
-            {currentIdx + 1} / {PAGES.length} · {PAGES[currentIdx].label}
+            {currentIdx + 1} / {activePages.length} · {activePages[currentIdx]?.label || ""}
           </span>
           <button
             onClick={goNext}
-            disabled={currentIdx === PAGES.length - 1}
+            disabled={currentIdx === activePages.length - 1}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold ${
-              currentIdx === PAGES.length - 1
+              currentIdx === activePages.length - 1
                 ? "bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed"
                 : "bg-cyan-600 hover:bg-cyan-700 text-white shadow-md"
             }`}
