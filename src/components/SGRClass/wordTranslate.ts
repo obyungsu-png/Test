@@ -1,17 +1,9 @@
 /**
- * 단어 번역 유틸리티 — Claude API 프록시 사용
- * - Electron: apiclaude.cc 직접 호출 (세션 인터셉터가 CORS+인증 처리)
- * - Web: /api/claude/chat/completions Vercel 서버리스 프록시
+ * 단어 번역 유틸리티 — Claude API (apiclaude.cc) 직접 호출
  */
 
-const isElectron =
-  typeof window !== "undefined" &&
-  (window as any).electronAPI?.isElectron === true;
-
-const CLAUDE_ENDPOINT = isElectron
-  ? "https://apiclaude.cc/v1/chat/completions"
-  : "/api/claude/chat/completions";
-
+const CLAUDE_API_ENDPOINT = "https://apiclaude.cc/v1/chat/completions";
+const CLAUDE_API_KEY = "sk-6760f9d3d9a8259550df0fbad394bde221aa571eabbf99a51ecfd1de4e3e074a";
 const CLAUDE_MODEL = "claude-sonnet-5";
 
 export interface WordTranslation {
@@ -29,9 +21,12 @@ export interface ChineseWordTranslation {
 
 async function callClaude(prompt: string): Promise<string | null> {
   try {
-    const response = await fetch(CLAUDE_ENDPOINT, {
+    const response = await fetch(CLAUDE_API_ENDPOINT, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${CLAUDE_API_KEY}`,
+      },
       body: JSON.stringify({
         model: CLAUDE_MODEL,
         messages: [{ role: "user", content: prompt }],

@@ -1303,7 +1303,7 @@ function TextUploadModal({ onClose, onUpload }: { onClose: () => void; onUpload:
       let errorMessage = "텍스트 분석 오류: ";
       
       if (err.message === "Failed to fetch") {
-        errorMessage += "서버 연결 실패. OpenRouter API 키가 설정되지 않았거나 서버가 응답하지 않습니다.\n\n해결 방법:\n1. '🧠 AI 키 확인' 버튼을 눌러 API 키가 설정되었는지 확인하세요.\n2. API 키가 없다면 OpenRouter (https://openrouter.ai)에서 발급받으세요.\n3. 브라우저 콘솔(F12)에서 더 자세한 오류를 확인하세요.";
+        errorMessage += "서버 연결 실패. Claude API 키가 유효하지 않거나 서버가 응답하지 않습니다.\n\n해결 방법:\n1. '🧠 AI 키 확인' 버튼을 눌러 API 키가 설정되었는지 확인하세요.\n2. 브라우저 콘솔(F12)에서 더 자세한 오류를 확인하세요.";
       } else {
         errorMessage += err.message || String(err);
       }

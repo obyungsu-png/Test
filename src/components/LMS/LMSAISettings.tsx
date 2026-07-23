@@ -214,11 +214,11 @@ export default function LMSAISettings() {
             </button>
           </div>
 
-          {/* OpenRouter Test */}
+          {/* Claude API Test */}
           <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
             <div>
-              <p className="text-sm font-bold text-gray-700">OpenRouter API</p>
-              <p className="text-xs text-gray-400 mt-0.5">환경변수: OPENROUTER_API_KEY</p>
+              <p className="text-sm font-bold text-gray-700">Claude API</p>
+              <p className="text-xs text-gray-400 mt-0.5">apiclaude.cc 프록시 (claude-sonnet-5)</p>
               {openRouterStatus && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-2 flex items-center gap-1.5">
                   {openRouterStatus.valid ? (

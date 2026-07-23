@@ -383,24 +383,21 @@ function getSampleAds() {
   ];
 }
 
-// ===== AI 문단 요약 & 채점 API (OpenRouter) =====
+// ===== AI 문단 요약 & 채점 API (Claude via apiclaude.cc) =====
 
-const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
+const CLAUDE_API_URL = "https://apiclaude.cc/v1/chat/completions";
+const CLAUDE_API_KEY = "sk-6760f9d3d9a8259550df0fbad394bde221aa571eabbf99a51ecfd1de4e3e074a";
+const CLAUDE_MODEL = "claude-sonnet-5";
 
 async function callOpenRouter(systemPrompt: string, userPrompt: string): Promise<string> {
-  const apiKey = Deno.env.get("OPENROUTER_API_KEY");
-  if (!apiKey) throw new Error("OPENROUTER_API_KEY not configured");
-
-  const res = await fetch(OPENROUTER_API_URL, {
+  const res = await fetch(CLAUDE_API_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
-      "HTTP-Referer": "https://allmyexam.com", // Optional: for OpenRouter analytics
-      "X-Title": "All My Exam", // Optional: for OpenRouter analytics
+      "Authorization": `Bearer ${CLAUDE_API_KEY}`,
     },
     body: JSON.stringify({
-      model: "deepseek/deepseek-chat", // OpenRouter의 DeepSeek 모델
+      model: CLAUDE_MODEL,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
@@ -412,7 +409,7 @@ async function callOpenRouter(systemPrompt: string, userPrompt: string): Promise
 
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`OpenRouter API error ${res.status}: ${errText}`);
+    throw new Error(`Claude API error ${res.status}: ${errText}`);
   }
 
   const data = await res.json();
@@ -450,7 +447,7 @@ Generate JSON summaries for each paragraph.`;
       const jsonMatch = raw.match(/\[[\s\S]*\]/);
       summaries = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(raw);
     } catch {
-      console.log("OpenRouter raw response:", raw);
+      console.log("Claude raw response:", raw);
       throw new Error("Failed to parse AI response as JSON");
     }
 
@@ -493,7 +490,7 @@ Grade this summary.`;
       const jsonMatch = raw.match(/\{[\s\S]*\}/);
       result = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(raw);
     } catch {
-      console.log("OpenRouter grading raw:", raw);
+      console.log("Claude grading raw:", raw);
       throw new Error("Failed to parse grading response");
     }
 
@@ -517,19 +514,8 @@ app.post("/make-server-7db3bef3/ai/analyze-text", async (c) => {
       return c.json({ error: "Text is too short (minimum 10 characters)" }, 400);
     }
 
-    // Check API key
-    const apiKey = Deno.env.get("OPENROUTER_API_KEY");
-    if (!apiKey) {
-      console.error("OPENROUTER_API_KEY is not configured");
-      return c.json({ 
-        error: "OpenRouter API 키가 설정되지 않았습니다.", 
-        hint: "Figma Make 환경 변수에서 OPENROUTER_API_KEY를 설정해주세요.",
-        details: "https://openrouter.ai 에서 API 키를 발급받을 수 있습니다."
-      }, 500);
-    }
-
-    console.log("API key found, length:", apiKey.length);
-    console.log("API key prefix:", apiKey.substring(0, 8) + "...");
+    // Check API key (Claude API 키 하드코딩됨 — 항상 존재)
+    console.log("Claude API key configured (apiclaude.cc)");
 
     const systemPrompt = `You are an expert English educational content analyzer for Korean middle/high school students. Analyze the provided English text and generate comprehensive learning materials optimized for "교과서 뽀개기" (Textbook Mastery) system.
 
@@ -628,24 +614,24 @@ ${text}
 
 Generate complete vocabulary, sentences, paragraphs, and problems in JSON format.`;
 
-    console.log("Calling OpenRouter API for text analysis...");
+    console.log("Calling Claude API for text analysis...");
     console.log("Text length:", text.length);
-    
+
     let raw;
     try {
       raw = await callOpenRouter(systemPrompt, userPrompt);
-      console.log("OpenRouter response received, length:", raw?.length || 0);
+      console.log("Claude response received, length:", raw?.length || 0);
     } catch (apiError) {
-      console.error("OpenRouter API call failed:", apiError);
-      return c.json({ 
-        error: "AI API call failed", 
+      console.error("Claude API call failed:", apiError);
+      return c.json({
+        error: "AI API call failed",
         details: String(apiError),
-        hint: "Please check if OPENROUTER_API_KEY is valid"
+        hint: "Please check if Claude API key is valid"
       }, 500);
     }
 
     if (!raw || raw.trim().length === 0) {
-      console.error("Empty response from OpenRouter");
+      console.error("Empty response from Claude");
       return c.json({ error: "AI returned empty response" }, 500);
     }
 
@@ -656,7 +642,7 @@ Generate complete vocabulary, sentences, paragraphs, and problems in JSON format
       result = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(raw);
     } catch (parseError) {
       console.error("JSON parse error:", parseError);
-      console.error("OpenRouter raw response:", raw.substring(0, 500)); // Log first 500 chars
+      console.error("Claude raw response:", raw.substring(0, 500)); // Log first 500 chars
       return c.json({ 
         error: "Failed to parse AI response", 
         details: String(parseError),
@@ -708,30 +694,18 @@ Generate complete vocabulary, sentences, paragraphs, and problems in JSON format
   }
 });
 
-// OpenRouter API 키 테스트 엔드포인트
+// Claude API 키 테스트 엔드포인트
 app.get("/make-server-7db3bef3/ai/test-key", async (c) => {
   try {
-    const apiKey = Deno.env.get("OPENROUTER_API_KEY");
-    
-    if (!apiKey) {
-      return c.json({ 
-        valid: false, 
-        error: "OPENROUTER_API_KEY not configured",
-        message: "API 키가 설정되지 않았습니다."
-      });
-    }
-
-    // Test with a simple request
-    const res = await fetch(OPENROUTER_API_URL, {
+    // Test with a simple request (Claude API)
+    const res = await fetch(CLAUDE_API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-        "HTTP-Referer": "https://allmyexam.com", // Optional: for OpenRouter analytics
-        "X-Title": "All My Exam", // Optional: for OpenRouter analytics
+        "Authorization": `Bearer ${CLAUDE_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "deepseek/deepseek-chat", // OpenRouter의 DeepSeek 모델
+        model: CLAUDE_MODEL,
         messages: [
           { role: "system", content: "You are a helpful assistant." },
           { role: "user", content: "Say 'OK' if you can read this." },
@@ -743,9 +717,9 @@ app.get("/make-server-7db3bef3/ai/test-key", async (c) => {
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error("OpenRouter API key test failed:", res.status, errText);
-      return c.json({ 
-        valid: false, 
+      console.error("Claude API key test failed:", res.status, errText);
+      return c.json({
+        valid: false,
         error: `API error ${res.status}`,
         details: errText,
         message: "API 키가 유효하지 않거나 만료되었습니다."
@@ -754,20 +728,20 @@ app.get("/make-server-7db3bef3/ai/test-key", async (c) => {
 
     const data = await res.json();
     const response = data.choices?.[0]?.message?.content || "";
-    
-    console.log("OpenRouter API key test successful, response:", response);
-    
-    return c.json({ 
-      valid: true, 
-      message: "OpenRouter API 키가 정상적으로 작동합니다!",
+
+    console.log("Claude API key test successful, response:", response);
+
+    return c.json({
+      valid: true,
+      message: "Claude API 키가 정상적으로 작동합니다!",
       testResponse: response,
       model: data.model,
       usage: data.usage
     });
   } catch (error) {
-    console.error("OpenRouter API key test error:", error);
-    return c.json({ 
-      valid: false, 
+    console.error("Claude API key test error:", error);
+    return c.json({
+      valid: false,
       error: String(error),
       message: "API 키 테스트 중 오류가 발생했습니다."
     }, 500);

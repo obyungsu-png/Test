@@ -7,18 +7,15 @@ import { Input } from './ui/input';
 // ───────────────────────────────────────────────────────────────────────────
 //  API 설정 — GLM + Claude 듀얼 모델 지원
 //  - GLM: 직접 호출 (CORS 허용)
-//  - Claude: Electron에서는 직접 호출(세션 인터셉터가 CORS+인증 처리),
-//           웹에서는 Vercel 서버리스 프록시 경유
+//  - Claude: apiclaude.cc 프록시 직접 호출 (신규 키 인증)
 // ───────────────────────────────────────────────────────────────────────────
 const GLM_API_ENDPOINT = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
 const GLM_API_KEY = 'dc2213720f4b4a88ae06ddbd434ab1dd.qDGcLtBM9gGqp6ff';
 const GLM_MODEL = 'glm-4-flash';
 
-// Electron 여부 확인 → Claude 엔드포인트 분기
-const isElectron = typeof window !== 'undefined' && (window as any).electronAPI?.isElectron === true;
-const CLAUDE_PROXY_ENDPOINT = isElectron
-  ? 'https://apiclaude.cc/v1/chat/completions'
-  : '/api/claude/chat/completions';
+// Claude API — apiclaude.cc 직접 호출 (신규 키)
+const CLAUDE_API_ENDPOINT = 'https://apiclaude.cc/v1/chat/completions';
+const CLAUDE_API_KEY = 'sk-6760f9d3d9a8259550df0fbad394bde221aa571eabbf99a51ecfd1de4e3e074a';
 const CLAUDE_MODEL = 'claude-sonnet-5';
 
 type AiModel = 'glm' | 'claude';
@@ -351,8 +348,8 @@ export function ToeflAiWidget({ position = 'right', contextLabel, questionData, 
 
     try {
       const isClaude = selectedModel === 'claude';
-      const endpoint = isClaude ? CLAUDE_PROXY_ENDPOINT : GLM_API_ENDPOINT;
-      const apiKey = isClaude ? '' : GLM_API_KEY;
+      const endpoint = isClaude ? CLAUDE_API_ENDPOINT : GLM_API_ENDPOINT;
+      const apiKey = isClaude ? CLAUDE_API_KEY : GLM_API_KEY;
       const modelId = isClaude ? CLAUDE_MODEL : GLM_MODEL;
 
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
