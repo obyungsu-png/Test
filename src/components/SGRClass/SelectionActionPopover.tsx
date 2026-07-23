@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Highlighter, Underline, BookOpen, Bot } from "lucide-react";
+import { Highlighter, Underline, BookOpen, Bot, PenLine } from "lucide-react";
 import { HIGHLIGHT_COLORS, UNDERLINE_COLORS } from "./ReadingReviewToolbar";
 import { useTapOrHold } from "./useTapOrHold";
 
@@ -12,6 +12,7 @@ interface SelectionActionPopoverProps {
   onUnderline: (color: string) => void;
   onDictionary: () => void;
   onAiTutor?: (action: "explain" | "translate" | "analyze" | "rewrite", text: string) => void;
+  onDraw?: () => void;
   onClose: () => void;
 }
 
@@ -29,7 +30,7 @@ const AI_ACTIONS: { key: AiAction; label: string }[] = [
  * 트렌디한 캡슐 디자인: 아이콘만 보이고, AI 버튼은 별도 스타일
  */
 export function SelectionActionPopover({
-  x, y, selectedText, onHighlight, onUnderline, onDictionary, onAiTutor, onClose,
+  x, y, selectedText, onHighlight, onUnderline, onDictionary, onAiTutor, onDraw, onClose,
 }: SelectionActionPopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ x, y });
@@ -136,6 +137,17 @@ export function SelectionActionPopover({
       >
         <BookOpen className="w-4 h-4" />
       </button>
+
+      {/* 필기 */}
+      {onDraw && (
+        <button
+          onClick={() => { onDraw(); onClose(); }}
+          className={iconBtn}
+          title="필기 (화면 위에 자유 그리기)"
+        >
+          <PenLine className="w-4 h-4" />
+        </button>
+      )}
 
       {/* AI 튜터 */}
       <button

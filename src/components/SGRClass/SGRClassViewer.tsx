@@ -14,6 +14,7 @@ import { WordPopup } from "./WordPopup";
 import { AiActionPopup } from "./AiActionPopup";
 import { ReadingReviewPassage } from "./ReadingReviewPassage";
 import { ReadingReviewActions } from "./ReadingReviewToolbar";
+import { DrawingCanvas } from "./DrawingCanvas";
 import "../../utils/sgrClassApi"; // 서버 연동 함수 등록
 
 // ─── inline formatter: **bold**, __underline__, ___blank___ ──
@@ -982,6 +983,7 @@ export default function SGRClassViewer() {
     x: number;
     y: number;
   } | null>(null);
+  const [drawOpen, setDrawOpen] = useState(false);
 
   const handleAiTutor = (action: "explain" | "translate" | "analyze" | "rewrite", text: string) => {
     // 말풍선으로 결과 표시
@@ -1004,6 +1006,10 @@ export default function SGRClassViewer() {
 
   const handleClearAll = useCallback(() => {
     setClearTrigger(c => c + 1);
+  }, []);
+
+  const handleDraw = useCallback(() => {
+    setDrawOpen(true);
   }, []);
 
   // Sync from CMS
@@ -1156,6 +1162,7 @@ export default function SGRClassViewer() {
           toolsOpen={toolsOpen}
           onDictionary={handleDictionary}
           onAiTutor={handleAiTutor}
+          onDraw={handleDraw}
           clearTrigger={clearTrigger}
         >
           <AnimatePresence mode="wait">
@@ -1199,6 +1206,9 @@ export default function SGRClassViewer() {
             onClose={() => setAiActionPopup(null)}
           />
         )}
+
+        {/* 필기 캔버스 */}
+        <DrawingCanvas active={drawOpen} onClose={() => setDrawOpen(false)} />
 
         {/* Bottom nav */}
         <div className="max-w-[1600px] mx-auto flex items-center justify-between px-6 py-6 border-t border-gray-200 dark:border-gray-700 mt-8">
