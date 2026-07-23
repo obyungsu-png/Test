@@ -30,6 +30,7 @@ export default function LMSSidebar({ selectedMenu, onMenuSelect }: LMSSidebarPro
     { id: "sgr-class", label: "SGR Class 관리", icon: Sparkles },
     { id: "sgr-writing", label: "SGR Writing 관리", icon: Sparkles },
     { id: "sgr-voca", label: "SGR Voca 관리", icon: Sparkles },
+    { id: "sgr-grammar", label: "SGR Grammar 관리", icon: Sparkles },
     { id: "voca", label: "Voca 관리", icon: Languages },
     { id: "categories", label: "카테고리 관리", icon: Tags },
     { id: "site-management", label: "사이트 관리", icon: Globe },
