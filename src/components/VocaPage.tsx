@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Button } from "./ui/button";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { FileText, BookOpen, GraduationCap, Globe, Award, BookOpenCheck, Library, Search, Trash2, X, ChevronLeft, Download } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { getVocaWords, VocaWord, getMaxDay, getDayNames } from "./VocaManagement";

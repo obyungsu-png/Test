@@ -1,6 +1,6 @@
-import { motion } from "motion/react";
+﻿import { motion } from "motion/react";
 import { Button } from "./ui/button";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { X } from "lucide-react";
 import { DownloadOptionButton } from "./download/DownloadOptionButton";
 import { DOWNLOAD_OPTIONS, PAST_PAPERS_OPTION, TEACHER_OPTIONS } from "./constants/downloadOptions";

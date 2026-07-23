@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+﻿import React, { useState, useEffect, useRef } from "react";
 import { fetchAllAds, saveAds, type AdItem } from "../../utils/adsApi";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import {
   Plus, Save, Trash2, Eye, EyeOff, X, ChevronUp, ChevronDown,
   GripVertical, Smartphone, Video, Image as ImageIcon, Link, Type

@@ -1,6 +1,6 @@
-import { useState, useRef } from "react";
+﻿import { useState, useRef } from "react";
 import { Plus, Trash2, Save, FileText, Upload as UploadIcon, Eye, EyeOff, ChevronDown, ChevronUp, Download, ClipboardPaste, X, Check } from "lucide-react";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { getSubjectStructure } from "../utils/dataManager";
 import { KOREAN_SCHOOL_TABS, INTERNATIONAL_SCHOOL_TABS, CERTIFICATION_TABS } from "../constants/defaultContent";
 

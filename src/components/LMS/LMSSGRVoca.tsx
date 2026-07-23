@@ -1,9 +1,9 @@
-import { useState, useMemo, useRef } from "react";
+﻿import { useState, useMemo, useRef } from "react";
 import {
   BookOpen, Plus, Trash2, Save, Upload, Copy,
   FileText, Layers, AlertCircle, ListChecks, PenLine, Sparkles,
 } from "lucide-react";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import type { SGRVocaLesson } from "../SGRVoca/types";
 import {
   loadVocaLessons, saveVocaLessons, emptyVocaLesson,

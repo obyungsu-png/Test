@@ -1,7 +1,7 @@
-// Voca 데이터 마이그레이션: localStorage → Supabase
+﻿// Voca 데이터 마이그레이션: localStorage → Supabase
 import { saveVocaWords, saveDayNames } from '../components/VocaManagement';
 import { generateWordsForDay } from '../components/vocaWordSets';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export interface VocaWord {
   id: string;

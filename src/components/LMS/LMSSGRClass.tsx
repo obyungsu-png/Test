@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+﻿import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   BookOpen, Plus, Trash2, Save, X, Upload, Download, Copy,
@@ -6,7 +6,7 @@ import {
   Layers, Zap, Image as ImageIcon, ArrowUp, ArrowDown, AlertCircle,
   Check, Eye
 } from "lucide-react";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import type {
   SGRLesson, Question, McqQuestion, FillBlankQuestion,
   CompleteSentenceQuestion, OutlineQuestion, TrueFalseQuestion,

@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { Globe, Settings, Palette, Layout, ExternalLink, Save, RefreshCw, MessageCircle, Send, Upload, Trash2, QrCode } from "lucide-react";
 
 interface SiteSettings {

@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { FileText, BookOpen, GraduationCap, Search, Trash2, X, ChevronLeft, Download, Languages, Layers, Baby, Plus, Save, RotateCcw, Settings, GripVertical, Filter, Lock, Edit2, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { getVocaWords, VocaWord, getMaxDay, getDayNames, saveDayNames } from "./VocaManagement";
 import { Input } from "./ui/input";
 import { WordTest } from "./WordTest";

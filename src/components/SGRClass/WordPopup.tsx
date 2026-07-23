@@ -27,8 +27,8 @@ interface WordPopupProps {
  * - EN: Free Dictionary API (영영 사전)
  * - KO: Claude API (apiclaude.cc, 한국어 번역)
  * - CH: Claude API (apiclaude.cc, 중국어 번역 + 병음)
- * - 열리자마자 자동으로 단어를 검색 (별도 버튼 없음)
- * - 언어 변경 시에도 자동 재검색
+ * - 자동 호출 없음: 유저가 [검색] 버튼을 누를 때만 API 호출 (토큰 절약)
+ * - 언어 변경 시 기존 결과 초기화, 재검색은 버튼 클릭 시에만
  */
 export function WordPopup({
   word,
@@ -81,10 +81,14 @@ export function WordPopup({
     }
   }, [word, language, context]);
 
-  // 단어/언어 바뀔 때마다 자동 검색
+  // 자동 호출 제거: 유저가 [검색] 버튼을 누를 때만 API 호출 (토큰 절약)
+  // 언어 변경 시 기존 결과만 초기화
   useEffect(() => {
-    fetchWordData();
-  }, [fetchWordData]);
+    setDefinitions([]);
+    setTranslation(null);
+    setChinese(null);
+    setError(false);
+  }, [language]);
 
   // 팝업 위치 조정 (화면 경계 + AI 튜터 위젯 영역 회피)
   useEffect(() => {

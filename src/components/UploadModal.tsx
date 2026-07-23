@@ -1,10 +1,10 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import * as React from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 
 interface UploadModalProps {

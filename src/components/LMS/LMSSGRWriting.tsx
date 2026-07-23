@@ -1,9 +1,9 @@
-import { useState, useMemo, useRef } from "react";
+﻿import { useState, useMemo, useRef } from "react";
 import {
   BookOpen, Plus, Trash2, Save, Upload, Copy,
   FileText, Sparkles, PenLine, Layers, AlertCircle,
 } from "lucide-react";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import type { SGRWritingLesson } from "../SGRWriting/types";
 import {
   loadWritingLessons, saveWritingLessons, emptyWritingLesson,

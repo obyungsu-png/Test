@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Button } from "./ui/button";
 import { X, ChevronLeft, ChevronRight, Clock, CheckCircle2, Brain, BookOpen, Calculator, AlertCircle, Highlighter, Pencil, Underline, Lightbulb, BarChart3, BookMarked } from "lucide-react";
 import { extractQuestionsFromMaterial, generateQuestionsWithGLM, ParsedQuestion } from "./utils/questionParser";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { ToeflAiWidget } from "./ToeflAiWidget";
 
 interface Question {

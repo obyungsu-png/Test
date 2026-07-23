@@ -1,7 +1,7 @@
-import React from 'react';
+﻿import React from 'react';
 import { Button } from './ui/button';
 import { ChevronLeft, X, Eye } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 // 사운드 효과 함수
 const playSound = (isCorrect: boolean) => {
