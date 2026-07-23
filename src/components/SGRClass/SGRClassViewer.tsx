@@ -7,7 +7,7 @@ import {
   Volume2, Zap, MousePointer, Highlighter
 } from "lucide-react";
 import type { SGRLesson, Question, OutlineQuestion, DirectReadingItem, BookType } from "./types";
-import { loadLessons, SGR_EVENT, syncFromServer, BOOK_TYPE_META } from "./types";
+import { loadLessons, SGR_EVENT, syncFromServer, BOOK_TYPE_META, normalizeBookType } from "./types";
 import { ReadingExploreRenderer } from "./ReadingExploreRenderer";
 import { downloadSGRPdf } from "./pdfUtils";
 import { ToeflAiWidget } from "../ToeflAiWidget";
@@ -17,12 +17,6 @@ import { ReadingReviewPassage } from "./ReadingReviewPassage";
 import { ReadingReviewActions } from "./ReadingReviewToolbar";
 import "../../utils/sgrClassApi"; // 서버 연동 함수 등록
 import { useAnswers, isTextCorrect, type AnswerValue } from "./answerState";
-import {
-  loadAiGrammarCache,
-  saveAiGrammarCache,
-  generateGrammarPointsForSentence,
-  type AiGrammarCache,
-} from "./aiGrammarPoints";
 
 // ─── inline formatter: **bold**, __underline__, ___blank___ ──
 function formatInline(text: string, showAnswer: boolean, answer?: string) {
@@ -623,16 +617,9 @@ function PageDirectReading({ lesson, showAnswer }: { lesson: SGRLesson; showAnsw
   const [revealedSentences, setRevealedSentences] = useState<Set<string>>(new Set());
   const [expandedGrammar, setExpandedGrammar] = useState<string | null>(null);
   const [viewedSentences, setViewedSentences] = useState<Set<string>>(new Set());
-  const [aiCache, setAiCache] = useState<AiGrammarCache>(() => loadAiGrammarCache(lesson.id));
-  const [aiBusy, setAiBusy] = useState(false);
-
-  // 레슨 변경 시 캐시 재로딩
-  useEffect(() => {
-    setAiCache(loadAiGrammarCache(lesson.id));
-  }, [lesson.id]);
 
   // passage에서 자동 directReading 생성 (CMS 데이터 없을 때)
-  const baseDirectReading = useMemo<DirectReadingItem[]>(() => {
+  const autoDirectReading = useMemo<DirectReadingItem[]>(() => {
     if (lesson.directReading.length > 0) return lesson.directReading;
     const items: DirectReadingItem[] = [];
     lesson.passageParagraphs.forEach((para, pi) => {
@@ -653,40 +640,6 @@ function PageDirectReading({ lesson, showAnswer }: { lesson: SGRLesson; showAnsw
     });
     return items;
   }, [lesson.directReading, lesson.passageParagraphs]);
-
-  // CSV grammarPoints가 비면 AI 캐시로 대체
-  const autoDirectReading = useMemo<DirectReadingItem[]>(() => {
-    return baseDirectReading.map((s) => {
-      const has = s.grammarPoints && s.grammarPoints.length > 0;
-      if (has) return s;
-      const cached = aiCache[s.id];
-      if (cached && cached.length > 0) {
-        return { ...s, grammarPoints: cached };
-      }
-      return s;
-    });
-  }, [baseDirectReading, aiCache]);
-
-  // 주요구문이 비어있는 문장들을 AI로 일괄 생성
-  const generateAllMissing = useCallback(async () => {
-    if (aiBusy) return;
-    const targets = baseDirectReading.filter(
-      (s) => (!s.grammarPoints || s.grammarPoints.length === 0) && !aiCache[s.id]
-    );
-    if (targets.length === 0) return;
-    setAiBusy(true);
-    const next: AiGrammarCache = { ...aiCache };
-    for (const s of targets) {
-      try {
-        const pts = await generateGrammarPointsForSentence(s.english);
-        if (pts.length > 0) next[s.id] = pts;
-        // incremental UI update
-        setAiCache({ ...next });
-      } catch {}
-    }
-    saveAiGrammarCache(lesson.id, next);
-    setAiBusy(false);
-  }, [aiBusy, baseDirectReading, aiCache, lesson.id]);
 
   const toggleReveal = (id: string) => {
     setRevealedSentences(prev => {
@@ -846,19 +799,6 @@ function PageDirectReading({ lesson, showAnswer }: { lesson: SGRLesson; showAnsw
             >
               <Zap className="w-3.5 h-3.5" />
               주요구문 {showKeyPhrases ? 'ON' : 'OFF'}
-            </button>
-            <button
-              onClick={generateAllMissing}
-              disabled={aiBusy}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold transition-all ${
-                aiBusy
-                  ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-wait'
-                  : 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100'
-              }`}
-              title="주요구문이 비어있는 문장을 AI로 자동 생성"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              {aiBusy ? 'AI 생성 중…' : 'AI로 주요구문 생성'}
             </button>
             <span className="ml-auto text-xs text-gray-400 hidden sm:flex items-center gap-1">
               <MousePointer className="w-3 h-3" /> 문장을 클릭하여 해석 확인
@@ -1086,10 +1026,10 @@ function PageDirectReading({ lesson, showAnswer }: { lesson: SGRLesson; showAnsw
                     ) : (
                       <span
                         key={i}
-                        className="inline-block min-w-[70px] px-2 mx-0.5 border-b-2 border-gray-400 dark:border-gray-500 text-gray-500 dark:text-gray-400 font-mono font-bold text-center"
+                        className="inline-block px-1 mx-0.5 border-b-2 border-gray-400 dark:border-gray-500 text-gray-600 dark:text-gray-300 font-mono font-bold"
                         title={`빈칸 ${n.number}`}
                       >
-                        ({n.number})
+                        {firstLetterBlank(n.answer || "")}
                       </span>
                     );
                   })}
@@ -1152,7 +1092,7 @@ const PAGES_RE: Array<{ key: PageKey; label: string; icon: any }> = [
 ];
 
 function getBookType(l: SGRLesson | undefined): BookType {
-  return (l?.bookType || "sgr_original") as BookType;
+  return normalizeBookType(l?.bookType);
 }
 
 function BookTypePicker({
@@ -1311,8 +1251,8 @@ export default function SGRClassViewer() {
     localStorage.setItem("sgrClass_dark", dark ? "1" : "0");
   }, [dark]);
 
-  // 책 종류 선택 화면: 책 종류가 여러 개면서 아직 선택 안 했을 때
-  if (!selectedBookType && availableBookTypes.length > 1) {
+  // 책 종류 선택 화면: 항상 picker를 거쳐 진입
+  if (!selectedBookType) {
     return (
       <BookTypePicker
         groups={bookGroups}
@@ -1324,12 +1264,6 @@ export default function SGRClassViewer() {
         }}
       />
     );
-  }
-  // 자동으로 유일한 책 종류 선택
-  if (!selectedBookType && availableBookTypes.length === 1) {
-    const only = availableBookTypes[0];
-    setSelectedBookType(only);
-    return null;
   }
 
   if (!selected) {
