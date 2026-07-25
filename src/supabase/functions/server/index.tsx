@@ -750,6 +750,56 @@ app.get("/make-server-7db3bef3/ai/test-key", async (c) => {
 
 // ===== 사용자 인증 API =====
 
+// 범용 Claude 프록시 라우트 — 클라이언트가 apiclaude.cc를 직접 호출하지 않고
+// 서버를 경유하도록 우회 (CORS / 키 노출 / 트래픽 제어 목적).
+// GLM은 클라이언트에서 직접 호출하므로 이 라우트를 사용하지 않는다.
+//
+// 요청 바디:
+//   { messages: [{role, content}...], temperature?: number, max_tokens?: number, model?: string }
+// 응답: { content: string, model: string, usage: object }
+app.post("/make-server-7db3bef3/ai/claude-chat", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { messages, temperature, max_tokens, model } = body;
+
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return c.json({ error: "messages must be a non-empty array" }, 400);
+    }
+
+    const res = await fetch(CLAUDE_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${CLAUDE_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: model || CLAUDE_MODEL,
+        messages,
+        temperature: typeof temperature === "number" ? temperature : 0.6,
+        max_tokens: typeof max_tokens === "number" ? max_tokens : 2000,
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("Claude proxy error:", res.status, errText);
+      return c.json({ error: `Claude API error ${res.status}`, details: errText }, res.status);
+    }
+
+    const data = await res.json();
+    const content = data.choices?.[0]?.message?.content || "";
+
+    return c.json({
+      content,
+      model: data.model,
+      usage: data.usage,
+    });
+  } catch (error) {
+    console.error("Claude proxy exception:", error);
+    return c.json({ error: "Claude proxy failed", details: String(error) }, 500);
+  }
+});
+
 // 아이디+비밀번호 회원가입 (서버 사이드 Supabase Auth admin 생성)
 app.post("/make-server-7db3bef3/users/register", async (c) => {
   try {

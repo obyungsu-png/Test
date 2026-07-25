@@ -1,5 +1,6 @@
-﻿import { useEffect, useState } from "react";
-import { PenTool, BookOpen, Notebook, Save } from "lucide-react";
+﻿import { useEffect, useRef, useState } from "react";
+import { PenTool, BookOpen, Notebook, Save, Upload, Download, FileText, AlertCircle, X, Layers } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
 import {
   loadUnits,
@@ -7,6 +8,12 @@ import {
   type GrammarUnit,
   SAMPLE_UNIT,
 } from "../SGRGrammar/types";
+import {
+  parseCsvToGrammarUnit,
+  parseCsvToGrammarUnits,
+  grammarUnitToCsv,
+  getGrammarCsvTemplate,
+} from "../SGRGrammar/csvUtils";
 
 /**
  * SGR Grammar 관리 페이지 (기본 뼈대).

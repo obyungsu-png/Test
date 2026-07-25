@@ -1,9 +1,10 @@
 /**
- * 단어 번역 유틸리티 — Claude API (apiclaude.cc) 직접 호출
+ * 단어 번역 유틸리티 — Claude API 서버 프록시 경유 호출
+ * (클라이언트에 API 키를 두지 않고 Supabase Edge Function을 경유하여 apiclaude.cc 호출)
  */
 
-const CLAUDE_API_ENDPOINT = "https://apiclaude.cc/v1/chat/completions";
-const CLAUDE_API_KEY = "sk-6760f9d3d9a8259550df0fbad394bde221aa571eabbf99a51ecfd1de4e3e074a";
+import { CLAUDE_PROXY_URL, getServerHeaders } from "../../utils/apiConfig";
+
 const CLAUDE_MODEL = "claude-sonnet-5";
 
 export interface WordTranslation {
@@ -21,11 +22,11 @@ export interface ChineseWordTranslation {
 
 async function callClaude(prompt: string): Promise<string | null> {
   try {
-    const response = await fetch(CLAUDE_API_ENDPOINT, {
+    const response = await fetch(CLAUDE_PROXY_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${CLAUDE_API_KEY}`,
+        ...getServerHeaders(),
       },
       body: JSON.stringify({
         model: CLAUDE_MODEL,
@@ -36,15 +37,16 @@ async function callClaude(prompt: string): Promise<string | null> {
     });
 
     if (!response.ok) {
-      console.warn(`[wordTranslate] API returned ${response.status}`);
+      console.warn(`[wordTranslate] proxy returned ${response.status}`);
       return null;
     }
 
     const data = await response.json();
+    // 서버 프록시는 { content, model, usage } 형태로 반환
     const content =
+      data?.content ||
       data?.choices?.[0]?.message?.content ||
       data?.choices?.[0]?.text ||
-      data?.content?.[0]?.text ||
       "";
     return typeof content === "string" ? content : null;
   } catch (err) {

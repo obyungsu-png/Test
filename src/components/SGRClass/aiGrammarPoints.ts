@@ -1,17 +1,10 @@
 /**
  * AI로 문장별 주요구문/문법 포인트를 생성.
- * Claude API 프록시 사용 (wordTranslate와 동일 엔드포인트).
+ * Claude API 서버 프록시(Supabase Edge Function) 경유 호출.
  * 결과는 localStorage에 lessonId 단위로 캐싱.
  */
 import type { GrammarPoint } from "./types";
-
-const isElectron =
-  typeof window !== "undefined" &&
-  (window as any).electronAPI?.isElectron === true;
-
-const CLAUDE_ENDPOINT = isElectron
-  ? "https://apiclaude.cc/v1/chat/completions"
-  : "/api/claude/chat/completions";
+import { CLAUDE_PROXY_URL, getServerHeaders } from "../../utils/apiConfig";
 
 const CLAUDE_MODEL = "claude-sonnet-5";
 
@@ -38,9 +31,12 @@ export function saveAiGrammarCache(lessonId: string, cache: AiGrammarCache) {
 
 async function callClaude(prompt: string): Promise<string | null> {
   try {
-    const res = await fetch(CLAUDE_ENDPOINT, {
+    const res = await fetch(CLAUDE_PROXY_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...getServerHeaders(),
+      },
       body: JSON.stringify({
         model: CLAUDE_MODEL,
         messages: [{ role: "user", content: prompt }],
@@ -50,10 +46,11 @@ async function callClaude(prompt: string): Promise<string | null> {
     });
     if (!res.ok) return null;
     const data = await res.json();
+    // 서버 프록시는 { content, model, usage } 형태로 반환
     return (
+      data?.content ||
       data?.choices?.[0]?.message?.content ||
       data?.choices?.[0]?.text ||
-      data?.content?.[0]?.text ||
       null
     );
   } catch {

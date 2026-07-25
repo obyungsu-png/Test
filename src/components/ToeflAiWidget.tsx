@@ -6,16 +6,17 @@ import { Input } from './ui/input';
 
 // ───────────────────────────────────────────────────────────────────────────
 //  API 설정 — GLM + Claude 듀얼 모델 지원
-//  - GLM: 직접 호출 (CORS 허용)
-//  - Claude: apiclaude.cc 프록시 직접 호출 (신규 키 인증)
+//  - GLM: 클라이언트에서 직접 호출 (CORS 허용, 스트리밍)
+//  - Claude: 서버 프록시(Supabase Edge Function)를 경유하여 apiclaude.cc 호출
+//           (키 노출 방지 / 트래픽 제어 / CORS 우회)
 // ───────────────────────────────────────────────────────────────────────────
+import { CLAUDE_PROXY_URL, getServerHeaders } from '../utils/apiConfig';
+
 const GLM_API_ENDPOINT = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
 const GLM_API_KEY = 'dc2213720f4b4a88ae06ddbd434ab1dd.qDGcLtBM9gGqp6ff';
 const GLM_MODEL = 'glm-4-flash';
 
-// Claude API — apiclaude.cc 직접 호출 (신규 키)
-const CLAUDE_API_ENDPOINT = 'https://apiclaude.cc/v1/chat/completions';
-const CLAUDE_API_KEY = 'sk-6760f9d3d9a8259550df0fbad394bde221aa571eabbf99a51ecfd1de4e3e074a';
+// Claude는 더 이상 클라이언트에 키/엔드포인트를 두지 않음 (서버 프록시 사용)
 const CLAUDE_MODEL = 'claude-sonnet-5';
 
 type AiModel = 'glm' | 'claude';
@@ -348,65 +349,93 @@ export function ToeflAiWidget({ position = 'right', contextLabel, questionData, 
 
     try {
       const isClaude = selectedModel === 'claude';
-      const endpoint = isClaude ? CLAUDE_API_ENDPOINT : GLM_API_ENDPOINT;
-      const apiKey = isClaude ? CLAUDE_API_KEY : GLM_API_KEY;
-      const modelId = isClaude ? CLAUDE_MODEL : GLM_MODEL;
+      const messages = [
+        { role: 'system', content: systemPrompt },
+        ...newHistory.slice(-2).map((msg) => ({ role: msg.role, content: msg.content })),
+      ];
 
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
-
-      const requestBody: Record<string, any> = {
-        model: modelId,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          ...newHistory.slice(-2).map((msg) => ({ role: msg.role, content: msg.content })),
-        ],
-        max_tokens: 1200,
-        temperature: 0.6,
-        stream: true,
-      };
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        if (response.status === 429) throw new Error('API 호출 횟수가 제한되었어요. 잠시 후 다시 시도해주세요.');
-        if (response.status === 401 || response.status === 403) throw new Error('인증 오류가 발생했어요.');
-        const errText = await response.text().catch(() => '');
-        throw new Error(`서버 오류 (${response.status}): ${errText.slice(0, 100)}`);
-      }
-
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error('스트리밍 응답을 읽을 수 없어요.');
-
-      const decoder = new TextDecoder();
       let fullText = '';
-      let buffer = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      if (isClaude) {
+        // Claude: 서버 프록시 호출 (스트리밍 미지원, 일반 JSON 응답)
+        const response = await fetch(CLAUDE_PROXY_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...getServerHeaders(),
+          },
+          body: JSON.stringify({
+            messages,
+            max_tokens: 1200,
+            temperature: 0.6,
+            model: CLAUDE_MODEL,
+          }),
+        });
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
+        if (!response.ok) {
+          if (response.status === 429) throw new Error('API 호출 횟수가 제한되었어요. 잠시 후 다시 시도해주세요.');
+          if (response.status === 401 || response.status === 403) throw new Error('인증 오류가 발생했어요.');
+          const errText = await response.text().catch(() => '');
+          throw new Error(`서버 오류 (${response.status}): ${errText.slice(0, 100)}`);
+        }
 
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed || trimmed === 'data: [DONE]') continue;
-          if (!trimmed.startsWith('data: ')) continue;
+        const data = await response.json();
+        fullText = data.content || 'AI 응답을 받지 못했어요. 다시 시도해주세요.';
+        setStreamingText(fullText);
+      } else {
+        // GLM: 직접 호출 + 스트리밍
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        headers['Authorization'] = `Bearer ${GLM_API_KEY}`;
 
-          try {
-            const json = JSON.parse(trimmed.slice(6));
-            const delta = json.choices?.[0]?.delta?.content;
-            if (delta) {
-              fullText += delta;
-              setStreamingText(fullText);
-            }
-          } catch { /* 불완전 JSON — 다음 chunk에서 처리 */ }
+        const requestBody: Record<string, any> = {
+          model: GLM_MODEL,
+          messages,
+          max_tokens: 1200,
+          temperature: 0.6,
+          stream: true,
+        };
+
+        const response = await fetch(GLM_API_ENDPOINT, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(requestBody),
+        });
+
+        if (!response.ok) {
+          if (response.status === 429) throw new Error('API 호출 횟수가 제한되었어요. 잠시 후 다시 시도해주세요.');
+          if (response.status === 401 || response.status === 403) throw new Error('인증 오류가 발생했어요.');
+          const errText = await response.text().catch(() => '');
+          throw new Error(`서버 오류 (${response.status}): ${errText.slice(0, 100)}`);
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error('스트리밍 응답을 읽을 수 없어요.');
+
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed === 'data: [DONE]') continue;
+            if (!trimmed.startsWith('data: ')) continue;
+
+            try {
+              const json = JSON.parse(trimmed.slice(6));
+              const delta = json.choices?.[0]?.delta?.content;
+              if (delta) {
+                fullText += delta;
+                setStreamingText(fullText);
+              }
+            } catch { /* 불완전 JSON — 다음 chunk에서 처리 */ }
+          }
         }
       }
 

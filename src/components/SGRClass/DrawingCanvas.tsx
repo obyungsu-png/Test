@@ -1,18 +1,18 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { X, Undo2, Trash2 } from "lucide-react";
+import { X, Undo2, Trash2, Eraser, PenLine } from "lucide-react";
 
 const PEN_COLORS = [
   { name: "검정", value: "#1a1a1a" },
   { name: "빨강", value: "#e53935" },
   { name: "파랑", value: "#1e88e5" },
+  { name: "흰색", value: "#ffffff" },
+  { name: "살색", value: "#ffcc99" },
 ];
 
-const PEN_SIZES = [
-  { name: "가는", value: 2 },
-  { name: "중간", value: 4 },
-  { name: "굵은", value: 8 },
-];
+const MIN_SIZE = 1;
+const MAX_SIZE = 24;
+const DEFAULT_SIZE = 4;
 
 interface Point {
   x: number;
@@ -23,6 +23,7 @@ interface Stroke {
   points: Point[];
   color: string;
   size: number;
+  mode: "pen" | "eraser"; // 펜 모드 / 지우개 모드
 }
 
 interface DrawingCanvasProps {
@@ -33,9 +34,10 @@ interface DrawingCanvasProps {
 /**
  * 페이지 위에 오버레이되는 필기(낙서) 캔버스
  * - tools 팝오버의 필기 버튼 클릭 시 활성화
- * - 3가지 색상 / 3가지 두께 선택 가능
+ * - 5가지 색상 (검정/빨강/파랑/흰색/살색)
+ * - 두께 슬라이더 (1~24px)
+ * - 펜 / 부분 지우개 모드 전환
  * - 되돌리기, 전체 지우기, 닫기 지원
- * - localStorage에 저장하지 않음 (세션 내 유지)
  */
 export function DrawingCanvas({ active, onClose }: DrawingCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -44,7 +46,8 @@ export function DrawingCanvas({ active, onClose }: DrawingCanvasProps) {
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const [currentStroke, setCurrentStroke] = useState<Point[]>([]);
   const [color, setColor] = useState(PEN_COLORS[0].value);
-  const [size, setSize] = useState(PEN_SIZES[1].value); // 기본: 중간
+  const [size, setSize] = useState(DEFAULT_SIZE);
+  const [mode, setMode] = useState<"pen" | "eraser">("pen");
 
   // 캔버스 크기를 전체 문서 크기에 맞춤
   useEffect(() => {
@@ -78,7 +81,14 @@ export function DrawingCanvas({ active, onClose }: DrawingCanvasProps) {
     ctx.lineJoin = "round";
     strokesToDraw.forEach((s) => {
       if (s.points.length < 2) return;
-      ctx.strokeStyle = s.color;
+      if (s.mode === "eraser") {
+        // 부분 지우개: destination-out 으로 지움
+        ctx.globalCompositeOperation = "destination-out";
+        ctx.strokeStyle = "rgba(0,0,0,1)";
+      } else {
+        ctx.globalCompositeOperation = "source-over";
+        ctx.strokeStyle = s.color;
+      }
       ctx.lineWidth = s.size;
       ctx.beginPath();
       ctx.moveTo(s.points[0].x, s.points[0].y);
@@ -87,6 +97,8 @@ export function DrawingCanvas({ active, onClose }: DrawingCanvasProps) {
       }
       ctx.stroke();
     });
+    // 복구
+    ctx.globalCompositeOperation = "source-over";
   }, []);
 
   const getPoint = (e: React.MouseEvent | React.TouchEvent): Point => {
@@ -106,13 +118,20 @@ export function DrawingCanvas({ active, onClose }: DrawingCanvasProps) {
     // 즉시 점 찍기
     const ctx = canvasRef.current?.getContext("2d");
     if (ctx) {
-      ctx.strokeStyle = color;
+      if (mode === "eraser") {
+        ctx.globalCompositeOperation = "destination-out";
+        ctx.strokeStyle = "rgba(0,0,0,1)";
+      } else {
+        ctx.globalCompositeOperation = "source-over";
+        ctx.strokeStyle = color;
+      }
       ctx.lineWidth = size;
       ctx.lineCap = "round";
       ctx.beginPath();
       ctx.moveTo(p.x, p.y);
       ctx.lineTo(p.x + 0.1, p.y + 0.1);
       ctx.stroke();
+      ctx.globalCompositeOperation = "source-over";
     }
   };
 
@@ -124,7 +143,13 @@ export function DrawingCanvas({ active, onClose }: DrawingCanvasProps) {
     const ctx = canvasRef.current?.getContext("2d");
     if (ctx && currentStroke.length > 0) {
       const last = currentStroke[currentStroke.length - 1];
-      ctx.strokeStyle = color;
+      if (mode === "eraser") {
+        ctx.globalCompositeOperation = "destination-out";
+        ctx.strokeStyle = "rgba(0,0,0,1)";
+      } else {
+        ctx.globalCompositeOperation = "source-over";
+        ctx.strokeStyle = color;
+      }
       ctx.lineWidth = size;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
@@ -132,6 +157,7 @@ export function DrawingCanvas({ active, onClose }: DrawingCanvasProps) {
       ctx.moveTo(last.x, last.y);
       ctx.lineTo(p.x, p.y);
       ctx.stroke();
+      ctx.globalCompositeOperation = "source-over";
     }
   };
 
@@ -139,7 +165,7 @@ export function DrawingCanvas({ active, onClose }: DrawingCanvasProps) {
     if (!isDrawing) return;
     setIsDrawing(false);
     if (currentStroke.length > 1) {
-      setStrokes((prev) => [...prev, { points: currentStroke, color, size }]);
+      setStrokes((prev) => [...prev, { points: currentStroke, color, size, mode }]);
     }
     setCurrentStroke([]);
   };
@@ -163,8 +189,11 @@ export function DrawingCanvas({ active, onClose }: DrawingCanvasProps) {
       {/* 필기 캔버스 (투명 배경, 전체 문서 크기) */}
       <canvas
         ref={canvasRef}
-        className="absolute cursor-crosshair"
-        style={{ touchAction: "none" }}
+        className="absolute"
+        style={{
+          touchAction: "none",
+          cursor: mode === "eraser" ? "cell" : "crosshair",
+        }}
         onMouseDown={startDrawing}
         onMouseMove={draw}
         onMouseUp={stopDrawing}
@@ -176,15 +205,46 @@ export function DrawingCanvas({ active, onClose }: DrawingCanvasProps) {
 
       {/* 필기 툴 바 */}
       <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[101] flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-800 rounded-full shadow-lg border border-gray-200 dark:border-gray-600">
-        {/* 색상 선택 */}
-        <div className="flex items-center gap-1.5">
+        {/* 펜 / 지우개 모드 토글 */}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setMode("pen")}
+            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+              mode === "pen"
+                ? "bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-300"
+                : "text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+            }`}
+            title="펜"
+          >
+            <PenLine className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setMode("eraser")}
+            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+              mode === "eraser"
+                ? "bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-300"
+                : "text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+            }`}
+            title="부분 지우개"
+          >
+            <Eraser className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="w-px h-6 bg-gray-200 dark:bg-gray-600" />
+
+        {/* 색상 선택 (펜 모드일 때만 활성) */}
+        <div className={`flex items-center gap-1.5 ${mode === "eraser" ? "opacity-30 pointer-events-none" : ""}`}>
           {PEN_COLORS.map((c) => (
             <button
               key={c.value}
-              onClick={() => setColor(c.value)}
-              className={`w-7 h-7 rounded-full transition-transform hover:scale-110 ${
-                color === c.value ? "ring-2 ring-offset-1 ring-gray-400 scale-110" : ""
-              }`}
+              onClick={() => {
+                setColor(c.value);
+                setMode("pen");
+              }}
+              className={`w-7 h-7 rounded-full transition-transform hover:scale-110 border ${
+                c.value === "#ffffff" ? "border-gray-300" : "border-transparent"
+              } ${color === c.value && mode === "pen" ? "ring-2 ring-offset-1 ring-gray-400 scale-110" : ""}`}
               style={{ backgroundColor: c.value }}
               title={c.name}
             />
@@ -193,25 +253,19 @@ export function DrawingCanvas({ active, onClose }: DrawingCanvasProps) {
 
         <div className="w-px h-6 bg-gray-200 dark:bg-gray-600" />
 
-        {/* 두께 선택 */}
-        <div className="flex items-center gap-1">
-          {PEN_SIZES.map((s) => (
-            <button
-              key={s.value}
-              onClick={() => setSize(s.value)}
-              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                size === s.value
-                  ? "bg-gray-200 dark:bg-gray-600"
-                  : "hover:bg-gray-100 dark:hover:bg-gray-700"
-              }`}
-              title={s.name}
-            >
-              <div
-                className="rounded-full bg-gray-700 dark:bg-gray-300"
-                style={{ width: s.value * 2, height: s.value * 2 }}
-              />
-            </button>
-          ))}
+        {/* 두께 슬라이더 */}
+        <div className="flex items-center gap-2 px-1">
+          <span className="text-[10px] text-gray-400 font-medium">두께</span>
+          <input
+            type="range"
+            min={MIN_SIZE}
+            max={MAX_SIZE}
+            value={size}
+            onChange={(e) => setSize(Number(e.target.value))}
+            className="w-20 h-1 accent-violet-500 cursor-pointer"
+            title={`두께: ${size}px`}
+          />
+          <span className="text-[10px] text-gray-500 font-mono w-6 text-right">{size}</span>
         </div>
 
         <div className="w-px h-6 bg-gray-200 dark:bg-gray-600" />
