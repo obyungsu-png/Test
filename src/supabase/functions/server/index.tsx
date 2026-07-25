@@ -748,7 +748,7 @@ app.get("/make-server-7db3bef3/ai/test-key", async (c) => {
   }
 });
 
-// ===== 사용자 인증 API =====
+// ===== 범용 Claude 프록시 API =====
 
 // 범용 Claude 프록시 라우트 — 클라이언트가 apiclaude.cc를 직접 호출하지 않고
 // 서버를 경유하도록 우회 (CORS / 키 노출 / 트래픽 제어 목적).
@@ -799,6 +799,8 @@ app.post("/make-server-7db3bef3/ai/claude-chat", async (c) => {
     return c.json({ error: "Claude proxy failed", details: String(error) }, 500);
   }
 });
+
+// ===== 사용자 인증 API =====
 
 // 아이디+비밀번호 회원가입 (서버 사이드 Supabase Auth admin 생성)
 app.post("/make-server-7db3bef3/users/register", async (c) => {
