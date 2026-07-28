@@ -52,48 +52,91 @@ function firstLetterBlank(word: string): string {
   return clean[0] + "_".repeat(clean.length - 1);
 }
 
-// passage 전체 빈칸넣기 (문장당 1~2개 단어, 첫 글자 제공)
+// passage 전체 빈칸넣기 (문단당 4개 단어, 첫 글자 제공) — 뷰어의 빈칸넣기 탭과 동일
 function generatePassageFillBlank(lesson: SGRLesson, showAnswer: boolean): string {
   if (lesson.passageParagraphs.length === 0) return "";
   const rows: string[] = [];
-  let idx = 1;
-  lesson.passageParagraphs.forEach((para, pi) => {
-    const sentences = splitSentences(para.content);
-    sentences.forEach(sent => {
-      const words = sent.split(/\s+/);
-      // 빈칸 후보 인덱스 찾기
-      const candidates: number[] = [];
-      words.forEach((w, i) => { if (isBlankCandidate(w)) candidates.push(i); });
-      // 문장당 최대 1~2개
-      const blankCount = Math.min(candidates.length, sent.length > 80 ? 2 : 1);
-      const blankIndices = candidates.slice(0, blankCount);
+  const allBlanks: Array<{ number: number; answer: string }> = [];
+  let blankNum = 0;
 
-      const processed = words.map((w, i) => {
-        if (blankIndices.includes(i)) {
-          if (showAnswer) {
-            const clean = w.replace(/[^a-zA-Z']/g, "");
-            return `<span class="filled">${esc(clean)}</span>` + (w.match(/[^a-zA-Z']*$/)?.[0] || "");
-          }
-          return `<span class="blank-word">${firstLetterBlank(w)}</span>` + (w.match(/[^a-zA-Z']*$/)?.[0] || "");
-        }
-        return esc(w);
-      }).join(" ");
-      rows.push(`<div class="pfill"><span class="clabel">(${idx})</span> ${processed}</div>`);
-      idx++;
+  lesson.passageParagraphs.forEach((para, pi) => {
+    const words = para.content.split(/(\s+)/); // 공백 유지 분할
+    const wordIndices: number[] = [];
+    words.forEach((w, i) => {
+      if (/\S/.test(w) && isBlankCandidate(w.replace(/[^a-zA-Z']/g, "")))
+        wordIndices.push(i);
     });
+    const pickCount = Math.min(4, wordIndices.length);
+    const step = wordIndices.length / Math.max(1, pickCount);
+    const blankIdxSet = new Set<number>();
+    for (let k = 0; k < pickCount; k++) {
+      blankIdxSet.add(wordIndices[Math.floor(k * step)]);
+    }
+
+    const processed = words.map((w, i) => {
+      if (blankIdxSet.has(i)) {
+        blankNum += 1;
+        const answer = w.replace(/[^a-zA-Z']/g, "");
+        allBlanks.push({ number: blankNum, answer });
+        const tail = w.match(/[^a-zA-Z']*$/)?.[0] || "";
+        if (showAnswer) {
+          return `<span class="filled">${esc(answer)}</span>${esc(tail)}`;
+        }
+        return `<span class="blank-word">(${blankNum}) ${firstLetterBlank(w)}</span>${esc(tail)}`;
+      }
+      return esc(w);
+    }).join("");
+    rows.push(`<div class="pfill"><span class="clabel">(${pi + 1})</span> ${processed}</div>`);
   });
+
+  // 정답 목록 (해답편에서만)
+  const answerList = showAnswer && allBlanks.length > 0 ? `
+    <div class="answer-list">
+      <h3 class="answer-list-title">빈칸 정답 목록</h3>
+      <div class="answer-list-grid">
+        ${allBlanks.map(b => `<div class="answer-item"><span class="answer-num">${b.number}</span>${esc(b.answer)}</div>`).join("")}
+      </div>
+    </div>` : "";
+
   return `
     <div class="section">
-      <h2 class="section-title">● Passage Fill-in-the-Blanks</h2>
-      <p class="section-sub">빈칸에 알맞은 단어를 쓰세요. (첫 글자가 주어집니다.)</p>
+      <h2 class="section-title">● Passage 빈칸넣기</h2>
+      <p class="section-sub">지문 전체에서 핵심 단어를 빈칸으로 표시했습니다. 첫 글자가 주어집니다.</p>
       ${rows.join("")}
+      ${answerList}
     </div>`;
 }
 
-// 글의 흐름 (Organization) 빈칸넣기
-function generateOrganizationBlank(lesson: SGRLesson, showAnswer: boolean): string {
+// Outline 섹션 — CMS의 Complete the outline 문제를 사용, 없으면 자동 Organization 생성
+function renderOutlineSection(lesson: SGRLesson, showAnswer: boolean): string {
+  const outlineQ = lesson.questions.find(q => q.type === "outline") as OutlineQuestion | undefined;
+
+  if (outlineQ) {
+    const renderCol = (title: string, items: OutlineQuestion["leftItems"]) => `
+      <div class="outcol">
+        <div class="outtitle">${esc(title)}</div>
+        <ul>
+          ${items.map(it => {
+            const filled = showAnswer && it.answer
+              ? esc(it.text).replace(/___+/g, `<span class="filled">${esc(it.answer)}</span>`)
+              : renderInline(it.text);
+            return `<li>${filled}</li>`;
+          }).join("")}
+        </ul>
+      </div>`;
+    return `
+      <div class="section">
+        <h2 class="section-title">● Outline</h2>
+        <p class="section-sub">지문의 핵심 구조를 두 축으로 정리했습니다. 빈칸에 알맞은 단어를 채워보세요.</p>
+        <div class="outrow">
+          ${renderCol(outlineQ.leftTitle, outlineQ.leftItems)}
+          ${renderCol(outlineQ.rightTitle, outlineQ.rightItems)}
+        </div>
+      </div>`;
+  }
+
+  // fallback: 자동 Organization (각 단락 첫 문장에서 빈칸 생성)
   if (lesson.passageParagraphs.length === 0) return "";
-  // 각 단락의 첫 문장을 주제 문장으로 사용, 빈칸 처리
   const rows: string[] = [];
   lesson.passageParagraphs.forEach((para, i) => {
     const sentences = splitSentences(para.content);
@@ -322,7 +365,7 @@ function buildHtml(lesson: SGRLesson, showAnswer: boolean): string {
   const vocabReviewHtml = renderVocabReviewHtml(lesson, showAnswer);
   // 새 섹션들
   const keyPhrasesHtml = generateKeyPhrases(lesson);
-  const orgBlankHtml = generateOrganizationBlank(lesson, showAnswer);
+  const orgBlankHtml = renderOutlineSection(lesson, showAnswer);
   const passageBlankHtml = generatePassageFillBlank(lesson, showAnswer);
 
   const modeLabel = showAnswer ? "문제+해답편" : "문제편";
@@ -354,9 +397,9 @@ function buildHtml(lesson: SGRLesson, showAnswer: boolean): string {
   .opt.correct::before { content: "▶ "; }
   .answer { margin-top: 6px; margin-left: 26px; padding: 6px 10px; background: #ecfeff; border-left: 3px solid #0891b2; font-size: 13px; color: #0e7490; }
   .expl { color: #555; font-size: 12.5px; }
-  .blank { border-bottom: 1px solid #333; display: inline-block; min-width: 60px; }
-  .blank-word { border-bottom: 2px solid #333; display: inline-block; letter-spacing: 1px; font-weight: 600; color: #555; }
-  .filled { color: #0891b2; font-weight: 700; border-bottom: 1px solid #0891b2; padding: 0 4px; }
+  .blank { border-bottom: 2px solid #333; display: inline-block; min-width: 100px; }
+  .blank-word { border-bottom: 2px solid #333; display: inline-block; min-width: 100px; letter-spacing: 1px; font-weight: 600; color: #555; padding: 0 2px; }
+  .filled { color: #0891b2; font-weight: 700; border-bottom: 2px solid #0891b2; padding: 0 4px; }
   .wordbank { background: #f1f5f9; border-radius: 20px; padding: 8px 16px; margin: 8px 0; font-size: 13px; }
   .wordbank span { display: inline-block; margin: 0 10px; color: #334155; }
   .csent { padding: 6px 0; font-size: 13.5px; }
@@ -382,6 +425,12 @@ function buildHtml(lesson: SGRLesson, showAnswer: boolean): string {
   .org-text { font-size: 13.5px; flex: 1; }
   /* Passage fill blank */
   .pfill { padding: 6px 0; font-size: 13.5px; line-height: 1.8; }
+  /* 빈칸 정답 목록 */
+  .answer-list { margin-top: 12px; padding: 10px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; }
+  .answer-list-title { font-size: 13px; font-weight: 700; color: #0e7490; margin: 0 0 8px 0; }
+  .answer-list-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .answer-item { font-size: 12.5px; padding: 4px 8px; background: white; border: 1px solid #e2e8f0; border-radius: 4px; }
+  .answer-num { display: inline-block; width: 18px; height: 18px; background: #0891b2; color: white; border-radius: 50%; text-align: center; line-height: 18px; font-size: 10px; margin-right: 4px; font-weight: 700; }
   @media print { .noprint { display: none; } body { font-size: 12px; } }
   .noprint { position: fixed; bottom: 20px; right: 20px; z-index: 1000; }
   .noprint button { padding: 10px 20px; background: #0891b2; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }

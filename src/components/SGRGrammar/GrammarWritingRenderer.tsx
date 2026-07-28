@@ -374,7 +374,7 @@ function RearrangeView({
                 ) : (
                   <p className="text-gray-700 dark:text-gray-200">
                     {item.starter && <span className="font-bold">{item.starter} </span>}
-                    <span className="inline-block min-w-[240px] border-b border-gray-300 dark:border-gray-600" />
+                    <span className="inline-block min-w-[240px] border-b-2 border-gray-300 dark:border-gray-600" />
                     {item.ending && <span className="ml-1">{item.ending}</span>}
                   </p>
                 )}
@@ -421,7 +421,7 @@ function ErrorCorrectionView({
                     {item.answer}
                   </p>
                 ) : (
-                  <span className="inline-block flex-1 min-w-0 border-b border-gray-300 dark:border-gray-600 h-6" />
+                  <span className="inline-block flex-1 min-w-0 border-b-2 border-gray-300 dark:border-gray-600 h-6" />
                 )}
               </div>
             </div>
@@ -470,7 +470,7 @@ function TranslationView({
                     {item.answer}
                   </p>
                 ) : (
-                  <span className="inline-block flex-1 min-w-0 border-b border-gray-300 dark:border-gray-600 h-6" />
+                  <span className="inline-block flex-1 min-w-0 border-b-2 border-gray-300 dark:border-gray-600 h-6" />
                 )}
               </div>
             </div>

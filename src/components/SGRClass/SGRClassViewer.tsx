@@ -41,11 +41,11 @@ function formatInline(text: string, showAnswer: boolean, answer?: string) {
       regex: /___+/,
       render: () =>
         showAnswer && answer ? (
-          <span className="inline-block px-2 border-b-2 border-cyan-500 text-cyan-600 dark:text-cyan-300 font-bold">
+          <span className="inline-block min-w-[100px] px-2 border-b-2 border-cyan-500 text-cyan-600 dark:text-cyan-300 font-bold">
             {answer}
           </span>
         ) : (
-          <span className="inline-block min-w-[80px] border-b-2 border-gray-400 dark:border-gray-500" />
+          <span className="inline-block min-w-[100px] border-b-2 border-gray-400 dark:border-gray-500" />
         ),
     },
   ];
@@ -167,7 +167,7 @@ function PagePreview({ lesson, showAnswer, dark }: { lesson: SGRLesson; showAnsw
                     type="text"
                     value={vocabInputs[v.id] || ""}
                     onChange={(e) => setVocabInputs(prev => ({ ...prev, [v.id]: e.target.value }))}
-                    className="inline-block min-w-[140px] border-b-2 border-gray-400 dark:border-gray-500 h-7 bg-transparent outline-none font-bold text-gray-800 dark:text-gray-100 focus:border-cyan-500 px-1"
+                    className="inline-block min-w-[100px] max-w-[200px] mx-1 px-2 py-0.5 border-b-2 border-gray-400 dark:border-gray-500 h-7 bg-transparent outline-none font-bold text-gray-800 dark:text-gray-100 focus:border-cyan-500"
                     placeholder="___"
                   />
                 )}
@@ -493,7 +493,7 @@ function renderWithInput(
               type="text"
               value={value}
               onChange={(e) => onChange(e.target.value)}
-              className={`inline-block min-w-[80px] max-w-[180px] mx-1 px-2 py-0.5 border-b-2 bg-transparent outline-none font-bold ${inputCls}`}
+              className={`inline-block min-w-[100px] max-w-[200px] mx-1 px-2 py-0.5 border-b-2 bg-transparent outline-none font-bold ${inputCls}`}
               placeholder={showAnswer ? answer : "___"}
             />
             {showAnswer && (
@@ -542,6 +542,7 @@ function PageQuestions({ lesson, showAnswer }: { lesson: SGRLesson; showAnswer: 
 
 function PageVocabReview({ lesson, showAnswer }: { lesson: SGRLesson; showAnswer: boolean }) {
   const { wordBank, items } = lesson.vocabReview;
+  const { bucket, set } = useAnswers("sgrClass", lesson.id);
   return (
     <div className="max-w-[1600px] mx-auto p-6 lg:p-10">
       <div className="flex items-center gap-3 mb-3">
@@ -564,14 +565,19 @@ function PageVocabReview({ lesson, showAnswer }: { lesson: SGRLesson; showAnswer
         </div>
       )}
       <div className="space-y-3">
-        {items.map((it, i) => (
-          <div key={it.id} className="flex items-center gap-3 text-xl">
-            <span className="w-7 shrink-0 font-bold text-cyan-600 dark:text-cyan-400">{i + 1}</span>
-            <span className="text-gray-700 dark:text-gray-200 flex-1">
-              {formatInline(it.sentence, showAnswer, it.answer)}
-            </span>
-          </div>
-        ))}
+        {items.map((it, i) => {
+          const key = `vocabReview:${it.id}`;
+          const val = typeof bucket[key] === "string" ? (bucket[key] as string) : "";
+          const correct = isTextCorrect(val, it.answer);
+          return (
+            <div key={it.id} className="flex items-start gap-3 text-xl">
+              <span className="w-7 shrink-0 font-bold text-cyan-600 dark:text-cyan-400">{i + 1}</span>
+              <span className="text-gray-700 dark:text-gray-200 flex-1 leading-relaxed">
+                {renderWithInput(it.sentence, val, (v) => set(key, v), showAnswer, it.answer, correct)}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -625,6 +631,7 @@ function PageDirectReading({ lesson, showAnswer }: { lesson: SGRLesson; showAnsw
   const [revealedSentences, setRevealedSentences] = useState<Set<string>>(new Set());
   const [expandedGrammar, setExpandedGrammar] = useState<string | null>(null);
   const [viewedSentences, setViewedSentences] = useState<Set<string>>(new Set());
+  const { bucket, set } = useAnswers("sgrClass", lesson.id);
 
   // passage에서 자동 directReading 생성 (CMS 데이터 없을 때)
   const autoDirectReading = useMemo<DirectReadingItem[]>(() => {
@@ -978,12 +985,22 @@ function PageDirectReading({ lesson, showAnswer }: { lesson: SGRLesson; showAnsw
                     </span>
                   </div>
                   <ul className="space-y-2 text-sm text-gray-800 dark:text-gray-100">
-                    {col.items.map((it) => (
-                      <li key={it.id} className="flex gap-2">
-                        <span className="text-cyan-600 dark:text-cyan-400">•</span>
-                        <span>{formatInline(it.text, showAnswer, it.answer)}</span>
-                      </li>
-                    ))}
+                    {col.items.map((it) => {
+                      const oKey = `outline:${ci}:${it.id}`;
+                      const oVal = typeof bucket[oKey] === "string" ? (bucket[oKey] as string) : "";
+                      const hasBlank = /___/.test(it.text) && it.answer;
+                      const oCorrect = hasBlank ? isTextCorrect(oVal, it.answer || "") : false;
+                      return (
+                        <li key={it.id} className="flex gap-2">
+                          <span className="text-cyan-600 dark:text-cyan-400">•</span>
+                          <span className="flex-1">
+                            {hasBlank
+                              ? renderWithInput(it.text, oVal, (v) => set(oKey, v), showAnswer, it.answer || "", oCorrect)
+                              : formatInline(it.text, showAnswer, it.answer)}
+                          </span>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               ))}
@@ -1024,21 +1041,33 @@ function PageDirectReading({ lesson, showAnswer }: { lesson: SGRLesson; showAnsw
                   </span>
                   {para.nodes.map((n, i) => {
                     if (n.kind === "text") return <span key={i}>{n.content}</span>;
-                    return showAnswer ? (
-                      <span
+                    const bKey = `fillblank:${para.paragraphNumber}:${n.number}`;
+                    const bVal = typeof bucket[bKey] === "string" ? (bucket[bKey] as string) : "";
+                    const bCorrect = isTextCorrect(bVal, n.answer || "");
+                    if (showAnswer) {
+                      return (
+                        <span
+                          key={i}
+                          className="inline-block min-w-[100px] px-2 mx-0.5 border-b-2 border-cyan-500 text-cyan-600 dark:text-cyan-300 font-bold"
+                        >
+                          {n.answer}
+                        </span>
+                      );
+                    }
+                    return (
+                      <input
                         key={i}
-                        className="inline-block px-1.5 mx-0.5 border-b-2 border-cyan-500 text-cyan-600 dark:text-cyan-300 font-bold"
-                      >
-                        {n.answer}
-                      </span>
-                    ) : (
-                      <span
-                        key={i}
-                        className="inline-block px-1 mx-0.5 border-b-2 border-gray-400 dark:border-gray-500 text-gray-600 dark:text-gray-300 font-mono font-bold"
+                        type="text"
+                        value={bVal}
+                        onChange={(e) => set(bKey, e.target.value)}
+                        placeholder={firstLetterBlank(n.answer || "")}
                         title={`빈칸 ${n.number}`}
-                      >
-                        {firstLetterBlank(n.answer || "")}
-                      </span>
+                        className={`inline-block min-w-[100px] max-w-[200px] mx-0.5 px-2 py-0.5 border-b-2 bg-transparent outline-none font-bold ${
+                          bCorrect
+                            ? "border-cyan-500 text-cyan-700 dark:text-cyan-300"
+                            : "border-gray-400 dark:border-gray-500 text-gray-800 dark:text-gray-100 focus:border-cyan-500"
+                        }`}
+                      />
                     );
                   })}
                 </p>
