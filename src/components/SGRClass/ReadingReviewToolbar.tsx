@@ -1,4 +1,4 @@
-import { Highlighter, Underline, Eraser, Globe } from "lucide-react";
+import { Highlighter, Underline, Eraser, Globe, PenLine } from "lucide-react";
 
 // 하이라이트 색상 3종
 export const HIGHLIGHT_COLORS = [
@@ -142,6 +142,8 @@ interface ReadingReviewActionsProps {
   onLanguageChange: (lang: ReadingLang) => void;
   /** true면 EN/KO/CH 3언어. 기본 false → EN/KO. */
   enableChinese?: boolean;
+  /** 필기(자유 그리기) 캔버스 활성화 */
+  onDraw?: () => void;
 }
 
 /** 지우기 + EN/KO(/CH) 토글만 (다크모드 버튼 옆 배치용) */
@@ -150,6 +152,7 @@ export function ReadingReviewActions({
   language,
   onLanguageChange,
   enableChinese = false,
+  onDraw,
 }: ReadingReviewActionsProps) {
   const langs: ReadingLang[] = enableChinese ? ["en", "ko", "ch"] : ["en", "ko"];
   const cycleLang = () => {
@@ -169,6 +172,16 @@ export function ReadingReviewActions({
   );
   return (
     <div className="flex items-center gap-2">
+      {onDraw && (
+        <button
+          onClick={onDraw}
+          className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/30 hover:text-violet-600 dark:hover:text-violet-300 transition-colors"
+          title="필기 (화면 위에 자유 그리기)"
+        >
+          <PenLine size={14} />
+          <span className="hidden sm:inline">필기</span>
+        </button>
+      )}
       <button
         onClick={onClearAll}
         className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 transition-colors"

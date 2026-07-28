@@ -450,6 +450,7 @@ export default function SGRWritingViewer() {
                   onClearAll={handleClearAll}
                   language={language}
                   onLanguageChange={setLanguage}
+                  onDraw={handleDraw}
                 />
               )}
               <div className="relative group">
@@ -481,7 +482,6 @@ export default function SGRWritingViewer() {
           toolsOpen={toolsOpen}
           onDictionary={handleDictionary}
           onAiTutor={handleAiTutor}
-          onDraw={handleDraw}
           clearTrigger={clearTrigger}
         >
           <AnimatePresence mode="wait">

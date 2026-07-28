@@ -80,6 +80,7 @@ function formatInline(text: string, showAnswer: boolean, answer?: string) {
 
 // ─── Sub-page components ───────────────────────────
 function PagePreview({ lesson, showAnswer, dark }: { lesson: SGRLesson; showAnswer: boolean; dark: boolean }) {
+  const [vocabInputs, setVocabInputs] = useState<Record<string, string>>({});
   return (
     <div className="max-w-[1600px] mx-auto p-6 lg:p-10">
       {/* Unit hero */}
@@ -162,7 +163,13 @@ function PagePreview({ lesson, showAnswer, dark }: { lesson: SGRLesson; showAnsw
                     {v.word}
                   </span>
                 ) : (
-                  <span className="inline-block min-w-[140px] border-b-2 border-gray-400 dark:border-gray-500 h-7" />
+                  <input
+                    type="text"
+                    value={vocabInputs[v.id] || ""}
+                    onChange={(e) => setVocabInputs(prev => ({ ...prev, [v.id]: e.target.value }))}
+                    className="inline-block min-w-[140px] border-b-2 border-gray-400 dark:border-gray-500 h-7 bg-transparent outline-none font-bold text-gray-800 dark:text-gray-100 focus:border-cyan-500 px-1"
+                    placeholder="___"
+                  />
                 )}
                 <span className="text-gray-700 dark:text-gray-200">: {v.meaning}</span>
               </div>
@@ -1388,6 +1395,7 @@ export default function SGRClassViewer() {
                   language={language}
                   onLanguageChange={setLanguage}
                   enableChinese
+                  onDraw={handleDraw}
                 />
               )}
               <div className="relative group">
@@ -1419,7 +1427,6 @@ export default function SGRClassViewer() {
           toolsOpen={toolsOpen}
           onDictionary={handleDictionary}
           onAiTutor={handleAiTutor}
-          onDraw={handleDraw}
           clearTrigger={clearTrigger}
         >
           <AnimatePresence mode="wait">

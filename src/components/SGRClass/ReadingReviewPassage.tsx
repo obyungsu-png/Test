@@ -19,8 +19,6 @@ interface ReadingReviewPassageProps {
   onDictionary: (data: { word: string; context: string; x: number; y: number }) => void;
   /** AI 튜터 액션 콜백 (explain/translate/analyze/rewrite + 선택된 텍스트) */
   onAiTutor?: (action: "explain" | "translate" | "analyze" | "rewrite", text: string) => void;
-  /** 필기 버튼 클릭 시 콜백 — 부모에서 DrawingCanvas 활성화 */
-  onDraw?: () => void;
   /** 이 값이 바뀌면 모든 하이라이트/밑줄 제거 */
   clearTrigger?: number;
 }
@@ -35,7 +33,6 @@ export function ReadingReviewPassage({
   toolsOpen = true,
   onDictionary,
   onAiTutor,
-  onDraw,
   clearTrigger = 0,
 }: ReadingReviewPassageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -132,7 +129,6 @@ export function ReadingReviewPassage({
           onUnderline={color => applyMark("u", color)}
           onDictionary={handleDictionary}
           onAiTutor={onAiTutor}
-          onDraw={onDraw}
           onClose={() => setPopover(null)}
         />
       )}

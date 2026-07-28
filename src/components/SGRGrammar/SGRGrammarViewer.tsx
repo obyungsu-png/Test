@@ -214,6 +214,7 @@ export default function SGRGrammarViewer() {
                       onClearAll={handleClearAll}
                       language={language}
                       onLanguageChange={setLanguage}
+                      onDraw={handleDraw}
                     />
                   )}
                   <button
@@ -246,7 +247,6 @@ export default function SGRGrammarViewer() {
           toolsOpen={toolsOpen}
           onDictionary={handleDictionary}
           onAiTutor={handleAiTutor}
-          onDraw={handleDraw}
           clearTrigger={clearTrigger}
         >
         <div className="max-w-[1600px] mx-auto p-4 lg:p-8">

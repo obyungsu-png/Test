@@ -185,11 +185,18 @@ export function DrawingCanvas({ active, onClose }: DrawingCanvasProps) {
   if (!active) return null;
 
   return createPortal(
-    <div ref={containerRef} className="fixed inset-0 z-[100]">
+    <div
+      ref={containerRef}
+      className="absolute top-0 left-0 z-[100]"
+      style={{
+        width: document.documentElement.scrollWidth,
+        height: document.documentElement.scrollHeight,
+      }}
+    >
       {/* 필기 캔버스 (투명 배경, 전체 문서 크기) */}
       <canvas
         ref={canvasRef}
-        className="absolute"
+        className="absolute top-0 left-0"
         style={{
           touchAction: "none",
           cursor: mode === "eraser" ? "cell" : "crosshair",
