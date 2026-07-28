@@ -7,7 +7,7 @@ const PEN_COLORS = [
   { name: "빨강", value: "#e53935" },
   { name: "파랑", value: "#1e88e5" },
   { name: "흰색", value: "#ffffff" },
-  { name: "살색", value: "#ffcc99" },
+  { name: "황토색", value: "#cc7722" },
 ];
 
 const MIN_SIZE = 1;

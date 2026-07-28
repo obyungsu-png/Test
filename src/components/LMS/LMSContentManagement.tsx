@@ -1,4 +1,4 @@
-﻿import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { useState, useEffect, useRef } from "react";
 import TestFormBuilder from "./TestFormBuilder";
@@ -110,14 +110,14 @@ export default function LMSContentManagement({ selectedSubject, onSubjectSelect 
       subject: metadata?.subject || selectedSubject || "국어",
       level: metadata?.level || "전체",
       category: metadata?.category || selectedSubject || "국어",
-      schoolType: (metadata?.schoolType || "korean") as const,
+      schoolType: (metadata?.schoolType || "korean") as "korean" | "international" | "certification",
       contentType: metadata?.contentType || "시험지",
       uploadDate: new Date().toISOString(),
       password: metadata?.password || "",
       downloadCount: 0,
       fileSize: pdfFile ? `${(pdfFileSize / 1024 / 1024).toFixed(2)} MB` : `${txtContent.length} bytes`,
       isUploaded: true,
-      source: "content-management",
+      source: "content-management" as const,
       uploadData: pdfDataUrl ? {
         fileName: pdfFileName,
         fileType: "application/pdf",
@@ -190,14 +190,14 @@ export default function LMSContentManagement({ selectedSubject, onSubjectSelect 
         subject: bulkSubject,
         level: bulkLevel,
         category: bulkCategory,
-        schoolType: bulkSchoolType,
+        schoolType: bulkSchoolType as "korean" | "international" | "certification",
         contentType: bulkContentType,
         uploadDate: new Date().toISOString(),
         password: bulkPassword,
         downloadCount: 0,
         fileSize: `${content.length} bytes`,
         isUploaded: true,
-        source: "bulk-upload",
+        source: "content-management" as const,
         uploadData: {
           fileName: `${title}.txt`,
           fileType: "text/plain",

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   BookOpen, Plus, Trash2, Save, X, Upload, Download, Copy,
@@ -104,6 +104,8 @@ export default function LMSSGRClass() {
   const csvInputRef = useRef<HTMLInputElement>(null);
   const bulkCsvInputRef = useRef<HTMLInputElement>(null);
   const textInputRef = useRef<HTMLInputElement>(null);
+  const jsonInputRef = useRef<HTMLInputElement>(null);
+  const bulkJsonInputRef = useRef<HTMLInputElement>(null);
 
   const selected = useMemo(
     () => lessons.find(l => l.id === selectedId) || null,
@@ -294,6 +296,85 @@ export default function LMSSGRClass() {
     toast.success("텍스트 템플릿을 다운로드했습니다.");
   };
 
+  // JSON 1개 업로드
+  const handleJsonUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const lesson: SGRLesson = { ...data, id: uid(), createdAt: Date.now(), updatedAt: Date.now() };
+      setLessons(prev => [lesson, ...prev]);
+      setSelectedId(lesson.id);
+      setSubTab("overview");
+      setDirty(true);
+      toast.success(`JSON 업로드 완료: ${lesson.title}`);
+    } catch (err) {
+      console.error(err);
+      toast.error("JSON 파싱에 실패했습니다. 형식을 확인해주세요.");
+    } finally {
+      if (jsonInputRef.current) jsonInputRef.current.value = "";
+    }
+  };
+
+  // 대량 JSON 업로드 (배열 또는 개별 JSON 객체들)
+  const handleBulkJsonUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const arr: SGRLesson[] = Array.isArray(data) ? data : [data];
+      const newLessons: SGRLesson[] = arr.map((d: any) => ({
+        ...d,
+        id: uid(),
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }));
+      if (newLessons.length === 0) {
+        toast.error("파싱된 레슨이 없습니다.");
+        return;
+      }
+      setLessons(prev => [...newLessons, ...prev]);
+      setSelectedId(newLessons[0].id);
+      setSubTab("overview");
+      setDirty(true);
+      toast.success(`${newLessons.length}개 레슨 대량 JSON 업로드 완료`);
+    } catch (err) {
+      console.error(err);
+      toast.error("대량 JSON 파싱에 실패했습니다. 형식을 확인해주세요.");
+    } finally {
+      if (bulkJsonInputRef.current) bulkJsonInputRef.current.value = "";
+    }
+  };
+
+  // JSON 내보내기 (현재 레슨)
+  const handleJsonExport = () => {
+    if (!selected) return;
+    const json = JSON.stringify(selected, null, 2);
+    const blob = new Blob([json], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `sgr-class-${selected.unitNumber}-${selected.title.replace(/\s+/g, "_")}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // 대량 JSON 내보내기 (전체 레슨)
+  const handleBulkJsonExport = () => {
+    if (lessons.length === 0) return;
+    const json = JSON.stringify(lessons, null, 2);
+    const blob = new Blob([json], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `sgr-class-all-${lessons.length}lessons.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`${lessons.length}개 레슨 JSON으로 내보냈습니다.`);
+  };
+
   return (
     <div className="max-w-7xl mx-auto">
       {/* Header */}
@@ -304,7 +385,7 @@ export default function LMSSGRClass() {
             SGR Class 관리
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            수업용 교과서형 자료를 만들고 관리합니다. (CSV·TXT 대량 업로드 지원)
+            수업용 교과서형 자료를 만들고 관리합니다. (CSV·TXT·JSON 대량 업로드 지원 · Reading Explorer 포함)
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -360,6 +441,41 @@ export default function LMSSGRClass() {
             className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
           >
             <FileText className="w-4 h-4" /> TXT 템플릿
+          </button>
+          {/* JSON 업로드 */}
+          <div className="w-px h-6 bg-gray-200 mx-1" />
+          <button
+            onClick={() => jsonInputRef.current?.click()}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-amber-300 text-amber-700 hover:bg-amber-50"
+          >
+            <Upload className="w-4 h-4" /> JSON 1개
+          </button>
+          <input
+            ref={jsonInputRef}
+            type="file"
+            accept=".json,application/json"
+            className="hidden"
+            onChange={handleJsonUpload}
+          />
+          <button
+            onClick={() => bulkJsonInputRef.current?.click()}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg bg-amber-600 text-white hover:bg-amber-700 font-bold"
+          >
+            <Layers className="w-4 h-4" /> 대량 JSON
+          </button>
+          <input
+            ref={bulkJsonInputRef}
+            type="file"
+            accept=".json,application/json"
+            className="hidden"
+            onChange={handleBulkJsonUpload}
+          />
+          <button
+            onClick={handleBulkJsonExport}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+            title="전체 레슨을 JSON으로 내보내기"
+          >
+            <Download className="w-4 h-4" /> JSON 내보내기
           </button>
           <button
             onClick={() => setShowCsvHelp(true)}
@@ -518,6 +634,13 @@ export default function LMSSGRClass() {
                 >
                   <Download className="w-4 h-4" /> CSV 저장
                 </button>
+                <button
+                  onClick={handleJsonExport}
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg"
+                  title="이 레슨을 JSON으로 저장"
+                >
+                  <Download className="w-4 h-4" /> JSON 저장
+                </button>
                 <div className="relative group shrink-0">
                   <button className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg text-cyan-700 hover:bg-cyan-50">
                     <Download className="w-4 h-4" /> PDF
@@ -664,6 +787,19 @@ English sentence | 한국어 해석
 
 ===LESSON===
 (다음 레슨...)`}</pre>
+                </div>
+
+                {/* JSON 형식 */}
+                <div className="border-t pt-3">
+                  <p className="font-bold text-amber-700 mb-1">③ JSON 형식 (단일/대량)</p>
+                  <p>JSON 파일로 레슨을 업로드/내보낼 수 있습니다. 단일 객체 또는 배열을 지원합니다.</p>
+                  <ul className="list-disc pl-5 space-y-1 text-xs mt-2">
+                    <li><b>JSON 1개</b> — 단일 레슨 객체 (SGRLesson 구조)</li>
+                    <li><b>대량 JSON</b> — 레슨 객체 배열 <code className="bg-gray-100 px-1 rounded">[{`{ ... }`}, {`{ ... }`}]</code></li>
+                    <li><b>JSON 저장</b> — 현재 선택된 레슨을 JSON으로 다운로드</li>
+                    <li><b>JSON 내보내기</b> — 전체 레슨을 한 번에 JSON 배열로 다운로드</li>
+                    <li>Reading Explorer 레슨은 <code className="bg-gray-100 px-1 rounded">"bookType": "reading_explore"</code> 필드로 구분합니다.</li>
+                  </ul>
                 </div>
 
                 <div className="flex gap-2 flex-wrap">

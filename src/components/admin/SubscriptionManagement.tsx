@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Settings, Calendar, DollarSign, AlertCircle, TrendingUp, Users, Download, Plus, Trash2, Edit2 } from 'lucide-react';
-import { SERVER_BASE_URL, getServerHeaders } from '../utils/apiConfig';
-import type { Subscription } from '../utils/subscriptionUtils';
+import { SERVER_BASE_URL, getServerHeaders } from '../../utils/apiConfig';
+import type { Subscription } from '../../utils/subscriptionUtils';
 
 export function SubscriptionManagement() {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);

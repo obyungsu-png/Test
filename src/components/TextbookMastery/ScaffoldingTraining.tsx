@@ -11,7 +11,7 @@ interface ScaffoldingTrainingProps {
   onWrongAnswer: (sentenceId: number, type: string) => void;
 }
 
-type TrainingMode = 'blank';
+type TrainingMode = 'blank' | 'unscramble' | 'writing';
 
 export function ScaffoldingTraining({ sentences, onComplete, onWrongAnswer }: ScaffoldingTrainingProps) {
   const [mode, setMode] = useState<TrainingMode>('blank');

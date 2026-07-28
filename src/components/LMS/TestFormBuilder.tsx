@@ -1,4 +1,4 @@
-﻿import { useState, useRef } from "react";
+import { useState, useRef } from "react";
 import { Plus, Trash2, Save, FileText, Upload as UploadIcon, Eye, EyeOff, ChevronDown, ChevronUp, Download, ClipboardPaste, X, Check } from "lucide-react";
 import { toast } from "sonner";
 import { getSubjectStructure } from "../utils/dataManager";
@@ -319,13 +319,13 @@ export default function TestFormBuilder({ onSave }: TestFormBuilderProps) {
                 <div className="p-4 space-y-3">
                   <div>
                     <label className="text-xs font-bold text-gray-500 mb-1 block">문제</label>
-                    <textarea value={q.question} onChange={e => updateQuestion(q.id,'question',e.target.value)} rows={2}
+                    <textarea value={q.question} onChange={e => updateQuestion(q.id, { question: e.target.value })} rows={2}
                       placeholder="문제를 입력하세요"
                       className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-cyan-400 resize-none"/>
                   </div>
                   <div>
                     <label className="text-xs font-bold text-gray-500 mb-1 block">지문 (선택)</label>
-                    <textarea value={q.passage} onChange={e => updateQuestion(q.id,'passage',e.target.value)} rows={3}
+                    <textarea value={q.passage} onChange={e => updateQuestion(q.id, { passage: e.target.value })} rows={3}
                       placeholder="지문이 있으면 입력하세요"
                       className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-cyan-400 resize-none bg-gray-50"/>
                   </div>
@@ -334,7 +334,7 @@ export default function TestFormBuilder({ onSave }: TestFormBuilderProps) {
                     <div className="space-y-1.5">
                       {q.options.map((opt, j) => (
                         <div key={j} className="flex items-center gap-2">
-                          <button onClick={() => updateQuestion(q.id,'correctAnswer',j)}
+                          <button onClick={() => updateQuestion(q.id, { correctAnswer: j })}
                             className={`w-7 h-7 rounded-full text-xs font-bold flex-shrink-0 transition-colors ${q.correctAnswer===j ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
                             {String.fromCharCode(65+j)}
                           </button>
@@ -347,7 +347,7 @@ export default function TestFormBuilder({ onSave }: TestFormBuilderProps) {
                   </div>
                   <div>
                     <label className="text-xs font-bold text-gray-500 mb-1 block">해설</label>
-                    <input value={q.explanation} onChange={e => updateQuestion(q.id,'explanation',e.target.value)}
+                    <input value={q.explanation} onChange={e => updateQuestion(q.id, { explanation: e.target.value })}
                       placeholder="해설을 입력하세요 (선택)"
                       className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-cyan-400"/>
                   </div>

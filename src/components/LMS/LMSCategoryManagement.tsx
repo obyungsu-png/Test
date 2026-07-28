@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -91,7 +91,7 @@ export default function LMSCategoryManagement() {
               <h2 className="text-2xl text-gray-800 mb-4 pb-2 border-b border-gray-200">{subject}</h2>
               
               <div className="space-y-4">
-                {Object.entries(levels).map(([level, categories]) => (
+                {Object.entries(levels as Record<string, string[]>).map(([level, categories]) => (
                   <div key={level} className="bg-gray-50 rounded-lg p-4">
                     <h3 className="text-lg text-gray-700 mb-3 flex items-center">
                       {level}
@@ -174,7 +174,7 @@ export default function LMSCategoryManagement() {
               <h2 className="text-2xl text-gray-800 mb-4 pb-2 border-b border-gray-200">{subject}</h2>
               
               <div className="space-y-4">
-                {Object.entries(levels).map(([level, categories]) => (
+                {Object.entries(levels as Record<string, string[]>).map(([level, categories]) => (
                   <div key={level} className="bg-gray-50 rounded-lg p-4">
                     <h3 className="text-lg text-gray-700 mb-3 flex items-center">
                       {level}
@@ -257,7 +257,7 @@ export default function LMSCategoryManagement() {
               <h2 className="text-2xl text-gray-800 mb-4 pb-2 border-b border-gray-200">{subject}</h2>
               
               <div className="space-y-4">
-                {Object.entries(levels).map(([level, categories]) => (
+                {Object.entries(levels as Record<string, string[]>).map(([level, categories]) => (
                   <div key={level} className="bg-gray-50 rounded-lg p-4">
                     <h3 className="text-lg text-gray-700 mb-3 flex items-center">
                       {level}

@@ -338,7 +338,7 @@ export function Sidebar({ selectedSubject, selectedCategory, selectedSubCategory
                     ) : (
                       // Simple array structure (e.g., TOEFL)
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-1.5 sm:gap-2 lg:space-y-1.5 lg:space-x-0 text-xs sm:text-sm">
-                        {subItems.map((subItem) => (
+                        {(subItems as string[]).map((subItem) => (
                           <motion.div
                             key={subItem}
                             onClick={() => onSubCategoryChange && onSubCategoryChange(subItem)}
@@ -390,7 +390,7 @@ export function Sidebar({ selectedSubject, selectedCategory, selectedSubCategory
                   transition={{ duration: 0.3 }}
                   className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-1.5 sm:gap-2 lg:space-y-1.5 lg:space-x-0 text-xs sm:text-sm"
                 >
-                  {items.map((item) => {
+                  {(items as string[]).map((item) => {
                     const key = `${levelName}::${item}`;
                     const customName = customNames[key] || item;
                     return (

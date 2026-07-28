@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -178,6 +178,7 @@ export default function LMSUpload({ selectedSubject, onNavigateToContent }: LMSU
         downloadCount: 0,
         fileSize: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
         isUploaded: true,
+        source: "upload-page" as const,
         uploadData: {
           id: Date.now().toString(),
           fileName: file.name,
