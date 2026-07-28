@@ -635,6 +635,7 @@ export default function SGRVocaViewer() {
             y={popupData.y}
             onClose={() => setPopupData(null)}
             onLanguageChange={setLanguage}
+            availableLanguages={["en", "ko", "ch"]}
           />
         )}
 

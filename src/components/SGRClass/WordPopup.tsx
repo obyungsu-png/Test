@@ -81,14 +81,11 @@ export function WordPopup({
     }
   }, [word, language, context]);
 
-  // 자동 호출 제거: 유저가 [검색] 버튼을 누를 때만 API 호출 (토큰 절약)
-  // 언어 변경 시 기존 결과만 초기화
+  // 단어/언어 변경 시 자동 검색
+  // (팝업이 뜨면 곧바로 결과를 보여주는 것이 자연스러움)
   useEffect(() => {
-    setDefinitions([]);
-    setTranslation(null);
-    setChinese(null);
-    setError(false);
-  }, [language]);
+    fetchWordData();
+  }, [fetchWordData]);
 
   // 팝업 위치 조정 (화면 경계 + AI 튜터 위젯 영역 회피)
   useEffect(() => {

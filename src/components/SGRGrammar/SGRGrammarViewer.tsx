@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   BookOpen,
@@ -10,6 +10,7 @@ import {
   Moon,
   Sun,
   PenTool,
+  Highlighter,
 } from "lucide-react";
 import {
   loadUnits,
@@ -19,6 +20,11 @@ import {
   type GrammarWritingContent,
 } from "./types";
 import { GrammarWritingRenderer } from "./GrammarWritingRenderer";
+import { WordPopup } from "../SGRClass/WordPopup";
+import { AiActionPopup } from "../SGRClass/AiActionPopup";
+import { ReadingReviewPassage } from "../SGRClass/ReadingReviewPassage";
+import { DrawingCanvas } from "../SGRClass/DrawingCanvas";
+import { ReadingReviewActions } from "../SGRClass/ReadingReviewToolbar";
 
 // ─── inline formatter: **bold**, __underline__ ─────
 export function fmt(text: string): React.ReactNode[] {
@@ -59,6 +65,40 @@ export default function SGRGrammarViewer() {
     if (typeof window === "undefined") return false;
     return localStorage.getItem("sgrGrammar_dark") === "1";
   });
+
+  // ─── Tools 통합: 드래그 사전 / 하이라이트 / 필기 ───
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const [language, setLanguage] = useState<"en" | "ko" | "ch">("en");
+  const [popupData, setPopupData] = useState<{ word: string; context: string; x: number; y: number } | null>(null);
+  const [clearTrigger, setClearTrigger] = useState(0);
+  const [drawOpen, setDrawOpen] = useState(false);
+  const [aiActionPopup, setAiActionPopup] = useState<{
+    action: "explain" | "translate" | "analyze" | "rewrite";
+    text: string;
+    x: number;
+    y: number;
+  } | null>(null);
+
+  const handleAiTutor = (action: "explain" | "translate" | "analyze" | "rewrite", text: string) => {
+    const selection = window.getSelection();
+    const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+    const rect = range?.getBoundingClientRect();
+    const x = rect ? rect.left + rect.width / 2 - 160 : window.innerWidth / 2 - 160;
+    const y = rect ? rect.bottom + 10 : window.innerHeight / 2;
+    setAiActionPopup({ action, text, x, y });
+  };
+
+  const handleDictionary = useCallback((data: { word: string; context: string; x: number; y: number }) => {
+    setPopupData(data);
+  }, []);
+
+  const handleClearAll = useCallback(() => {
+    setClearTrigger(c => c + 1);
+  }, []);
+
+  const handleDraw = useCallback(() => {
+    setDrawOpen(true);
+  }, []);
 
   useEffect(() => {
     const handler = () => {
@@ -156,18 +196,39 @@ export default function SGRGrammarViewer() {
 
             <div className="ml-auto flex items-center gap-2">
               {kind && (
-                <button
-                  onClick={() => setShowAnswer((v) => !v)}
-                  title="정답 토글"
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${
-                    showAnswer
-                      ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300"
-                      : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
-                  }`}
-                >
-                  {showAnswer ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                  <span className="hidden sm:inline">정답</span>
-                </button>
+                <>
+                  <button
+                    onClick={() => setToolsOpen(v => !v)}
+                    title="Tools: drag to highlight/underline/dictionary"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${
+                      toolsOpen
+                        ? "bg-emerald-600 text-white"
+                        : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                    }`}
+                  >
+                    <Highlighter className="w-4 h-4" />
+                    <span className="hidden sm:inline">Tools</span>
+                  </button>
+                  {toolsOpen && (
+                    <ReadingReviewActions
+                      onClearAll={handleClearAll}
+                      language={language}
+                      onLanguageChange={setLanguage}
+                    />
+                  )}
+                  <button
+                    onClick={() => setShowAnswer((v) => !v)}
+                    title="정답 토글"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${
+                      showAnswer
+                        ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300"
+                        : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                    }`}
+                  >
+                    {showAnswer ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                    <span className="hidden sm:inline">정답</span>
+                  </button>
+                </>
               )}
               <button
                 onClick={() => setDark((v) => !v)}
@@ -181,6 +242,13 @@ export default function SGRGrammarViewer() {
         </div>
 
         {/* Content */}
+        <ReadingReviewPassage
+          toolsOpen={toolsOpen}
+          onDictionary={handleDictionary}
+          onAiTutor={handleAiTutor}
+          onDraw={handleDraw}
+          clearTrigger={clearTrigger}
+        >
         <div className="max-w-[1600px] mx-auto p-4 lg:p-8">
           <AnimatePresence mode="wait">
             {kind === null ? (
@@ -241,6 +309,7 @@ export default function SGRGrammarViewer() {
             )}
           </AnimatePresence>
         </div>
+        </ReadingReviewPassage>
 
         {/* Bottom nav (back to picker) */}
         {kind !== null && (
@@ -254,6 +323,34 @@ export default function SGRGrammarViewer() {
             </button>
           </div>
         )}
+
+        {/* 단어 뜻 팝업 */}
+        {popupData && (
+          <WordPopup
+            word={popupData.word}
+            context={popupData.context}
+            language={language}
+            x={popupData.x}
+            y={popupData.y}
+            onClose={() => setPopupData(null)}
+            onLanguageChange={setLanguage}
+            availableLanguages={["en", "ko", "ch"]}
+          />
+        )}
+
+        {/* AI 액션 말풍선 */}
+        {aiActionPopup && (
+          <AiActionPopup
+            action={aiActionPopup.action}
+            selectedText={aiActionPopup.text}
+            x={aiActionPopup.x}
+            y={aiActionPopup.y}
+            onClose={() => setAiActionPopup(null)}
+          />
+        )}
+
+        {/* 필기 캔버스 */}
+        <DrawingCanvas active={drawOpen} onClose={() => setDrawOpen(false)} />
       </div>
     </div>
   );
