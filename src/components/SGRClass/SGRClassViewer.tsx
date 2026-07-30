@@ -633,11 +633,24 @@ function PageDirectReading({ lesson, showAnswer }: { lesson: SGRLesson; showAnsw
   const [viewedSentences, setViewedSentences] = useState<Set<string>>(new Set());
   const { bucket, set } = useAnswers("sgrClass", lesson.id);
 
+  // Reading Explorer 단락을 포함한 통합 단락 (passageParagraphs가 비어있으면 RE 단락 사용)
+  const effectiveParagraphs = useMemo(() => {
+    if (lesson.passageParagraphs.length > 0) return lesson.passageParagraphs;
+    if (lesson.readingExplore?.reading?.paragraphs) {
+      return lesson.readingExplore.reading.paragraphs.map((p, i) => ({
+        id: p.id,
+        content: p.content,
+        imageCaption: p.imageCaption,
+      }));
+    }
+    return [];
+  }, [lesson.passageParagraphs, lesson.readingExplore]);
+
   // passage에서 자동 directReading 생성 (CMS 데이터 없을 때)
   const autoDirectReading = useMemo<DirectReadingItem[]>(() => {
     if (lesson.directReading.length > 0) return lesson.directReading;
     const items: DirectReadingItem[] = [];
-    lesson.passageParagraphs.forEach((para, pi) => {
+    effectiveParagraphs.forEach((para, pi) => {
       const sentences = splitSentences(para.content);
       sentences.forEach((sent) => {
         items.push({
@@ -654,7 +667,7 @@ function PageDirectReading({ lesson, showAnswer }: { lesson: SGRLesson; showAnsw
       });
     });
     return items;
-  }, [lesson.directReading, lesson.passageParagraphs]);
+  }, [lesson.directReading, effectiveParagraphs]);
 
   const toggleReveal = (id: string) => {
     setRevealedSentences(prev => {
@@ -716,7 +729,7 @@ function PageDirectReading({ lesson, showAnswer }: { lesson: SGRLesson; showAnsw
   // ─── 빈칸넣기(passage 전체) 데이터 준비 ─────────────
   // 핵심단어 후보 = 4자 이상 & SKIP_WORDS 제외. 문단당 최대 4개.
   const fillBlankData = useMemo(() => {
-    return lesson.passageParagraphs.map((para, pi) => {
+    return effectiveParagraphs.map((para, pi) => {
       const words = para.content.split(/(\s+)/); // 공백을 유지해서 분할
       const wordIndices: number[] = [];
       words.forEach((w, i) => {
@@ -745,7 +758,7 @@ function PageDirectReading({ lesson, showAnswer }: { lesson: SGRLesson; showAnsw
       });
       return { paragraphNumber: pi + 1, nodes, blanks };
     });
-  }, [lesson.passageParagraphs]);
+  }, [effectiveParagraphs]);
 
   return (
     <div className="max-w-[1600px] mx-auto p-4 lg:p-8">
@@ -767,7 +780,14 @@ function PageDirectReading({ lesson, showAnswer }: { lesson: SGRLesson; showAnsw
       </div>
 
       {/* ─── 직독직해 탭 ─── */}
-      {subTab === "direct" && (
+      {subTab === "direct" && autoDirectReading.length === 0 && (
+        <div className="p-8 text-center bg-white dark:bg-gray-800 rounded-2xl border border-dashed border-gray-300 dark:border-gray-700">
+          <FileText className="w-10 h-10 mx-auto mb-2 text-gray-300 dark:text-gray-600" />
+          <p className="text-gray-500 dark:text-gray-400">직독직해 데이터가 없습니다.</p>
+          <p className="text-sm text-gray-400 mt-1">CMS에서 DIRECT_READING 데이터를 추가하거나, 본문 단락을 등록하면 자동 생성됩니다.</p>
+        </div>
+      )}
+      {subTab === "direct" && autoDirectReading.length > 0 && (
         <>
           {/* Progress Bar */}
           <div className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 mb-4">
@@ -1126,6 +1146,7 @@ const PAGES_RE: Array<{ key: PageKey; label: string; icon: any }> = [
   { key: "re_comprehension", label: "Comprehension", icon: HelpCircle },
   { key: "re_skill", label: "Reading Skill", icon: FileText },
   { key: "re_vocab", label: "Vocab Practice", icon: Layers },
+  { key: "directReading", label: "직독직해", icon: FileText },
 ];
 
 function getBookType(l: SGRLesson | undefined): BookType {

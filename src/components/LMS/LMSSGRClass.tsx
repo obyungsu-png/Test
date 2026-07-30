@@ -757,7 +757,7 @@ export default function LMSSGRClass() {
                     <li><b>QUESTION_TF</b> — value1: 문장, value2: T 또는 F</li>
                     <li><b>VOCAB_REVIEW_BANK</b> — value1: 단어</li>
                     <li><b>VOCAB_REVIEW</b> — value1: 문장(___), value2: 정답</li>
-                    <li><b>DIRECT_READING</b> — value1: 영어, value2: 한글, value3: chunks(|)</li>
+                    <li><b>DIRECT_READING</b> — value1: 영어, value2: 한글, value3: chunks(|) <span className="text-cyan-600 font-bold">(Reading Explorer도 직독직해 탭에서 사용 가능)</span></li>
                   </ul>
                 </div>
 
