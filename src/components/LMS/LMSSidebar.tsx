@@ -28,6 +28,7 @@ export default function LMSSidebar({ selectedMenu, onMenuSelect }: LMSSidebarPro
     { id: "content", label: "콘텐츠 관리", icon: BookOpen },
     { id: "textbook-mastery", label: "뽀개기 관리", icon: GraduationCap },
     { id: "sgr-class", label: "SGR Class 관리", icon: Sparkles },
+    { id: "sgr-novel", label: "SGR Novels 관리", icon: BookOpen },
     { id: "sgr-writing", label: "SGR Writing 관리", icon: Sparkles },
     { id: "sgr-voca", label: "SGR Voca 관리", icon: Sparkles },
     { id: "sgr-grammar", label: "SGR Grammar 관리", icon: Sparkles },

@@ -514,9 +514,9 @@ export const INTERNATIONAL_CONTENT_BY_SUBJECT_AND_CATEGORY = {
   }
 };
 
-export const KOREAN_SCHOOL_TABS = ["국어", "단원별 요약", "모의고사", "직전 대비", "우리학교 기출", "보조자료", "Voca", "SGR Class", "SGR Writing", "SGR Voca", "SGR Grammar"];
+export const KOREAN_SCHOOL_TABS = ["국어", "단원별 요약", "모의고사", "직전 대비", "우리학교 기출", "보조자료", "SGR Novels", "Voca", "SGR Class", "SGR Writing", "SGR Voca", "SGR Grammar"];
 
-export const INTERNATIONAL_SCHOOL_TABS = ["Subject", "전체보기", "Key Notes", "Exam Questions", "Practice Test", "Past Papers", "보조자료"];
+export const INTERNATIONAL_SCHOOL_TABS = ["Subject", "전체보기", "Key Notes", "Exam Questions", "Practice Test", "Past Papers", "보조자료", "SGR Novels"];
 
 export const CERTIFICATION_TABS = ["전체보기", "Practice Tests", "Mock Exams", "Past Papers", "보조자료"];
 
