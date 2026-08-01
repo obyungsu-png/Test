@@ -591,55 +591,45 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
   const showSGRClass = activeTab === "SGR Class" && schoolType === 'korean';
   const [sgrClassFullscreen, setSgrClassFullscreen] = useState(false);
 
-  // SGR Class 탭 선택 시 자동 전체화면
+  // SGR Class: 전체화면 상태를 URL(activeTab)에 추종 — 뒤로/앞으로 버튼 지원
   useEffect(() => {
-    if (showSGRClass) {
-      setSgrClassFullscreen(true);
-    }
+    setSgrClassFullscreen(showSGRClass);
   }, [showSGRClass]);
 
   // Check if we should show SGR Novels
   const showSGRNovel = activeTab === "SGR Novels";
   const [sgrNovelFullscreen, setSgrNovelFullscreen] = useState(false);
 
-  // SGR Novels 탭 선택 시 자동 전체화면
+  // SGR Novels: 전체화면 상태를 URL(activeTab)에 추종
   useEffect(() => {
-    if (showSGRNovel) {
-      setSgrNovelFullscreen(true);
-    }
+    setSgrNovelFullscreen(showSGRNovel);
   }, [showSGRNovel]);
 
   // Check if we should show SGR Writing
   const showSGRWriting = activeTab === "SGR Writing" && schoolType === 'korean';
   const [sgrWritingFullscreen, setSgrWritingFullscreen] = useState(false);
 
-  // SGR Writing 탭 선택 시 자동 전체화면
+  // SGR Writing: 전체화면 상태를 URL(activeTab)에 추종
   useEffect(() => {
-    if (showSGRWriting) {
-      setSgrWritingFullscreen(true);
-    }
+    setSgrWritingFullscreen(showSGRWriting);
   }, [showSGRWriting]);
 
   // Check if we should show SGR Voca
   const showSGRVoca = activeTab === "SGR Voca" && schoolType === 'korean';
   const [sgrVocaFullscreen, setSgrVocaFullscreen] = useState(false);
 
-  // SGR Voca 탭 선택 시 자동 전체화면
+  // SGR Voca: 전체화면 상태를 URL(activeTab)에 추종
   useEffect(() => {
-    if (showSGRVoca) {
-      setSgrVocaFullscreen(true);
-    }
+    setSgrVocaFullscreen(showSGRVoca);
   }, [showSGRVoca]);
 
   // Check if we should show SGR Grammar
   const showSGRGrammar = activeTab === "SGR Grammar" && schoolType === 'korean';
   const [sgrGrammarFullscreen, setSgrGrammarFullscreen] = useState(false);
 
-  // SGR Grammar 탭 선택 시 자동 전체화면
+  // SGR Grammar: 전체화면 상태를 URL(activeTab)에 추종
   useEffect(() => {
-    if (showSGRGrammar) {
-      setSgrGrammarFullscreen(true);
-    }
+    setSgrGrammarFullscreen(showSGRGrammar);
   }, [showSGRGrammar]);
 
   

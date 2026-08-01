@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import {
   ChevronLeft, ChevronRight, Moon, Sun,
@@ -76,6 +77,10 @@ function formatInline(text: string, showAnswer: boolean, answer?: string) {
 
 // ─── Read (챕터 본문) ───────────────────────────────
 function PageRead({ chapter, dark }: { chapter: NovelChapter; dark: boolean }) {
+  const [showPdf, setShowPdf] = useState(false);
+  const hasPdf = !!chapter.pdfUrl;
+  const hasContent = chapter.contentParagraphs.length > 0;
+
   return (
     <div className="max-w-[820px] mx-auto p-6 lg:p-10">
       <div className="mb-8 border-b border-gray-200 dark:border-gray-700 pb-4">
@@ -93,11 +98,23 @@ function PageRead({ chapter, dark }: { chapter: NovelChapter; dark: boolean }) {
           ) : null}
           {(chapter.pdfUrl || chapter.epubUrl) && (
             <div className="flex items-center gap-2">
-              {chapter.pdfUrl && (
-                <a href={chapter.pdfUrl} target="_blank" rel="noreferrer"
-                  className="flex items-center gap-1 px-2 py-0.5 rounded bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-300 font-bold hover:bg-red-100">
-                  <FileText className="w-3 h-3" /> PDF
-                </a>
+              {hasPdf && (
+                <>
+                  <button
+                    onClick={() => setShowPdf(v => !v)}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded font-bold transition-colors ${
+                      showPdf
+                        ? "bg-red-500 text-white"
+                        : "bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-300 hover:bg-red-100"
+                    }`}
+                  >
+                    <FileText className="w-3 h-3" /> {showPdf ? "PDF 닫기" : "PDF 보기"}
+                  </button>
+                  <a href={chapter.pdfUrl} target="_blank" rel="noreferrer"
+                    className="flex items-center gap-1 px-2 py-0.5 rounded bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 font-bold hover:bg-gray-100">
+                    <ExternalLink className="w-3 h-3" /> 새창
+                  </a>
+                </>
               )}
               {chapter.epubUrl && (
                 <a href={chapter.epubUrl} target="_blank" rel="noreferrer"
@@ -110,9 +127,22 @@ function PageRead({ chapter, dark }: { chapter: NovelChapter; dark: boolean }) {
         </div>
       </div>
 
+      {/* 인앱 PDF 뷰어 */}
+      {hasPdf && showPdf && (
+        <div className="mb-6 rounded-2xl border-2 border-red-100 dark:border-red-900/40 overflow-hidden shadow-md">
+          <iframe
+            src={chapter.pdfUrl}
+            title={`${chapter.chapterNumber} PDF`}
+            className="w-full h-[75vh] bg-white"
+          />
+        </div>
+      )}
+
       <div className="prose prose-lg max-w-none dark:prose-invert">
-        {chapter.contentParagraphs.length === 0 ? (
+        {!hasContent && !hasPdf ? (
           <p className="text-gray-400 italic">이 챕터에 본문이 없습니다. CMS에서 등록해주세요.</p>
+        ) : !hasContent ? (
+          <p className="text-gray-400 italic">본문 텍스트가 없습니다. 위에서 PDF를 열어 읽어보세요.</p>
         ) : (
           chapter.contentParagraphs.map((p, i) => (
             <div key={p.id} className="mb-5">
@@ -729,9 +759,27 @@ const PAGES: Array<{ key: PageKey; label: string; icon: any }> = [
 
 export default function SGRNovelViewer() {
   const [novels, setNovels] = useState<SGRNovel[]>(loadNovels);
-  const [selectedId, setSelectedId] = useState<string>("");
-  const [chapterIdx, setChapterIdx] = useState(0);
-  const [pageKey, setPageKey] = useState<PageKey>("read");
+  // 내부 상태(novel/chapter/page)를 URL query param으로 주소화 → 딥링크 + 브라우저 뒤로/앞으로 지원
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedId = searchParams.get("novel") || "";
+  const rawPage = searchParams.get("page") as PageKey | null;
+  const pageKey: PageKey = rawPage && PAGES.some(p => p.key === rawPage) ? rawPage : "read";
+
+  const selectNovel = useCallback((id: string) => {
+    setSearchParams(id ? { novel: id, ch: "0", page: "read" } : {});
+  }, [setSearchParams]);
+  const selectChapter = useCallback((idx: number) => {
+    const next = new URLSearchParams(searchParams);
+    next.set("ch", String(idx));
+    next.set("page", "read");
+    setSearchParams(next);
+  }, [searchParams, setSearchParams]);
+  const selectPage = useCallback((p: PageKey) => {
+    const next = new URLSearchParams(searchParams);
+    next.set("page", p);
+    setSearchParams(next);
+  }, [searchParams, setSearchParams]);
+
   const [showAnswer, setShowAnswer] = useState(false);
   const [dark, setDark] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
@@ -767,15 +815,15 @@ export default function SGRNovelViewer() {
     const handler = () => {
       const next = loadNovels();
       setNovels(next);
-      if (!next.find(n => n.id === selectedId)) setSelectedId("");
+      if (!next.find(n => n.id === selectedId)) selectNovel("");
     };
     window.addEventListener(NOVEL_EVENT, handler);
     syncNovelsFromServer().then(serverNovels => {
       setNovels(serverNovels);
-      if (selectedId && !serverNovels.find(n => n.id === selectedId)) setSelectedId("");
+      if (selectedId && !serverNovels.find(n => n.id === selectedId)) selectNovel("");
     });
     return () => window.removeEventListener(NOVEL_EVENT, handler);
-  }, [selectedId]);
+  }, [selectedId, selectNovel]);
 
   useEffect(() => {
     localStorage.setItem("sgrNovel_dark", dark ? "1" : "0");
@@ -785,6 +833,12 @@ export default function SGRNovelViewer() {
     () => novels.find(n => n.id === selectedId),
     [novels, selectedId]
   );
+
+  // chapterIdx를 URL에서 파생하고 selected 챕터 범위로 클램프
+  const rawCh = Number(searchParams.get("ch") || "0");
+  const chapterIdx = selected
+    ? (isNaN(rawCh) ? 0 : Math.min(Math.max(0, rawCh), Math.max(0, selected.chapters.length - 1)))
+    : 0;
 
   // 책 선택 화면
   if (!selected) {
@@ -800,7 +854,7 @@ export default function SGRNovelViewer() {
               {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
           </div>
-          <NovelPicker novels={novels} onPick={(n) => { setSelectedId(n.id); setChapterIdx(0); setPageKey("read"); }} />
+          <NovelPicker novels={novels} onPick={(n) => selectNovel(n.id)} />
         </div>
       </div>
     );
@@ -812,18 +866,18 @@ export default function SGRNovelViewer() {
     return (
       <div className={`min-h-[400px] flex flex-col items-center justify-center gap-3 text-gray-500 ${dark ? "dark" : ""}`}>
         <p>이 소설에 등록된 챕터가 없습니다. CMS에서 추가해주세요.</p>
-        <button onClick={() => setSelectedId("")} className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 text-sm hover:bg-gray-200">
+        <button onClick={() => selectNovel("")} className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 text-sm hover:bg-gray-200">
           책 목록으로
         </button>
       </div>
     );
   }
 
-  const goPrevCh = () => { setChapterIdx(i => Math.max(0, i - 1)); setPageKey("read"); };
-  const goNextCh = () => { setChapterIdx(i => Math.min(selected.chapters.length - 1, i + 1)); setPageKey("read"); };
+  const goPrevCh = () => selectChapter(Math.max(0, chapterIdx - 1));
+  const goNextCh = () => selectChapter(Math.min(selected.chapters.length - 1, chapterIdx + 1));
   const currentIdx = PAGES.findIndex(p => p.key === pageKey);
-  const goPrevPage = () => setPageKey(PAGES[Math.max(0, currentIdx - 1)].key);
-  const goNextPage = () => setPageKey(PAGES[Math.min(PAGES.length - 1, currentIdx + 1)].key);
+  const goPrevPage = () => selectPage(PAGES[Math.max(0, currentIdx - 1)].key);
+  const goNextPage = () => selectPage(PAGES[Math.min(PAGES.length - 1, currentIdx + 1)].key);
 
   // 테마/인물은 챕터가 비어있으면 소설 전체 분석 사용
   const themesToShow = chapter.themes.length > 0 ? chapter.themes : selected.overallThemes;
@@ -840,7 +894,7 @@ export default function SGRNovelViewer() {
         <div className="sticky top-0 z-30 backdrop-blur bg-white/90 dark:bg-gray-900/90 border-b border-gray-200 dark:border-gray-700 px-4 lg:px-6 py-3">
           <div className="max-w-[1600px] mx-auto flex flex-wrap items-center gap-3">
             <button
-              onClick={() => setSelectedId("")}
+              onClick={() => selectNovel("")}
               className="flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-100 to-orange-100 dark:from-amber-900/40 dark:to-orange-900/40 text-amber-800 dark:text-amber-200 hover:from-amber-200 hover:to-orange-200"
               title="책 목록으로"
             >
@@ -851,7 +905,7 @@ export default function SGRNovelViewer() {
             {selected.chapters.length > 1 && (
               <select
                 value={chapterIdx}
-                onChange={(e) => { setChapterIdx(Number(e.target.value)); setPageKey("read"); }}
+                onChange={(e) => selectChapter(Number(e.target.value))}
                 className="text-sm px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100"
               >
                 {selected.chapters.map((c, i) => (
@@ -870,7 +924,7 @@ export default function SGRNovelViewer() {
                 return (
                   <button
                     key={p.key}
-                    onClick={() => setPageKey(p.key)}
+                    onClick={() => selectPage(p.key)}
                     className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${
                       active
                         ? "bg-amber-600 text-white shadow-md"
