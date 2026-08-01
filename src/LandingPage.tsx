@@ -1,19 +1,16 @@
 import { useState, useEffect } from "react";
 import { motion } from "motion/react";
+import { useNavigate } from "react-router-dom";
 import { Search, ChevronRight, BookOpen, Globe, Award, Users, TrendingUp, Star, Sparkles, CheckCircle, LogOut, User } from "lucide-react";
 import { BrandLogo, BrandIcon } from "./components/BrandLogo";
 import { LoginForm } from "./components/auth/LoginForm";
 import { supabase } from "./utils/supabase/client";
 import MobileAdBanner from "./components/MobileAdBanner";
+import { useSession } from "./session/SessionContext";
 
-interface LandingPageProps {
-  onSchoolTypeSelect: (schoolType: 'korean' | 'international') => void;
-  onUserRoleSelect: (userRole: 'student' | 'teacher') => void;
-  onCertificationTestsSelect: () => void;
-  onInternationalSchoolSelect: () => void;
-}
-
-export default function LandingPage({ onSchoolTypeSelect, onUserRoleSelect, onCertificationTestsSelect, onInternationalSchoolSelect }: LandingPageProps) {
+export default function LandingPage() {
+  const navigate = useNavigate();
+  const { setUserRole } = useSession();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
 
@@ -65,16 +62,13 @@ export default function LandingPage({ onSchoolTypeSelect, onUserRoleSelect, onCe
 
   const handleUserTypeSelect = (userType: 'learner' | 'teacher' | 'student' | 'certification') => {
     if (userType === 'teacher') {
-      // Teachers go to international school system
-      onUserRoleSelect('teacher');
-      onSchoolTypeSelect('international');
+      setUserRole('teacher');
+      navigate('/app/international/GPA');
     } else if (userType === 'certification') {
-      // Certification tests go to special page
-      onCertificationTestsSelect();
+      navigate('/certification');
     } else {
-      // Learners and students go to korean school system
-      onUserRoleSelect('student');
-      onSchoolTypeSelect('korean');
+      setUserRole('student');
+      navigate('/korean');
     }
   };
 
@@ -299,7 +293,7 @@ export default function LandingPage({ onSchoolTypeSelect, onUserRoleSelect, onCe
                 
                 {/* 국제학교 */}
                 <motion.button
-                  onClick={() => onInternationalSchoolSelect()}
+                  onClick={() => navigate('/international')}
                   whileHover={{ 
                     scale: 1.06,
                     y: -10,
@@ -357,8 +351,8 @@ export default function LandingPage({ onSchoolTypeSelect, onUserRoleSelect, onCe
               <div className="mt-6 hidden sm:block">
                 <p className="text-sm text-gray-600">
                   Are you a district admin? Learn more of our offerings on{" "}
-                  <button 
-                    onClick={() => onSchoolTypeSelect('international')}
+                  <button
+                    onClick={() => navigate('/international')}
                     className="text-blue-600 hover:text-blue-700 hover:underline"
                   >
                     our district page

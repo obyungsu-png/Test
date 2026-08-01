@@ -39,7 +39,8 @@ interface MainContentProps {
   selectedSubCategory?: string;
   schoolType: 'korean' | 'international' | null;
   isCertificationMode?: boolean;
-  onActiveTabChange?: (tab: string) => void;
+  activeTab: string;
+  onTabSelect: (tab: string) => void;
   onCMSClick?: () => void;
   onComponent3Click?: () => void;
   onComponent4Click?: () => void;
@@ -99,7 +100,7 @@ function CategoryCard({ category, index, onClick }: { category: any; index: numb
   );
 }
 
-export function MainContent({ selectedSubject, selectedCategory, selectedSubCategory, schoolType, isCertificationMode, onActiveTabChange, onCMSClick, onComponent3Click, onComponent4Click, onComponent5Click }: MainContentProps) {
+export function MainContent({ selectedSubject, selectedCategory, selectedSubCategory, schoolType, isCertificationMode, activeTab, onTabSelect, onCMSClick, onComponent3Click, onComponent4Click, onComponent5Click }: MainContentProps) {
   const defaultTabs = isCertificationMode ? CERTIFICATION_TABS : 
                     (schoolType === 'international' ? INTERNATIONAL_SCHOOL_TABS : KOREAN_SCHOOL_TABS);
   // school-type 별 localStorage 키 (다른 학교 유형의 커스텀 탭이 섞이지 않도록)
@@ -115,17 +116,9 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
     }
     return tabs;
   })();
-  const initialTab = schoolType === 'korean' ? "국어" : (schoolType === 'international' ? "Subject" : "전체보기");
-  const [activeTab, setActiveTab] = useState(initialTab);
+  // activeTab은 URL 라우팅(:tab 슬러그)에서 파생되어 prop으로 전달됨
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 20; // 한 페이지당 20개만 표시
-
-  // Notify parent of active tab changes
-  useEffect(() => {
-    if (onActiveTabChange) {
-      onActiveTabChange(activeTab);
-    }
-  }, [activeTab, onActiveTabChange]);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -165,10 +158,10 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
     setCurrentPage(1);
   }, [activeTab, selectedSubject, selectedCategory]);
 
-  // Voca 탭이 사라지면 첫 번째 탭으로 리셋
+  // Voca 탭이 사라지면 첫 번째 탭으로 리셋 (URL 갱신)
   useEffect(() => {
     if (activeTab === 'Voca' && schoolType === 'korean' && selectedSubject !== '영어') {
-      setActiveTab(adjustedTabs[0] || '국어');
+      onTabSelect(adjustedTabs[0] || '국어');
     }
   }, [selectedSubject, schoolType]);
 
@@ -811,7 +804,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
                   if (tab === "실전문제" && schoolType === 'international') {
                     window.open("https://neon-sadly-99060853.figma.site", "_blank");
                   } else {
-                    setActiveTab(tab);
+                    onTabSelect(tab);
                   }
                 }}
                 whileTap={{ scale: 0.98 }}
@@ -1783,7 +1776,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
               <button
                 onClick={() => {
                   setSgrClassFullscreen(false);
-                  setActiveTab(tabs[0] || '국어');
+                  onTabSelect(tabs[0] || '국어');
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-600 transition-colors"
               >
@@ -1828,7 +1821,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
               <button
                 onClick={() => {
                   setSgrNovelFullscreen(false);
-                  setActiveTab(tabs[0] || '국어');
+                  onTabSelect(tabs[0] || '국어');
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-600 transition-colors"
               >
@@ -1873,7 +1866,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
               <button
                 onClick={() => {
                   setSgrWritingFullscreen(false);
-                  setActiveTab(tabs[0] || '국어');
+                  onTabSelect(tabs[0] || '국어');
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-600 transition-colors"
               >
@@ -1918,7 +1911,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
               <button
                 onClick={() => {
                   setSgrGrammarFullscreen(false);
-                  setActiveTab(tabs[0] || '국어');
+                  onTabSelect(tabs[0] || '국어');
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-600 transition-colors"
               >
@@ -1963,7 +1956,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
               <button
                 onClick={() => {
                   setSgrVocaFullscreen(false);
-                  setActiveTab(tabs[0] || '국어');
+                  onTabSelect(tabs[0] || '국어');
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-600 transition-colors"
               >

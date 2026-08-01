@@ -1,23 +1,20 @@
 import { useState } from "react";
 import { motion } from "motion/react";
+import { useNavigate } from "react-router-dom";
 import { Search, ChevronRight, ArrowLeft, BookCheck, Languages, GraduationCap, Globe2, Target, Clock, BarChart2, Zap } from "lucide-react";
 import { LoginModal } from "./components/auth/LoginModal";
 import { SignupModal } from "./components/auth/SignupModal";
 import MobileAdBanner from "./components/MobileAdBanner";
 import { BrandLogo } from "./components/BrandLogo";
 
-interface CertificationTestsPageProps {
-  onBack: () => void;
-  onTestSelect: (test: 'SAT' | 'ACT' | 'TOEFL' | 'IELTS') => void;
-}
-
-export default function CertificationTestsPage({ onBack, onTestSelect }: CertificationTestsPageProps) {
+export default function CertificationTestsPage() {
+  const navigate = useNavigate();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showSignupModal, setShowSignupModal] = useState(false);
   const [hoveredButton, setHoveredButton] = useState<'login' | 'signup' | null>('signup');
 
   const handleTestSelect = (test: 'SAT' | 'ACT' | 'TOEFL' | 'IELTS') => {
-    onTestSelect(test);
+    navigate(`/app/cert/${test}`);
   };
 
   return (
@@ -29,7 +26,7 @@ export default function CertificationTestsPage({ onBack, onTestSelect }: Certifi
             {/* Left side */}
             <div className="flex items-center space-x-4 sm:space-x-8">
               <button 
-                onClick={onBack}
+                onClick={() => navigate('/')}
                 className="text-cyan-600 hover:text-cyan-700 font-medium flex items-center space-x-1 text-sm sm:text-base"
               >
                 <ArrowLeft className="w-4 h-4" />

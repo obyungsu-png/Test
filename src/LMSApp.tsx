@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import LMSHeader from "./components/LMS/LMSHeader";
 import LMSSidebar from "./components/LMS/LMSSidebar";
 import LMSMainContent from "./components/LMS/LMSMainContent";
@@ -16,40 +17,45 @@ export interface User {
   status: 'active' | 'inactive' | 'expired';
 }
 
-interface LMSAppProps {
-  initialSelectedMenu?: string;
-  onExitClick?: () => void;
-}
-
-export default function LMSApp({ initialSelectedMenu = "dashboard", onExitClick }: LMSAppProps) {
-  const [selectedMenu, setSelectedMenu] = useState(initialSelectedMenu);
+export default function LMSApp() {
+  const { menu } = useParams<{ menu: string }>();
+  const navigate = useNavigate();
   const [selectedSubject, setSelectedSubject] = useState("국어");
 
-  // Update selected menu when initialSelectedMenu changes
-  useEffect(() => {
-    setSelectedMenu(initialSelectedMenu);
-  }, [initialSelectedMenu]);
+  // selectedMenu를 URL :menu 파라미터에서 파생 (없으면 dashboard)
+  const selectedMenu = menu || "dashboard";
+
+  // 메뉴 선택 → URL 갱신
+  const handleMenuSelect = (newMenu: string) => {
+    navigate(`/lms/${newMenu}`);
+  };
+
+  // LMS 나가기 → 직전 메인 URL로 복귀
+  const handleExitClick = () => {
+    const lastUrl = sessionStorage.getItem("lastMainUrl") || "/app/international/GPA";
+    navigate(lastUrl);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <LMSHeader onExitClick={onExitClick} />
-      
+      <LMSHeader onExitClick={handleExitClick} />
+
       <div className="flex-1 flex">
-        <LMSSidebar 
+        <LMSSidebar
           selectedMenu={selectedMenu}
-          onMenuSelect={setSelectedMenu}
+          onMenuSelect={handleMenuSelect}
         />
-        
+
         <div className="flex-1 flex flex-col">
-          <LMSMainContent 
+          <LMSMainContent
             selectedMenu={selectedMenu}
             selectedSubject={selectedSubject}
             onSubjectSelect={setSelectedSubject}
-            onMenuSelect={setSelectedMenu}
+            onMenuSelect={handleMenuSelect}
           />
         </div>
       </div>
-      
+
       <LMSFooter />
       <Toaster />
     </div>

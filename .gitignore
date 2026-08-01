@@ -4,3 +4,6 @@ node_modules
 .env
 .env.*
 !.env.example
+
+# Temporary extraction folders (reference code, contains no real keys)
+_extracted_systems_tmp/

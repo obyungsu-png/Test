@@ -1,17 +1,12 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
+import { useNavigate } from 'react-router-dom';
 import { ChevronRight, ArrowLeft, Layers, Globe, MessageSquare, BookOpen, FileText, Clock, Target } from 'lucide-react';
 import MobileAdBanner from './components/MobileAdBanner';
 import { BrandLogo } from './components/BrandLogo';
 
-interface KoreanSchoolPageProps {
-  onBack: () => void;
-  onSubjectSelect: (subject: string) => void;
-  onInternationalSchoolClick?: () => void;
-  onCertificationClick?: () => void;
-}
-
-const KoreanSchoolPage: React.FC<KoreanSchoolPageProps> = ({ onBack, onSubjectSelect, onInternationalSchoolClick, onCertificationClick }) => {
+const KoreanSchoolPage: React.FC = () => {
+  const navigate = useNavigate();
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
 
   const subjects = [
@@ -55,7 +50,7 @@ const KoreanSchoolPage: React.FC<KoreanSchoolPageProps> = ({ onBack, onSubjectSe
 
   const handleSubjectSelect = (subjectId: string) => {
     setSelectedSubject(subjectId);
-    onSubjectSelect(subjectId);
+    navigate(`/app/korean/${subjectId}`);
   };
 
   return (
@@ -66,7 +61,7 @@ const KoreanSchoolPage: React.FC<KoreanSchoolPageProps> = ({ onBack, onSubjectSe
           <div className="flex justify-between items-center h-14 sm:h-16">
             <div className="flex items-center">
               <button
-                onClick={onBack}
+                onClick={() => navigate('/')}
                 className="flex items-center text-gray-600 hover:text-gray-900 transition-colors mr-3 sm:mr-4"
               >
                 <ArrowLeft className="w-5 h-5 mr-1" />
@@ -76,14 +71,14 @@ const KoreanSchoolPage: React.FC<KoreanSchoolPageProps> = ({ onBack, onSubjectSe
             </div>
             <nav className="hidden md:flex space-x-8">
               <button 
-                onClick={onInternationalSchoolClick}
+                onClick={() => navigate('/international')}
                 className="text-gray-500 hover:text-cyan-600 transition-colors"
               >
                 국제학교
               </button>
               <span className="text-cyan-600 font-medium cursor-default">한국학교</span>
-              <button 
-                onClick={onCertificationClick}
+              <button
+                onClick={() => navigate('/certification')}
                 className="text-gray-500 hover:text-cyan-600 transition-colors"
               >
                 인증시험 (TOEFL, SAT, ACT등)
