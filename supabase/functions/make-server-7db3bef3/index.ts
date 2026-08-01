@@ -384,10 +384,12 @@ function getSampleAds() {
 }
 
 // ===== AI 문단 요약 & 채점 API (Claude via apiclaude.cc) =====
-
-const CLAUDE_API_URL = "https://apiclaude.cc/v1/chat/completions";
-const CLAUDE_API_KEY = "sk-6760f9d3d9a8259550df0fbad394bde221aa571eabbf99a51ecfd1de4e3e074a";
-const CLAUDE_MODEL = "claude-sonnet-5";
+// 비밀키는 환경변수에서만 로드 — 코드에 평문으로 적지 않는다 (Git 노출 방지).
+// 로컬 실행: supabase/.env 파일에 CLAUDE_API_KEY/CLAUDE_API_URL/CLAUDE_MODEL 정의
+// 배포: supabase secrets set CLAUDE_API_KEY=... CLAUDE_API_URL=... CLAUDE_MODEL=...
+const CLAUDE_API_URL = Deno.env.get("CLAUDE_API_URL") || "https://apiclaude.cc/v1/chat/completions";
+const CLAUDE_API_KEY = Deno.env.get("CLAUDE_API_KEY") || "";
+const CLAUDE_MODEL = Deno.env.get("CLAUDE_MODEL") || "claude-sonnet-5";
 
 async function callOpenRouter(systemPrompt: string, userPrompt: string): Promise<string> {
   const res = await fetch(CLAUDE_API_URL, {
