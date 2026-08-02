@@ -193,12 +193,20 @@ export default function LMSSGRClass() {
     toast.success("샘플 레슨을 불러왔습니다.");
   };
 
+  /** 활성 필터가 특정 bookType 이고, 레슨이 bookType 을 지정하지 않았거나 기본값이면 필터로 자동 지정 */
+  const applyActiveBookType = (lesson: SGRLesson): SGRLesson => {
+    if (bookTypeFilter === "all") return lesson;
+    const hasExplicit = !!lesson.bookType && lesson.bookType !== "sgr_original";
+    if (hasExplicit) return lesson;
+    return { ...lesson, bookType: bookTypeFilter as BookType };
+  };
+
   const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
       const text = await file.text();
-      const lesson = parseCsvToLesson(text);
+      const lesson = applyActiveBookType(parseCsvToLesson(text));
       setLessons(prev => [lesson, ...prev]);
       setSelectedId(lesson.id);
       setSubTab("overview");
@@ -242,7 +250,7 @@ export default function LMSSGRClass() {
     if (!file) return;
     try {
       const text = await file.text();
-      const newLessons = parseCsvToLessons(text);
+      const newLessons = parseCsvToLessons(text).map(applyActiveBookType);
       if (newLessons.length === 0) {
         toast.error("파싱된 레슨이 없습니다. META,title 행을 확인하세요.");
         return;
@@ -266,7 +274,7 @@ export default function LMSSGRClass() {
     if (!file) return;
     try {
       const text = await file.text();
-      const newLessons = parseTextToLessons(text);
+      const newLessons = parseTextToLessons(text).map(applyActiveBookType);
       if (newLessons.length === 0) {
         toast.error("파싱된 레슨이 없습니다. ===LESSON=== 구분자를 확인하세요.");
         return;
@@ -303,7 +311,7 @@ export default function LMSSGRClass() {
     try {
       const text = await file.text();
       const data = JSON.parse(text);
-      const lesson: SGRLesson = { ...data, id: uid(), createdAt: Date.now(), updatedAt: Date.now() };
+      const lesson: SGRLesson = applyActiveBookType({ ...data, id: uid(), createdAt: Date.now(), updatedAt: Date.now() });
       setLessons(prev => [lesson, ...prev]);
       setSelectedId(lesson.id);
       setSubTab("overview");
@@ -325,7 +333,7 @@ export default function LMSSGRClass() {
       const text = await file.text();
       const data = JSON.parse(text);
       const arr: SGRLesson[] = Array.isArray(data) ? data : [data];
-      const newLessons: SGRLesson[] = arr.map((d: any) => ({
+      const newLessons: SGRLesson[] = arr.map((d: any) => applyActiveBookType({
         ...d,
         id: uid(),
         createdAt: Date.now(),
@@ -744,7 +752,7 @@ export default function LMSSGRClass() {
                 <div>
                   <p className="font-bold text-cyan-700 mb-1">① CSV 형식 (단일/대량)</p>
                   <p>CSV 파일 첫 열은 <b>section</b>, 두번째는 <b>key</b>, 나머지는 <b>value1~value4</b>입니다.</p>
-                  <p className="text-xs text-gray-500 mt-1">대량 업로드: META,title 행이 여러 개 있으면 각각 새 레슨으로 분할됩니다.</p>
+                  <p className="text-xs text-gray-500 mt-1">대량 업로드: META,title 행이 여러 개 있으면 각각 새 레슨으로 분할됩니다. 좌측에서 <b>Thoughts and Notions</b> 같은 특정 책 유형 탭을 선택한 상태로 업로드하면 <code className="bg-gray-100 px-1 rounded">bookType</code> META 가 없는 레슨은 그 유형으로 자동 지정됩니다.</p>
                   <ul className="list-disc pl-5 space-y-1 text-xs mt-2">
                     <li><b>META</b> — key: title, unitNumber, subject, category, previewQuestion, passageTitle, vocabPreviewInstruction, <b>bookType</b> (american_textbook | reading_explore | thoughts_notions)</li>
                     <li><b>PREVIEW_CARD</b> — value1: 캡션</li>
