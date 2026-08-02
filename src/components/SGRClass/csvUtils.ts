@@ -236,6 +236,26 @@ export function parseCsvToLesson(csv: string): SGRLesson {
           korean: v2 || "",
           chunks: (v3 || "").split("|").map(c => c.trim()).filter(Boolean),
         };
+        // value4 = grammarPoints JSON array (선택)
+        //   예: [{"type":"관계대명사","label":"that","description":"...","highlight":"that could hold"}]
+        const gpRaw = (v4 || "").trim();
+        if (gpRaw) {
+          try {
+            const arr = JSON.parse(gpRaw);
+            if (Array.isArray(arr)) {
+              item.grammarPoints = arr
+                .filter((g: any) => g && typeof g === "object")
+                .map((g: any) => ({
+                  type: String(g.type || ""),
+                  label: String(g.label || ""),
+                  description: String(g.description || ""),
+                  highlight: String(g.highlight || ""),
+                }));
+            }
+          } catch {
+            // JSON 파싱 실패 시 조용히 무시 (문법 포인트 없음)
+          }
+        }
         lesson.directReading.push(item);
         break;
       }
@@ -308,10 +328,15 @@ export function lessonToCsv(lesson: SGRLesson): string {
   lesson.vocabReview.wordBank.forEach(w => rows.push(["VOCAB_REVIEW_BANK", "", w]));
   lesson.vocabReview.items.forEach(it => rows.push(["VOCAB_REVIEW", "", it.sentence, it.answer]));
 
-  // direct reading
-  lesson.directReading.forEach(d =>
-    rows.push(["DIRECT_READING", "", d.english, d.korean, d.chunks.join("|")])
-  );
+  // direct reading (grammarPoints 있으면 value4 에 JSON 으로 직렬화)
+  lesson.directReading.forEach(d => {
+    const gp = (d.grammarPoints && d.grammarPoints.length > 0)
+      ? JSON.stringify(d.grammarPoints.map(g => ({
+          type: g.type, label: g.label, description: g.description, highlight: g.highlight,
+        })))
+      : "";
+    rows.push(["DIRECT_READING", "", d.english, d.korean, d.chunks.join("|"), gp]);
+  });
 
   return rows.map(r => r.map(csvEscape).join(",")).join("\n");
 }
