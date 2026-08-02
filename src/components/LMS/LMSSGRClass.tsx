@@ -746,7 +746,7 @@ export default function LMSSGRClass() {
                   <p>CSV 파일 첫 열은 <b>section</b>, 두번째는 <b>key</b>, 나머지는 <b>value1~value4</b>입니다.</p>
                   <p className="text-xs text-gray-500 mt-1">대량 업로드: META,title 행이 여러 개 있으면 각각 새 레슨으로 분할됩니다.</p>
                   <ul className="list-disc pl-5 space-y-1 text-xs mt-2">
-                    <li><b>META</b> — key: title, unitNumber, subject, category, previewQuestion, passageTitle, vocabPreviewInstruction, <b>bookType</b> (american_textbook | reading_explore)</li>
+                    <li><b>META</b> — key: title, unitNumber, subject, category, previewQuestion, passageTitle, vocabPreviewInstruction, <b>bookType</b> (american_textbook | reading_explore | thoughts_notions)</li>
                     <li><b>PREVIEW_CARD</b> — value1: 캡션</li>
                     <li><b>VOCAB_PREVIEW</b> — value1: 단어, value2: 뜻</li>
                     <li><b>PARAGRAPH</b> — value1: 본문 (**굵게**), value2: 이미지 캡션(선택)</li>

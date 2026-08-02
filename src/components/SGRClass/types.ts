@@ -114,7 +114,7 @@ export interface DirectReadingItem {
 // - "sgr_original": 기본 SGR Class 형식
 // - "reading_explore": Reading Explorer 형식 (사진 2-4)
 // - 추후 확장 가능
-export type BookType = "american_textbook" | "reading_explore" | string;
+export type BookType = "american_textbook" | "reading_explore" | "thoughts_notions" | string;
 
 export const BOOK_TYPE_META: Record<string, { label: string; color: string; description: string }> = {
   american_textbook: {
@@ -126,6 +126,11 @@ export const BOOK_TYPE_META: Record<string, { label: string; color: string; desc
     label: "Reading Explorer",
     color: "from-violet-500 to-fuchsia-600",
     description: "Reading / Comprehension / Reading Skill / Vocabulary Practice 4단 구성",
+  },
+  thoughts_notions: {
+    label: "Thoughts and Notions",
+    color: "from-emerald-500 to-teal-600",
+    description: "Thoughts & Notions 리딩 교재 형식 (Passage / Vocabulary a·b·c / Comprehension / Questions / Main Idea)",
   },
 };
 
