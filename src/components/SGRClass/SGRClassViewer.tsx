@@ -143,14 +143,16 @@ function PagePreview({ lesson, showAnswer, dark }: { lesson: SGRLesson; showAnsw
               {lesson.vocabPreviewInstruction}
             </span>
           </div>
-          {/* Word bank pill */}
+          {/* Word bank pill — 알파벳순으로 정렬해서 meanings 순서와의 위치 대응(정답 힌트) 제거 */}
           <div className="bg-gray-100 dark:bg-gray-800 rounded-full px-6 py-3 mb-5 shadow-inner">
             <div className="flex flex-wrap justify-center gap-6">
-              {lesson.vocabularyPreview.map((v) => (
-                <span key={v.id} className="italic text-gray-700 dark:text-gray-200 font-medium">
-                  {v.word}
-                </span>
-              ))}
+              {[...lesson.vocabularyPreview]
+                .sort((a, b) => a.word.toLowerCase().localeCompare(b.word.toLowerCase()))
+                .map((v) => (
+                  <span key={v.id} className="italic text-gray-700 dark:text-gray-200 font-medium">
+                    {v.word}
+                  </span>
+                ))}
             </div>
           </div>
           {/* Fill blanks */}
