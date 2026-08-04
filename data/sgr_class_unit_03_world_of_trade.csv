@@ -1,0 +1,44 @@
+section,key,value1,value2,value3,value4
+META,title,A World of Trade,,,
+META,unitNumber,03,,,
+META,subject,영어,,,
+META,category,American Textbook,,,
+META,bookType,american_textbook,,,
+META,previewQuestion,"What does it mean to live in a globalized world, and how does trade connect countries?",,,
+META,passageTitle,A World of Trade,,,
+META,vocabPreviewInstruction,Write the correct word next to its meaning.,,,
+PREVIEW_CARD,,A cargo ship carries huge containers full of goods that are traded between countries all around the world.,,,
+PREVIEW_CARD,,"The United States exports cars, smartphones, and computers to the Republic of Korea.",,,
+PREVIEW_CARD,,"The Republic of Korea exports coffee, corn, and beef to the United States.",,,
+VOCAB_PREVIEW,,tariff,a tax that a government collects on goods brought in from another country,,
+VOCAB_PREVIEW,,globalized,connected to and involved with other countries and areas all around the world,,
+VOCAB_PREVIEW,,collect,to receive or gather money that is owed (such as a tax),,
+VOCAB_PREVIEW,,import,to bring in goods from another country to sell,,
+VOCAB_PREVIEW,,in contact with,communicating or connected with someone or something,,
+VOCAB_PREVIEW,,export,to send goods to another country to sell,,
+PARAGRAPH,,"We live in a **globalized** world. This means that every area on the planet is **in contact with** every other area. One way that people contact each other is through trade. Trade is the buying and selling of goods and services.",,,
+PARAGRAPH,,"Trade between different countries is called international trade. Many companies try to sell their goods all around the world. When they send their goods to another country, they are **exporting** them. Many companies buy resources and other products from other countries as well. When they bring in goods from another country, they are **importing** them. Most countries try to export more than they import.",,,
+PARAGRAPH,,"Many times, when goods are imported, the buyer must pay a **tariff**. A tariff is a tax that a government **collects** on imported goods.",,,
+QUESTION_MC,,main_idea,What is the main idea of the passage?,Countries want to export more goods than they import.|Free trade is welcome by the world.|People buy and sell goods and services all over the world.,2
+QUESTION_MC,,multiple_choice,___ is a tax on imported goods.,An import|An export|A tariff,2
+QUESTION_MC,,multiple_choice,What is trade?,Trade is the buying and selling of goods and services.|Trade is the producing and buying of goods and services.|Trade means paying taxes on imported goods.,0
+QUESTION_MC,,vocabulary,What does collect mean?,win|levy|assess,1
+QUESTION_COMPLETE,,Trade is the buying and ___ of goods and services.,selling,,
+QUESTION_COMPLETE,,International trade is trade between different ___.,countries,,
+QUESTION_COMPLETE,,To import means to ___ goods from other countries.,buy,,
+QUESTION_COMPLETE,,A tariff is a(n) ___ on imported goods.,tax,,
+QUESTION_COMPLETE,wordBank,export|import,,,
+QUESTION_COMPLETE,,To sell goods and resources to other countries is to ___.,export,,
+QUESTION_COMPLETE,,To buy goods and resources from other countries is to ___.,import,,
+DIRECT_READING,,We live in a globalized world.,우리는 세계화된 세상에 살고 있다.,We live|in a globalized world.,
+DIRECT_READING,,This means that every area on the planet is in contact with every other area.,"이것은 지구상의 모든 지역이 다른 모든 지역과 연결되어 있다는 것을 의미한다.","This means|that every area on the planet|is in contact with|every other area.","[{""type"":""명사절"",""label"":""that every area ~"",""description"":""means 뒤 that절은 목적어(명사절)를 이끈다: ~라는 것을 의미하다"",""highlight"":""that every area on the planet is in contact with every other area""}]"
+DIRECT_READING,,One way that people contact each other is through trade.,사람들이 서로 연락하는 한 가지 방법은 무역을 통해서이다.,One way|that people contact each other|is through trade.,"[{""type"":""관계대명사"",""label"":""that people contact"",""description"":""목적격 관계대명사 that: 선행사(One way)를 수식하는 형용사절을 이끈다"",""highlight"":""that people contact each other""}]"
+DIRECT_READING,,Trade is the buying and selling of goods and services.,무역은 상품과 서비스를 사고파는 것이다.,Trade is the buying and selling|of goods and services.,
+DIRECT_READING,,Trade between different countries is called international trade.,서로 다른 국가 간의 무역은 국제 무역이라고 불린다.,Trade between different countries|is called international trade.,"[{""type"":""수동태"",""label"":""is called"",""description"":""be called: ~라고 불리다 (5형식 수동)"",""highlight"":""is called international trade""}]"
+DIRECT_READING,,Many companies try to sell their goods all around the world.,많은 기업들은 전 세계에 자사의 상품을 팔려고 한다.,Many companies try|to sell their goods|all around the world.,"[{""type"":""to부정사"",""label"":""try to sell"",""description"":""try + to부정사: ~하려고 하다"",""highlight"":""try to sell their goods""}]"
+DIRECT_READING,,"When they send their goods to another country, they are exporting them.",그들이 상품을 다른 나라로 보낼 때 그들은 그것을 수출하는 것이다.,"When they send their goods|to another country,|they are exporting them.","[{""type"":""접속사"",""label"":""When ~"",""description"":""when + 주어 + 동사: ~할 때 (시간의 부사절)"",""highlight"":""When they send their goods to another country""}]"
+DIRECT_READING,,Many companies buy resources and other products from other countries as well.,많은 기업들은 다른 나라들로부터 자원과 기타 제품들을 구매하기도 한다.,Many companies buy resources and other products|from other countries|as well.,
+DIRECT_READING,,"When they bring in goods from another country, they are importing them.",그들이 다른 나라로부터 상품을 들여올 때 그들은 그것을 수입하는 것이다.,"When they bring in goods|from another country,|they are importing them.","[{""type"":""동사구"",""label"":""bring in"",""description"":""bring in: 들여오다, 가져오다 (타동사 + 부사)"",""highlight"":""bring in goods""}]"
+DIRECT_READING,,Most countries try to export more than they import.,대부분의 국가들은 수입하는 것보다 더 많이 수출하려고 한다.,Most countries try|to export more|than they import.,"[{""type"":""비교급"",""label"":""more than"",""description"":""비교급 + than: ~보다 더 …한 (비교 구문)"",""highlight"":""export more than they import""}]"
+DIRECT_READING,,"Many times, when goods are imported, the buyer must pay a tariff.",흔히 상품이 수입될 때 구매자는 관세를 지불해야 한다.,"Many times,|when goods are imported,|the buyer must pay a tariff.","[{""type"":""수동태"",""label"":""are imported"",""description"":""be동사 + p.p: ~되다 (수동태)"",""highlight"":""when goods are imported""},{""type"":""조동사"",""label"":""must pay"",""description"":""must + 동사원형: ~해야 한다 (강한 의무)"",""highlight"":""must pay a tariff""}]"
+DIRECT_READING,,A tariff is a tax that a government collects on imported goods.,관세는 정부가 수입품에 부과하는 세금이다.,A tariff is a tax|that a government collects|on imported goods.,"[{""type"":""관계대명사"",""label"":""that a government collects"",""description"":""목적격 관계대명사 that: a government collects it 에서 it이 선행사(a tax)와 연결되며 생략 가능"",""highlight"":""that a government collects on imported goods""}]"
