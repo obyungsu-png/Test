@@ -767,6 +767,22 @@ export default function LMSSGRClass() {
                     <li><b>VOCAB_REVIEW</b> — value1: 문장(___), value2: 정답</li>
                     <li><b>DIRECT_READING</b> — value1: 영어, value2: 한글, value3: chunks(|) <span className="text-cyan-600 font-bold">(Reading Explorer도 직독직해 탭에서 사용 가능)</span></li>
                   </ul>
+                  <p className="font-bold text-violet-700 mt-3 mb-1">Reading Explorer 전용 섹션 (bookType=reading_explore)</p>
+                  <p className="text-xs text-gray-500">CSV 안에 아래 <code className="bg-gray-100 px-1 rounded">RE_*</code> 섹션이 하나라도 있으면 자동으로 Reading Explorer 4-페이지 레이아웃(Reading / Comprehension / Reading Skill / Vocab Practice)이 채워집니다.</p>
+                  <ul className="list-disc pl-5 space-y-1 text-xs mt-2">
+                    <li><b>RE_HEADLINE</b> — value1: 헤드라인, value2: 강조(선택)</li>
+                    <li><b>RE_INTRO</b> — value1: 도입 문장</li>
+                    <li><b>RE_PARAGRAPH</b> — key: A/B/…, value1: 본문(==빨강==·**굵게**·__밑줄__ 지원), value2: 이미지 캡션</li>
+                    <li><b>RE_SUBHEAD</b> — key: <code>afterA</code> 형태, value1: 소제목</li>
+                    <li><b>RE_FOOTNOTE</b> — key: 마커, value1: 각주 텍스트</li>
+                    <li><b>RE_MCQ</b> — key: 카테고리(MAIN IDEA/DETAIL/…), value1: 질문, value2: 옵션(|), value3: 정답 인덱스</li>
+                    <li><b>RE_MATCHING</b> / <b>RE_MATCHING_CHOICE</b> / <b>RE_MATCHING_ITEM</b> — 매칭 블록</li>
+                    <li><b>RE_SKILL_TITLE</b> / <b>RE_SKILL_INTRO</b> — value1</li>
+                    <li><b>RE_SKILL_NODE</b> — key: center/major/leaf, value1: 텍스트, value2: parentId, value3: 정답(|)</li>
+                    <li><b>RE_VOCAB_BANK / RE_VOCAB_COMPLETION / RE_VOCAB_ANSWER</b> — value1</li>
+                    <li><b>RE_DEFINITION</b> — key: 단어, value1: 정의</li>
+                    <li><b>RE_WORDFORM_EXPLAIN</b> — value1 / <b>RE_WORDFORM</b> — key: 번호, value1: 문장, value2: 옵션(|), value3: 정답 인덱스</li>
+                  </ul>
                 </div>
 
                 {/* TXT 형식 */}

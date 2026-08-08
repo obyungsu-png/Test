@@ -34,6 +34,14 @@ import type {
   PassageParagraph,
   VocabReviewItem,
   DirectReadingItem,
+  ReadingExploreContent,
+  RELabeledParagraph,
+  REFootnote,
+  REComprehensionMcq,
+  REMatchingBlock,
+  REConceptMapNode,
+  REDefinitionMatchItem,
+  REWordFormItem,
 } from "./types";
 import { uid } from "./types";
 
@@ -100,6 +108,46 @@ export function parseCsvToLesson(csv: string): SGRLesson {
   let currentComplete: CompleteSentenceQuestion | null = null;
   let currentOutline: OutlineQuestion | null = null;
   let currentTf: TrueFalseQuestion | null = null;
+
+  // Reading Explorer buffers — populated only when any RE_* row is seen
+  const re = {
+    reading: {
+      headline: "",
+      headlineAccent: undefined as string | undefined,
+      intro: undefined as string | undefined,
+      paragraphs: [] as RELabeledParagraph[],
+      subheads: [] as Array<{ afterParagraphId: string; text: string }>,
+      footnotes: [] as REFootnote[],
+    },
+    comprehension: {
+      mcq: [] as REComprehensionMcq[],
+      matching: null as REMatchingBlock | null,
+    },
+    readingSkill: {
+      title: "",
+      intro: "",
+      nodes: [] as REConceptMapNode[],
+    },
+    vocabPractice: {
+      completion: {
+        bank: [] as string[],
+        text: "",
+        answers: [] as string[],
+      },
+      definitionMatch: [] as REDefinitionMatchItem[],
+      wordForms: {
+        explanation: "",
+        items: [] as REWordFormItem[],
+      },
+    },
+    used: false,
+  };
+  const ensureMatching = (): REMatchingBlock => {
+    if (!re.comprehension.matching) {
+      re.comprehension.matching = { category: "", instruction: "", choices: [], items: [] };
+    }
+    return re.comprehension.matching;
+  };
 
   for (let i = startIdx; i < lines.length; i++) {
     const cols = parseCsvLine(lines[i]);
@@ -259,6 +307,170 @@ export function parseCsvToLesson(csv: string): SGRLesson {
         lesson.directReading.push(item);
         break;
       }
+      // ─── Reading Explorer sections ──────────────
+      case "RE_HEADLINE": {
+        re.reading.headline = v1 || "";
+        if (v2) re.reading.headlineAccent = v2;
+        re.used = true;
+        break;
+      }
+      case "RE_INTRO": {
+        re.reading.intro = v1 || "";
+        re.used = true;
+        break;
+      }
+      case "RE_PARAGRAPH": {
+        const label = (key || "").trim();
+        const id = `p_${label || re.reading.paragraphs.length}`;
+        re.reading.paragraphs.push({
+          id,
+          label,
+          content: v1 || "",
+          imageCaption: v2 || undefined,
+        });
+        re.used = true;
+        break;
+      }
+      case "RE_SUBHEAD": {
+        const k = (key || "").trim();
+        const m = /^after(.+)$/i.exec(k);
+        const label = m ? m[1] : k;
+        const target = re.reading.paragraphs.find((p) => p.label === label);
+        const afterParagraphId = target ? target.id : `p_${label}`;
+        re.reading.subheads.push({ afterParagraphId, text: v1 || "" });
+        re.used = true;
+        break;
+      }
+      case "RE_FOOTNOTE": {
+        const marker = (key || "").trim() || String(re.reading.footnotes.length + 1);
+        re.reading.footnotes.push({
+          id: `f_${marker}`,
+          marker,
+          text: v1 || "",
+        });
+        re.used = true;
+        break;
+      }
+      case "RE_MCQ": {
+        const opts = (v2 || "").split("|").map((s) => s.trim()).filter(Boolean);
+        const ans = parseInt(v3 || "0", 10) || 0;
+        re.comprehension.mcq.push({
+          id: uid(),
+          category: (key || "").trim() || "DETAIL",
+          question: v1 || "",
+          options: opts,
+          answer: ans,
+        });
+        re.used = true;
+        break;
+      }
+      case "RE_MATCHING": {
+        const mb = ensureMatching();
+        mb.category = (key || "").trim();
+        mb.instruction = v1 || "";
+        re.used = true;
+        break;
+      }
+      case "RE_MATCHING_CHOICE": {
+        const mb = ensureMatching();
+        mb.choices.push({ letter: (key || "").trim(), text: v1 || "" });
+        re.used = true;
+        break;
+      }
+      case "RE_MATCHING_ITEM": {
+        const mb = ensureMatching();
+        mb.items.push({
+          id: uid(),
+          statement: v1 || "",
+          answer: (v2 || "").trim(),
+        });
+        re.used = true;
+        break;
+      }
+      case "RE_SKILL_TITLE": {
+        // 첫 번째 타이틀만 유효 (후속 RE_SKILL_TITLE 은 무시)
+        if (!re.readingSkill.title) re.readingSkill.title = v1 || "";
+        re.used = true;
+        break;
+      }
+      case "RE_SKILL_INTRO": {
+        // 컬럼 오배치 대응: value1 이 비어있으면 key 를 intro 로 사용
+        const intro = (v1 && v1.trim()) ? v1 : (key || "");
+        if (!re.readingSkill.intro) re.readingSkill.intro = intro;
+        re.used = true;
+        break;
+      }
+      case "RE_SKILL_NODE": {
+        const kind = ((key || "").trim().toLowerCase()) as "center" | "major" | "leaf";
+        if (kind !== "center" && kind !== "major" && kind !== "leaf") break;
+        const parentId = (v2 || "").trim() || undefined;
+        const idxOfKind = re.readingSkill.nodes.filter((n) => n.kind === kind).length + 1;
+        const id = kind === "center" ? "n_center" : `n_${kind}${idxOfKind}`;
+        const answers = (v3 || "").split("|").map((s) => s.trim()).filter(Boolean);
+        re.readingSkill.nodes.push({
+          id,
+          kind,
+          parentId,
+          text: v1 || "",
+          answers: answers.length ? answers : undefined,
+        });
+        re.used = true;
+        break;
+      }
+      case "RE_VOCAB_BANK": {
+        // 첫 RE_VOCAB_BANK 만 completion.bank 로 사용
+        if (re.vocabPractice.completion.bank.length === 0) {
+          re.vocabPractice.completion.bank = (v1 || "")
+            .split("|")
+            .map((s) => s.trim())
+            .filter(Boolean);
+        }
+        re.used = true;
+        break;
+      }
+      case "RE_VOCAB_COMPLETION": {
+        if (!re.vocabPractice.completion.text) {
+          re.vocabPractice.completion.text = v1 || "";
+        }
+        re.used = true;
+        break;
+      }
+      case "RE_VOCAB_ANSWER": {
+        if (re.vocabPractice.completion.answers.length === 0) {
+          re.vocabPractice.completion.answers = (v1 || "")
+            .split("|")
+            .map((s) => s.trim())
+            .filter(Boolean);
+        }
+        re.used = true;
+        break;
+      }
+      case "RE_DEFINITION": {
+        re.vocabPractice.definitionMatch.push({
+          id: uid(),
+          word: (key || "").trim(),
+          definition: v1 || "",
+        });
+        re.used = true;
+        break;
+      }
+      case "RE_WORDFORM_EXPLAIN": {
+        re.vocabPractice.wordForms.explanation = v1 || "";
+        re.used = true;
+        break;
+      }
+      case "RE_WORDFORM": {
+        const opts = (v2 || "").split("|").map((s) => s.trim()).filter(Boolean);
+        const ans = parseInt(v3 || "0", 10) || 0;
+        re.vocabPractice.wordForms.items.push({
+          id: uid(),
+          sentence: v1 || "",
+          options: opts,
+          answer: ans,
+        });
+        re.used = true;
+        break;
+      }
       default:
         // ignore unknown sections silently
         break;
@@ -269,6 +481,32 @@ export function parseCsvToLesson(csv: string): SGRLesson {
   if (currentComplete) lesson.questions.push(currentComplete);
   if (currentOutline) lesson.questions.push(currentOutline);
   if (currentTf) lesson.questions.push(currentTf);
+
+  // Attach readingExplore only if any RE_* row was seen
+  if (re.used) {
+    const content: ReadingExploreContent = {
+      reading: {
+        headline: re.reading.headline,
+        headlineAccent: re.reading.headlineAccent,
+        intro: re.reading.intro,
+        paragraphs: re.reading.paragraphs,
+        subheads: re.reading.subheads.length ? re.reading.subheads : undefined,
+        footnotes: re.reading.footnotes,
+      },
+      comprehension: {
+        mcq: re.comprehension.mcq,
+        matching: re.comprehension.matching || undefined,
+      },
+      readingSkill: {
+        title: re.readingSkill.title,
+        intro: re.readingSkill.intro,
+        nodes: re.readingSkill.nodes,
+      },
+      vocabPractice: re.vocabPractice,
+    };
+    lesson.readingExplore = content;
+    if (!lesson.bookType) lesson.bookType = "reading_explore";
+  }
 
   return lesson;
 }
@@ -337,6 +575,63 @@ export function lessonToCsv(lesson: SGRLesson): string {
       : "";
     rows.push(["DIRECT_READING", "", d.english, d.korean, d.chunks.join("|"), gp]);
   });
+
+  // Reading Explorer 컨텐츠 직렬화
+  if (lesson.readingExplore) {
+    const re = lesson.readingExplore;
+    rows.push(["RE_HEADLINE", "", re.reading.headline || "", re.reading.headlineAccent || ""]);
+    if (re.reading.intro) rows.push(["RE_INTRO", "", re.reading.intro]);
+    re.reading.paragraphs.forEach((p) =>
+      rows.push(["RE_PARAGRAPH", p.label, p.content, p.imageCaption || ""])
+    );
+    (re.reading.subheads || []).forEach((s) => {
+      const target = re.reading.paragraphs.find((p) => p.id === s.afterParagraphId);
+      rows.push(["RE_SUBHEAD", target ? `after${target.label}` : s.afterParagraphId, s.text]);
+    });
+    re.reading.footnotes.forEach((f) => rows.push(["RE_FOOTNOTE", f.marker, f.text]));
+    re.comprehension.mcq.forEach((q) =>
+      rows.push(["RE_MCQ", q.category, q.question, q.options.join("|"), String(q.answer)])
+    );
+    if (re.comprehension.matching) {
+      const mb = re.comprehension.matching;
+      rows.push(["RE_MATCHING", mb.category, mb.instruction]);
+      mb.choices.forEach((c) => rows.push(["RE_MATCHING_CHOICE", c.letter, c.text]));
+      mb.items.forEach((it, i) =>
+        rows.push(["RE_MATCHING_ITEM", String(i + 1), it.statement, it.answer])
+      );
+    }
+    if (re.readingSkill.title) rows.push(["RE_SKILL_TITLE", "", re.readingSkill.title]);
+    if (re.readingSkill.intro) rows.push(["RE_SKILL_INTRO", "", re.readingSkill.intro]);
+    re.readingSkill.nodes.forEach((n) =>
+      rows.push([
+        "RE_SKILL_NODE",
+        n.kind,
+        n.text,
+        n.parentId || "",
+        (n.answers || []).join("|"),
+      ])
+    );
+    if (re.vocabPractice.completion.bank.length)
+      rows.push(["RE_VOCAB_BANK", "", re.vocabPractice.completion.bank.join("|")]);
+    if (re.vocabPractice.completion.text)
+      rows.push(["RE_VOCAB_COMPLETION", "", re.vocabPractice.completion.text]);
+    if (re.vocabPractice.completion.answers.length)
+      rows.push(["RE_VOCAB_ANSWER", "", re.vocabPractice.completion.answers.join("|")]);
+    re.vocabPractice.definitionMatch.forEach((d) =>
+      rows.push(["RE_DEFINITION", d.word, d.definition])
+    );
+    if (re.vocabPractice.wordForms.explanation)
+      rows.push(["RE_WORDFORM_EXPLAIN", "", re.vocabPractice.wordForms.explanation]);
+    re.vocabPractice.wordForms.items.forEach((w, i) =>
+      rows.push([
+        "RE_WORDFORM",
+        String(i + 1),
+        w.sentence,
+        w.options.join("|"),
+        String(w.answer),
+      ])
+    );
+  }
 
   return rows.map(r => r.map(csvEscape).join(",")).join("\n");
 }
