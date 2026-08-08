@@ -1228,14 +1228,14 @@ export default function SGRClassViewer() {
   const [aiTutorOpen, setAiTutorOpen] = useState(false);
   const [aiTutorPrompt, setAiTutorPrompt] = useState<string | undefined>(undefined);
   const [aiActionPopup, setAiActionPopup] = useState<{
-    action: "explain" | "translate" | "analyze" | "rewrite";
+    action: "explain" | "translate" | "question" | "rewrite";
     text: string;
     x: number;
     y: number;
   } | null>(null);
   const [drawOpen, setDrawOpen] = useState(false);
 
-  const handleAiTutor = (action: "explain" | "translate" | "analyze" | "rewrite", text: string) => {
+  const handleAiTutor = (action: "explain" | "translate" | "question" | "rewrite", text: string) => {
     // 말풍선으로 결과 표시
     const selection = window.getSelection();
     const range = selection?.rangeCount ? selection.getRangeAt(0) : null;

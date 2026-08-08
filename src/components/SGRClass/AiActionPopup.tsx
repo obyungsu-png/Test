@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Bot, Loader2, Sparkles } from "lucide-react";
+import { Bot, Loader2, Sparkles, Send } from "lucide-react";
 
-type AiAction = "explain" | "translate" | "analyze" | "rewrite";
+type AiAction = "explain" | "translate" | "question" | "rewrite";
 
 interface AiActionPopupProps {
   action: AiAction;
@@ -15,14 +15,14 @@ interface AiActionPopupProps {
 const ACTION_LABELS: Record<AiAction, string> = {
   explain: "설명",
   translate: "번역",
-  analyze: "분석",
+  question: "질문",
   rewrite: "다시 쓰기",
 };
 
 const ACTION_PROMPTS: Record<AiAction, string> = {
   explain: `다음 영어 텍스트를 한국어로 간결하게 설명해줘. 단어 뜻, 문법, 맥락을 포함해서:\n\n`,
   translate: `다음 영어 텍스트를 자연스러운 한국어로 번역해줘:\n\n`,
-  analyze: `다음 영어 텍스트를 문법적으로 분석해줘. 주어, 동사, 목적어 구조와 주요 문법 포인트를 설명해줘:\n\n`,
+  question: ``,
   rewrite: `다음 영어 텍스트를 더 자연스럽고 다양한 표현으로 3가지 버전으로 다시 써줘:\n\n`,
 };
 
@@ -32,7 +32,7 @@ const GLM_MODEL = "glm-4-flash";
 
 /**
  * AI 액션 결과를 사전 말풍선처럼 보여주는 팝업
- * explain, translate, analyze, rewrite 버튼 클릭 시 나타남
+ * explain, translate, question, rewrite 버튼 클릭 시 나타남
  * API 호출은 유저가 [요청] 버튼을 누를 때만 수행 (자동 호출 X)
  */
 export function AiActionPopup({ action, selectedText, x, y, onClose }: AiActionPopupProps) {
@@ -40,18 +40,32 @@ export function AiActionPopup({ action, selectedText, x, y, onClose }: AiActionP
   const [result, setResult] = useState("");
   const [error, setError] = useState(false);
   const [hasFetched, setHasFetched] = useState(false);
+  const [questionInput, setQuestionInput] = useState("");
   const popupRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const [adjustedPos, setAdjustedPos] = useState({ x, y });
+
+  // question 액션 진입 시 입력창 자동 포커스
+  useEffect(() => {
+    if (action === "question" && !hasFetched && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [action, hasFetched]);
 
   // API 호출 — 유저가 [요청] 버튼 클릭 시에만 실행
   const fetchAiResult = useCallback(async () => {
     if (loading || hasFetched) return;
+    // question 액션은 사용자 질문이 필요
+    if (action === "question" && !questionInput.trim()) return;
     setLoading(true);
     setError(false);
     setResult("");
 
     try {
-      const prompt = ACTION_PROMPTS[action] + `"${selectedText}"`;
+      const prompt =
+        action === "question"
+          ? `다음은 학생이 읽고 있는 영어 텍스트야:\n"${selectedText}"\n\n이 텍스트에 대한 학생의 질문에 한국어로 친절하고 정확하게 답해줘.\n질문: ${questionInput.trim()}`
+          : ACTION_PROMPTS[action] + `"${selectedText}"`;
       const systemPrompt =
         "영어 학습 튜터 AI. 한국어로 간결·실용적으로 답변. 마크다운 금지. <b>강조</b>, <u>항목명</u> 태그 사용 가능.";
 
@@ -84,7 +98,7 @@ export function AiActionPopup({ action, selectedText, x, y, onClose }: AiActionP
     } finally {
       setLoading(false);
     }
-  }, [action, selectedText, loading, hasFetched]);
+  }, [action, selectedText, loading, hasFetched, questionInput]);
 
   // 팝업 위치 조정
   useEffect(() => {
@@ -206,6 +220,34 @@ export function AiActionPopup({ action, selectedText, x, y, onClose }: AiActionP
       ) : hasFetched ? (
         <div className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed max-h-[300px] overflow-y-auto">
           {renderContent(result)}
+        </div>
+      ) : action === "question" ? (
+        <div className="flex flex-col gap-2">
+          <textarea
+            ref={inputRef}
+            value={questionInput}
+            onChange={(e) => setQuestionInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                fetchAiResult();
+              }
+            }}
+            placeholder="이 문장에 대해 궁금한 점을 자유롭게 물어보세요.&#10;(예: 여기서 that의 역할이 뭐야? / 왜 과거완료를 썼어?)"
+            rows={3}
+            className="w-full px-3 py-2 text-sm rounded-lg border border-violet-200 dark:border-violet-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-400 resize-none"
+          />
+          <button
+            onClick={fetchAiResult}
+            disabled={!questionInput.trim()}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed text-white text-sm font-bold transition-colors shadow-sm"
+          >
+            <Send className="w-4 h-4" />
+            질문하기
+          </button>
+          <p className="text-[11px] text-gray-400 dark:text-gray-500 text-center">
+            Ctrl/⌘ + Enter 로 바로 전송
+          </p>
         </div>
       ) : (
         <button

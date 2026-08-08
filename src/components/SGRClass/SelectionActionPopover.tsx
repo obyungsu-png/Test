@@ -11,16 +11,16 @@ interface SelectionActionPopoverProps {
   onHighlight: (color: string) => void;
   onUnderline: (color: string) => void;
   onDictionary: () => void;
-  onAiTutor?: (action: "explain" | "translate" | "analyze" | "rewrite", text: string) => void;
+  onAiTutor?: (action: "explain" | "translate" | "question" | "rewrite", text: string) => void;
   onClose: () => void;
 }
 
-type AiAction = "explain" | "translate" | "analyze" | "rewrite";
+type AiAction = "explain" | "translate" | "question" | "rewrite";
 
 const AI_ACTIONS: { key: AiAction; label: string }[] = [
   { key: "explain", label: "Explain" },
   { key: "translate", label: "Translate" },
-  { key: "analyze", label: "Analyze" },
+  { key: "question", label: "Question" },
   { key: "rewrite", label: "Rewrite" },
 ];
 

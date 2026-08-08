@@ -73,13 +73,13 @@ export default function SGRGrammarViewer() {
   const [clearTrigger, setClearTrigger] = useState(0);
   const [drawOpen, setDrawOpen] = useState(false);
   const [aiActionPopup, setAiActionPopup] = useState<{
-    action: "explain" | "translate" | "analyze" | "rewrite";
+    action: "explain" | "translate" | "question" | "rewrite";
     text: string;
     x: number;
     y: number;
   } | null>(null);
 
-  const handleAiTutor = (action: "explain" | "translate" | "analyze" | "rewrite", text: string) => {
+  const handleAiTutor = (action: "explain" | "translate" | "question" | "rewrite", text: string) => {
     const selection = window.getSelection();
     const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
     const rect = range?.getBoundingClientRect();

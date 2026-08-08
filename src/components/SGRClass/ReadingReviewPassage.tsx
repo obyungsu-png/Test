@@ -17,8 +17,8 @@ interface ReadingReviewPassageProps {
   toolsOpen?: boolean;
   /** 사전 버튼 클릭 시 콜백 — 부모에서 WordPopup 표시 */
   onDictionary: (data: { word: string; context: string; x: number; y: number }) => void;
-  /** AI 튜터 액션 콜백 (explain/translate/analyze/rewrite + 선택된 텍스트) */
-  onAiTutor?: (action: "explain" | "translate" | "analyze" | "rewrite", text: string) => void;
+  /** AI 튜터 액션 콜백 (explain/translate/question/rewrite + 선택된 텍스트) */
+  onAiTutor?: (action: "explain" | "translate" | "question" | "rewrite", text: string) => void;
   /** 이 값이 바뀌면 모든 하이라이트/밑줄 제거 */
   clearTrigger?: number;
 }
