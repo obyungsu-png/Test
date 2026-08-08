@@ -1,5 +1,4 @@
 section,key,value1,value2,value3,value4
-META,bookType,reading_explore,,,
 META,title,Seeing the Impossible,,,
 META,unitNumber,7B,,,
 META,subject,영어,,,
@@ -7,60 +6,76 @@ META,category,Reading Explorer,,,
 META,previewQuestion,Can you believe everything you see?,,,
 META,passageTitle,Seeing the Impossible,,,
 META,vocabPreviewInstruction,Write the correct word next to its meaning.,,,
-RE_HEADLINE,,"SEEING","THE IMPOSSIBLE",,
-RE_INTRO,,Can you believe everything you see?,,,
-RE_PARAGRAPH,A,"Can you ==believe== everything you see? Not always! Sometimes our ==minds== and our eyes make ==mistakes== and get confused.¹ This may be because we are looking at an optical illusion.",,,
-RE_PARAGRAPH,B,"The word optical means ""related to sight""—the way we see things. An illusion is something that looks different from the way it really is. In short, an optical illusion is a ==trick== that our eyes play on us.",,,
-RE_PARAGRAPH,C,"Look at these optical illusions and compare what you see with what your classmates see. The way we see things is often ==personal==, so not everyone will see things the same way.",,,
-RE_FOOTNOTE,1,"If you are confused, you don't understand something correctly.",,,
-RE_SUBHEAD,afterC,1. Are the lines straight?,,,
-RE_PARAGRAPH,D,"At a first look, most people say ""No."" But if you compare the lines against an object with a ==straight== edge, you'll see otherwise. The small circles in the squares help create the illusion.",,,
-RE_SUBHEAD,afterD,2. What color are the squares?,,,
-RE_PARAGRAPH,E,"Square 1 is clearly gray. But what about square 2? Is it white? Is it light gray? You may not believe it, but squares 1 and 2 are exactly the same color. Your eyes see the colors, but your brain notices the shadow made by the apple. It ==therefore== decides that the square in the shadow is a lighter color than it really is.",,,
-RE_SUBHEAD,afterE,3. Are the circles moving?,,,
-RE_PARAGRAPH,F,"If you look closely at this picture, the circles may appear to move. Of course, this is ==impossible==. How can a picture move? When we see circle-in-circle shapes, like in car wheels, they are usually moving. Our brains are used to seeing these shapes move. When our eyes see this shape, our mind decides that the image is moving. Other scientists believe the illusion of movement is caused by the movements of our eyes as we look at the different colors and patterns of the picture.",,,
-RE_MCQ,PURPOSE,What is the main purpose of the reading?,to describe how human eyes work|to give examples of everyday optical illusions|to explain what optical illusions are and give some examples,2
-RE_MCQ,DETAIL,What causes optical illusion 1?,the size of the squares|the color of the lines|the circles inside the squares,2
-RE_MCQ,DETAIL,What causes optical illusion 2?,the shadow in the image|the color of the apple|the number of squares in the picture,0
-RE_MCQ,DETAIL,What is NOT given as a reason the third optical illusion appears to move?,the different patterns and colors|the red ""Y"" shapes|the circular shapes,1
-RE_MCQ,INFERENCE,Which of these is an optical illusion?,hearing a voice in your head that isn't there|seeing water on a road when it's not really there|looking up at a strange cloud and noticing its shape,1
-RE_SKILL_TITLE,,Understanding Conjunctions,,,
-RE_SKILL_INTRO,"Conjunctions are words that join ideas together in a single sentence. Recognizing conjunctions is an important part of understanding longer sentences. Here are some common conjunctions and their functions. and (to give more information); but (to show how things are different); or (to show two options); so (to show a result); because (to give a reason); when (to give a time); if (to give a condition).",,,,
-RE_WORDFORM_EXPLAIN,,"Complete the sentences using the correct conjunction. Choose from: and, but, or, so, because, when, if.",,,
-RE_WORDFORM,1,"Some people make their own optical illusions, ___ it's not easy to do.",and|but,1
-RE_WORDFORM,2,"You can find examples of optical illusions in books, ___ you can search online.",or|but,0
-RE_WORDFORM,3,"Optical illusions play tricks on the mind, ___ they can make people very confused.",but|so,1
-RE_WORDFORM,4,Sometimes our minds ___ our eyes make mistakes.,and|but,0
-RE_WORDFORM,5,"The way we see things is often personal, ___ not everyone will see things the same way.",so|because,0
-RE_WORDFORM,6,"You may not believe it, ___ squares 1 and 2 are exactly the same color.",but|so,0
-RE_WORDFORM,7,"Your eyes see the colors, ___ your brain notices the shadow made by the apple.",but|because,0
-RE_WORDFORM,8,"___ you look closely at this picture, the circles may appear to move.",If|When,0
-RE_WORDFORM,9,"___ our eyes see this shape, our mind decides that the image is moving.",When|Because,0
-RE_VOCAB_BANK,believe|trick|mind|impossible|tricks|therefore,,,,
-RE_VOCAB_COMPLETION,,"Look at the photo. What do you see? Do you ___ your eyes? Maybe you shouldn't. Your eyes—and your ___—might be making a(n) ___ mistake. If you see only dark camels crossing the desert, your eyes are playing ___ on you. The photographer took this photo toward the end of the day. The sun was low in the sky, and the camels ___ had long shadows. The dark camel shapes you see in the photo are really just the camels' shadows. The real camels are the thin brown shapes below the darker camel shapes.",,,
-RE_VOCAB_ANSWER,believe|mind|impossible|tricks|therefore,,,,
-RE_DEFINITION,believe,to think that something is true,,,
-RE_DEFINITION,mind,the part of a person that thinks and remembers,,,
-RE_DEFINITION,mistake,something you do that is wrong,,,
-RE_DEFINITION,trick,something that makes you see or believe something that is not real,,,
-RE_DEFINITION,personal,belonging to or connected with one person,,,
-RE_DEFINITION,confused,not able to understand something clearly,,,
-RE_DEFINITION,straight,continuing in one direction without bending,,,
-RE_DEFINITION,therefore,for that reason; as a result,,,
-RE_DEFINITION,impossible,not able to happen or be done,,,
-RE_MCQ,DEFINITION,"If an experience is personal, it is ___ for every person.",the same|different,1
-RE_MCQ,DEFINITION,"If something is impossible, it can ___.",never happen|happen soon,0
-RE_MCQ,DEFINITION,"If a line is straight, it ___.",creates a circle|continues in one direction,1
-RE_MCQ,DEFINITION,"If you make a mistake, you do something that is ___.",correct|wrong,1
-RE_VOCAB_BANK,common|learn from|make|stupid,,,,
-RE_VOCAB_COMPLETION,collocations,"The words and phrases in the box are often used with the word mistake. 1. It's important to ___ your mistakes in life. 2. Don't worry about it. It's a ___ mistake. 3. I think I ___ a mistake by asking my boss for a pay raise. 4. I was so embarrassed. It was such a ___ mistake!",,,
-RE_VOCAB_ANSWER,learn from|common|made|stupid,,,,
-RE_SKILL_TITLE,summary,Complete the summary of the passage.,,,
-RE_VOCAB_BANK,moving|our eyes and our brains|lines|they really are|colors|the same thing,,,,
-RE_VOCAB_COMPLETION,summary,"Optical illusions happen when ___ get confused. This means that sometimes we see things differently than ___. For example, optical illusions can make straight ___. They can change the way we see different ___. They can also make an image on a piece of paper look like it is ___. However, the way we see things is personal, so not everyone experiences ___.",,,
-RE_VOCAB_ANSWER,our eyes and our brains|they really are|lines|colors|moving|the same thing,,,,
+PREVIEW_CARD,,"Optical illusions can make straight lines look bent or curved.",,,
+PREVIEW_CARD,,"A shadow across a checkerboard can make two same-colored squares look different.",,,
+PREVIEW_CARD,,"Circle-in-circle patterns can appear to move even though the picture is still.",,,
+VOCAB_PREVIEW,,believe,to think that something is true,,
+VOCAB_PREVIEW,,mind,"the part of a person that thinks, feels, and remembers",,
+VOCAB_PREVIEW,,mistake,something you do that is wrong,,
+VOCAB_PREVIEW,,trick,"something that makes you see or believe something that is not real",,
+VOCAB_PREVIEW,,personal,belonging to or connected with one person,,
+VOCAB_PREVIEW,,straight,continuing in one direction without bending,,
+VOCAB_PREVIEW,,therefore,for that reason; as a result,,
+VOCAB_PREVIEW,,impossible,not able to happen or be done,,
+PARAGRAPH,,"**A.** Can you **believe** everything you see? Not always! Sometimes our **minds** and our eyes make **mistakes** and get confused. This may be because we are looking at an optical illusion.",,,
+PARAGRAPH,,"**B.** The word optical means ""related to sight""—the way we see things. An illusion is something that looks different from the way it really is. In short, an optical illusion is a **trick** that our eyes play on us.",,,
+PARAGRAPH,,"**C.** Look at these optical illusions and compare what you see with what your classmates see. The way we see things is often **personal**, so not everyone will see things the same way.",,,
+PARAGRAPH,,"**D. 1. Are the lines straight?**  At a first look, most people say ""No."" But if you compare the lines against an object with a **straight** edge, you'll see otherwise. The small circles in the squares help create the illusion.",,,
+PARAGRAPH,,"**E. 2. What color are the squares?**  Square 1 is clearly gray. But what about square 2? Is it white? Is it light gray? You may not believe it, but squares 1 and 2 are exactly the same color. Your eyes see the colors, but your brain notices the shadow made by the apple. It **therefore** decides that the square in the shadow is a lighter color than it really is.",,,
+PARAGRAPH,,"**F. 3. Are the circles moving?**  If you look closely at this picture, the circles may appear to move. Of course, this is **impossible**. How can a picture move? When we see circle-in-circle shapes, like in car wheels, they are usually moving. Our brains are used to seeing these shapes move. When our eyes see this shape, our mind decides that the image is moving. Other scientists believe the illusion of movement is caused by the movements of our eyes as we look at the different colors and patterns of the picture.",,,
+QUESTION_MC,,main_idea,What is the main purpose of the reading?,to describe how human eyes work|to give examples of everyday optical illusions|to explain what optical illusions are and give some examples,2
+QUESTION_MC,,multiple_choice,What causes optical illusion 1?,the size of the squares|the color of the lines|the circles inside the squares,2
+QUESTION_MC,,multiple_choice,What causes optical illusion 2?,the shadow in the image|the color of the apple|the number of squares in the picture,0
+QUESTION_MC,,multiple_choice,"What is NOT given as a reason the third optical illusion appears to move?",the different patterns and colors|the red ""Y"" shapes|the circular shapes,1
+QUESTION_MC,,multiple_choice,Which of these is an optical illusion?,hearing a voice in your head that isn't there|seeing water on a road when it's not really there|looking up at a strange cloud and noticing its shape,1
+QUESTION_MC,,vocabulary,"If an experience is personal, it is ___ for every person.",the same|different,1
+QUESTION_MC,,vocabulary,"If something is impossible, it can ___.",never happen|happen soon,0
+QUESTION_MC,,vocabulary,"If a line is straight, it ___.",creates a circle|continues in one direction,1
+QUESTION_MC,,vocabulary,"If you make a mistake, you do something that is ___.",correct|wrong,1
+QUESTION_MC,,multiple_choice,"Some people make their own optical illusions, ___ it's not easy to do.",and|but,1
+QUESTION_MC,,multiple_choice,"You can find examples of optical illusions in books, ___ you can search online.",or|but,0
+QUESTION_MC,,multiple_choice,"Optical illusions play tricks on the mind, ___ they can make people very confused.",but|so,1
+QUESTION_FILL,,Sometimes our minds ___ our eyes make mistakes.,and,,
+QUESTION_FILL,,"The way we see things is often personal, ___ not everyone will see things the same way.",so,,
+QUESTION_FILL,,"You may not believe it, ___ squares 1 and 2 are exactly the same color.",but,,
+QUESTION_FILL,,"Your eyes see the colors, ___ your brain notices the shadow made by the apple.",but,,
+QUESTION_FILL,,"___ you look closely at this picture, the circles may appear to move.",If,,
+QUESTION_FILL,,"___ our eyes see this shape, our mind decides that the image is moving.",When,,
+QUESTION_COMPLETE,wordBank,believe|mind|impossible|tricks|therefore,,,
+QUESTION_COMPLETE,,Look at the photo. What do you see? Do you ___ your eyes?,believe,,
+QUESTION_COMPLETE,,Your eyes—and your ___—might be making a mistake.,mind,,
+QUESTION_COMPLETE,,"Your eyes and your mind might be making a(n) ___ mistake.",impossible,,
+QUESTION_COMPLETE,,"If you see only dark camels crossing the desert, your eyes are playing ___ on you.",tricks,,
+QUESTION_COMPLETE,,"The sun was low in the sky, and the camels ___ had long shadows.",therefore,,
+QUESTION_COMPLETE,wordBank,our eyes and our brains|they really are|lines|colors|moving|the same thing,,,
+QUESTION_COMPLETE,,Optical illusions happen when ___ get confused.,our eyes and our brains,,
+QUESTION_COMPLETE,,This means that sometimes we see things differently than ___.,they really are,,
+QUESTION_COMPLETE,,"For example, optical illusions can make straight ___.",lines,,
+QUESTION_COMPLETE,,They can change the way we see different ___.,colors,,
+QUESTION_COMPLETE,,They can also make an image on a piece of paper look like it is ___.,moving,,
+QUESTION_COMPLETE,,"However, the way we see things is personal, so not everyone experiences ___.",the same thing,,
+QUESTION_TF,,"An optical illusion is a trick that our eyes play on us.",T,,
+QUESTION_TF,,"Everyone will always see optical illusions in the same way.",F,,
+QUESTION_TF,,"In optical illusion 2, squares 1 and 2 are actually different colors.",F,,
+QUESTION_TF,,"The circles in optical illusion 3 are really moving.",F,,
+QUESTION_TF,,"Our brains are used to seeing circle-in-circle shapes like car wheels move.",T,,
+VOCAB_REVIEW_BANK,,believe,,,
+VOCAB_REVIEW_BANK,,mind,,,
+VOCAB_REVIEW_BANK,,mistake,,,
+VOCAB_REVIEW_BANK,,trick,,,
+VOCAB_REVIEW_BANK,,personal,,,
+VOCAB_REVIEW_BANK,,straight,,,
+VOCAB_REVIEW_BANK,,therefore,,,
+VOCAB_REVIEW_BANK,,impossible,,,
+VOCAB_REVIEW,,"I can hardly ___ that we are already in high school.",believe,,
+VOCAB_REVIEW,,"When I am tired, my ___ cannot focus on the lesson.",mind,,
+VOCAB_REVIEW,,"Everyone makes a ___ from time to time — that's how we learn.",mistake,,
+VOCAB_REVIEW,,"Magicians use clever ___ to surprise the audience.",tricks,,
+VOCAB_REVIEW,,"Your dreams are ___, so no one else can experience them the same way.",personal,,
+VOCAB_REVIEW,,"Please draw a ___ line from point A to point B.",straight,,
+VOCAB_REVIEW,,"It was raining hard; ___, we decided to stay home.",therefore,,
+VOCAB_REVIEW,,"It is ___ for a picture on paper to move by itself.",impossible,,
 DIRECT_READING,,Can you believe everything you see?,당신이 보는 모든 것을 믿을 수 있나요?,"Can you believe|everything|you see?",
-DIRECT_READING,,Not always!,항상 그런 것은 아닙니다!,"Not always!",
 DIRECT_READING,,Sometimes our minds and our eyes make mistakes and get confused.,때때로 우리의 마음과 눈은 실수를 하고 혼란스러워집니다.,"Sometimes our minds and our eyes|make mistakes|and get confused",
 DIRECT_READING,,This may be because we are looking at an optical illusion.,이것은 우리가 착시를 보고 있기 때문일 수 있습니다.,"This may be|because we are looking at|an optical illusion",
 DIRECT_READING,,"The word optical means ""related to sight""—the way we see things.","optical이라는 단어는 ""시각과 관련된""을 의미합니다. 즉, 우리가 사물을 보는 방식입니다.","The word optical|means ""related to sight""|the way we see things",
@@ -73,9 +88,6 @@ DIRECT_READING,,"At a first look, most people say ""No.""","첫눈에 대부분�
 DIRECT_READING,,"But if you compare the lines against an object with a straight edge, you'll see otherwise.","하지만 직선 모서리를 가진 물체에 대고 선을 비교하면, 그렇지 않다는 것을 알게 될 것입니다.","But if you compare the lines|against an object|with a straight edge,|you'll see otherwise",
 DIRECT_READING,,The small circles in the squares help create the illusion.,사각형 안의 작은 원들이 착시를 만드는 데 도움을 줍니다.,"The small circles|in the squares|help create the illusion",
 DIRECT_READING,,Square 1 is clearly gray.,사각형 1은 분명히 회색입니다.,"Square 1|is clearly|gray",
-DIRECT_READING,,But what about square 2?,하지만 사각형 2는 어떨까요?,"But what about|square 2?",
-DIRECT_READING,,Is it white?,흰색인가요?,"Is it white?",
-DIRECT_READING,,Is it light gray?,밝은 회색인가요?,"Is it light gray?",
 DIRECT_READING,,"You may not believe it, but squares 1 and 2 are exactly the same color.","믿기 어려울 수 있지만, 사각형 1과 2는 정확히 같은 색입니다.","You may not believe it,|but squares 1 and 2|are exactly the same color",
 DIRECT_READING,,"Your eyes see the colors, but your brain notices the shadow made by the apple.","당신의 눈은 색깔을 보지만, 뇌는 사과가 만든 그림자를 알아챕니다.","Your eyes|see the colors,|but your brain|notices the shadow|made by the apple",
 DIRECT_READING,,It therefore decides that the square in the shadow is a lighter color than it really is.,"그래서 뇌는 그림자 안의 사각형이 실제보다 더 밝은 색이라고 판단합니다.","It therefore decides|that the square in the shadow|is a lighter color|than it really is",
