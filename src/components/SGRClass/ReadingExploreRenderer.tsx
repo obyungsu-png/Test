@@ -154,10 +154,18 @@ function ComprehensionView({ lesson, content, showAnswer }: Props) {
                     {q.options.map((o, oi) => {
                       const isCorrect = oi === q.answer;
                       const isPicked = pickedIdx === oi;
-                      let cls = "border-gray-200 dark:border-gray-700 hover:border-cyan-300";
-                      if (showAnswer && isCorrect) cls = "border-cyan-500 bg-cyan-50 dark:bg-cyan-950/40 font-bold";
-                      else if (isPicked && showAnswer && !isCorrect) cls = "border-red-400 bg-red-50 dark:bg-red-950/30";
-                      else if (isPicked) cls = "border-cyan-400 bg-cyan-50/60 dark:bg-cyan-950/20";
+                      // 다크모드에서도 잘 보이도록 각 상태에 명시적으로 text color 지정
+                      let cls =
+                        "border-gray-200 dark:border-gray-700 hover:border-cyan-300 text-gray-800 dark:text-gray-100";
+                      if (showAnswer && isCorrect)
+                        cls =
+                          "border-cyan-500 bg-cyan-50 dark:bg-cyan-950/40 font-bold text-cyan-800 dark:text-cyan-200";
+                      else if (isPicked && showAnswer && !isCorrect)
+                        cls =
+                          "border-red-400 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300";
+                      else if (isPicked)
+                        cls =
+                          "border-cyan-400 bg-cyan-50/60 dark:bg-cyan-950/20 text-cyan-800 dark:text-cyan-200";
                       return (
                         <button
                           key={oi}
@@ -167,7 +175,7 @@ function ComprehensionView({ lesson, content, showAnswer }: Props) {
                         >
                           <span className="font-bold mr-2">{String.fromCharCode(97 + oi)}.</span>
                           {o}
-                          {showAnswer && isCorrect && <span className="ml-2 text-cyan-600">✓</span>}
+                          {showAnswer && isCorrect && <span className="ml-2 text-cyan-600 dark:text-cyan-300">✓</span>}
                         </button>
                       );
                     })}
@@ -496,10 +504,18 @@ function VocabPracticeView({ lesson, content, showAnswer }: Props) {
                       {it.options.map((op, oi) => {
                         const isCorrect = oi === it.answer;
                         const isPicked = pickedIdx === oi;
-                        let cls = "border-gray-200 dark:border-gray-700";
-                        if (showAnswer && isCorrect) cls = "border-cyan-500 bg-cyan-50 dark:bg-cyan-950/40 font-bold";
-                        else if (isPicked && showAnswer && !isCorrect) cls = "border-red-400 bg-red-50";
-                        else if (isPicked) cls = "border-cyan-400 bg-cyan-50/60";
+                        // 다크모드 대응: 기본/정답/오답/선택 각각의 텍스트 색상 명시
+                        let cls =
+                          "border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100";
+                        if (showAnswer && isCorrect)
+                          cls =
+                            "border-cyan-500 bg-cyan-50 dark:bg-cyan-950/40 font-bold text-cyan-800 dark:text-cyan-200";
+                        else if (isPicked && showAnswer && !isCorrect)
+                          cls =
+                            "border-red-400 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300";
+                        else if (isPicked)
+                          cls =
+                            "border-cyan-400 bg-cyan-50/60 dark:bg-cyan-950/20 text-cyan-800 dark:text-cyan-200";
                         return (
                           <button
                             key={oi}
