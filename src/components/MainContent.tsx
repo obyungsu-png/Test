@@ -17,6 +17,7 @@ import SGRNovelViewer from "./SGRNovel/SGRNovelViewer";
 import SGRWritingViewer from "./SGRWriting/SGRWritingViewer";
 import SGRVocaViewer from "./SGRVoca/SGRVocaViewer";
 import SGRGrammarViewer from "./SGRGrammar/SGRGrammarViewer";
+import SGRHSKViewer from "./SGRHSK/SGRHSKViewer";
 import { getFilteredMaterials } from "./utils/materialHelpers";
 import { getCategoryCustomName, updateUploadedMaterial } from "./utils/dataManager";
 import { DEFAULT_TABS, KOREAN_SCHOOL_TABS, INTERNATIONAL_SCHOOL_TABS, CERTIFICATION_TABS, CERTIFICATION_CONTENT_BY_TAB, CERTIFICATION_CONTENT_BY_SUBJECT_AND_CATEGORY } from "./constants/defaultContent";
@@ -111,8 +112,15 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
     let tabs = defaultTabs;
     if (schoolType === 'korean' && selectedSubject === '서류전형') {
     }
-    if (schoolType === 'korean' && selectedSubject !== '영어') {
-      tabs = tabs.filter(tab => tab !== 'Voca' && tab !== 'SGR Class' && tab !== 'SGR Writing' && tab !== 'SGR Voca' && tab !== 'SGR Grammar' && tab !== 'SGR Novels' && tab !== '교과서 뽀개기');
+    if (schoolType === 'korean' && selectedSubject !== '영어' && selectedSubject !== 'SGR Series') {
+      tabs = tabs.filter(tab => tab !== 'Voca' && tab !== 'SGR Class' && tab !== 'SGR Writing' && tab !== 'SGR Voca' && tab !== 'SGR Grammar' && tab !== 'SGR Novels' && tab !== 'SGR HSK' && tab !== '교과서 뽀개기');
+    }
+    // SGR Series 과목: SGR 관련 탭만 표시
+    if (schoolType === 'korean' && selectedSubject === 'SGR Series') {
+      const sgrOnly = ['SGR Novels', 'SGR Class', 'SGR Writing', 'SGR Voca', 'SGR Grammar', 'SGR HSK'];
+      tabs = tabs.filter(tab => sgrOnly.includes(tab));
+      // 원하는 순서로 정렬
+      tabs = sgrOnly.filter(t => tabs.includes(t));
     }
     return tabs;
   })();
@@ -162,6 +170,16 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
   useEffect(() => {
     if (activeTab === 'Voca' && schoolType === 'korean' && selectedSubject !== '영어') {
       onTabSelect(adjustedTabs[0] || '국어');
+    }
+  }, [selectedSubject, schoolType]);
+
+  // SGR Series 진입 시 활성 탭이 SGR 계열이 아니면 첫 번째 SGR 탭(SGR Novels)으로 이동
+  useEffect(() => {
+    if (schoolType === 'korean' && selectedSubject === 'SGR Series') {
+      const sgrTabs = ['SGR Novels', 'SGR Class', 'SGR Writing', 'SGR Voca', 'SGR Grammar', 'SGR HSK'];
+      if (!sgrTabs.includes(activeTab)) {
+        onTabSelect('SGR Novels');
+      }
     }
   }, [selectedSubject, schoolType]);
 
@@ -632,6 +650,15 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
     setSgrGrammarFullscreen(showSGRGrammar);
   }, [showSGRGrammar]);
 
+  // Check if we should show SGR HSK
+  const showSGRHSK = activeTab === "SGR HSK" && schoolType === 'korean';
+  const [sgrHskFullscreen, setSgrHskFullscreen] = useState(false);
+
+  // SGR HSK: 전체화면 상태를 URL(activeTab)에 추종
+  useEffect(() => {
+    setSgrHskFullscreen(showSGRHSK);
+  }, [showSGRHSK]);
+
   
   // Check if we should show grid layout for Subject or 보조자료
   const showGridLayout = (activeTab === "Subject" || activeTab === "보조자료") && schoolType === 'international' && selectedSubject === 'AP';
@@ -819,6 +846,10 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
                     ? activeTab === tab
                       ? "border-emerald-600 text-emerald-600 bg-emerald-50"
                       : "border-transparent text-emerald-600 hover:bg-emerald-50"
+                    : tab === "SGR HSK"
+                    ? activeTab === tab
+                      ? "border-red-600 text-red-600 bg-red-50"
+                      : "border-transparent text-red-600 hover:bg-red-50"
                     : activeTab === tab
                     ? "border-cyan-600 text-cyan-600 bg-cyan-50"
                     : "border-transparent text-gray-700 hover:text-gray-900 hover:bg-gray-50"
@@ -859,10 +890,16 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
                     SGR Grammar
                     <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white leading-none">수업용</span>
                   </span>
+                ) : tab === "SGR HSK" ? (
+                  <span className="flex items-center gap-1.5">
+                    <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
+                    SGR HSK
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gradient-to-r from-red-500 to-orange-500 text-white leading-none">중국어</span>
+                  </span>
                 ) : (
                   tab
                 )}
-                {tab !== "SGR Class" && tab !== "SGR Novels" && tab !== "SGR Writing" && tab !== "SGR Voca" && tab !== "SGR Grammar" && (
+                {tab !== "SGR Class" && tab !== "SGR Novels" && tab !== "SGR Writing" && tab !== "SGR Voca" && tab !== "SGR Grammar" && tab !== "SGR HSK" && (
                   <span className={`text-[10px] sm:text-xs font-bold ml-0.5 ${
                     activeTab === tab ? "text-red-500" : "text-red-400"
                   }`}>
@@ -1913,6 +1950,49 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
             <div className="flex-1 overflow-y-auto">
               <div className="max-w-7xl mx-auto">
                 <SGRGrammarViewer />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* SGR HSK Fullscreen Overlay */}
+      <AnimatePresence>
+        {sgrHskFullscreen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-[90] bg-white flex flex-col"
+          >
+            <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-gray-200 bg-gradient-to-r from-red-50 to-white shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-red-500 to-orange-600 flex items-center justify-center shadow-md">
+                  <BookOpen className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-lg font-bold text-gray-800">SGR HSK</h1>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-sm">중국어</span>
+                  </div>
+                  <p className="text-xs text-gray-400">{selectedSubject} · {selectedCategory || '전체'}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setSgrHskFullscreen(false);
+                  onTabSelect(tabs[0] || 'SGR Novels');
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-600 transition-colors"
+              >
+                <X className="w-4 h-4" />
+                닫기
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <div className="max-w-7xl mx-auto">
+                <SGRHSKViewer />
               </div>
             </div>
           </motion.div>

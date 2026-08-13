@@ -918,4 +918,68 @@ app.post("/make-server-7db3bef3/sgr-class/lessons", async (c) => {
   }
 });
 
+// ===== SGR HSK 수업 자료 관리 API (upsert-by-id) =====
+// 저장은 항상 per-id 로만 이루어지므로 SGR Class 에서 발생했던
+// "전체 배열 덮어쓰기" 유형의 사고가 재발하지 않는다.
+//
+// KV 키 스킴: nstudy_sgr_hsk_lesson:<lessonId>
+const HSK_KEY_PREFIX = "nstudy_sgr_hsk_lesson:";
+
+// 모든 HSK 레슨 조회
+app.get("/make-server-7db3bef3/sgr-hsk/lessons", async (c) => {
+  try {
+    const lessons = await kv.getByPrefix(HSK_KEY_PREFIX);
+    return c.json({ lessons: lessons || [] });
+  } catch (error) {
+    console.error("Error fetching SGR HSK lessons:", error);
+    return c.json({ error: "Failed to fetch lessons", details: String(error) }, 500);
+  }
+});
+
+// 개별 HSK 레슨 조회
+app.get("/make-server-7db3bef3/sgr-hsk/lessons/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const lesson = await kv.get(HSK_KEY_PREFIX + id);
+    if (!lesson) return c.json({ error: "Not found" }, 404);
+    return c.json({ lesson });
+  } catch (error) {
+    console.error("Error fetching SGR HSK lesson:", error);
+    return c.json({ error: "Failed to fetch lesson", details: String(error) }, 500);
+  }
+});
+
+// 개별 HSK 레슨 upsert (전체 교체 대신)
+app.put("/make-server-7db3bef3/sgr-hsk/lessons/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const body = await c.req.json();
+    const lesson = body?.lesson;
+    if (!lesson || typeof lesson !== "object") {
+      return c.json({ error: "lesson object required" }, 400);
+    }
+    if (!lesson.id) lesson.id = id;
+    if (lesson.id !== id) {
+      return c.json({ error: "id mismatch" }, 400);
+    }
+    await kv.set(HSK_KEY_PREFIX + id, lesson);
+    return c.json({ success: true, id });
+  } catch (error) {
+    console.error("Error upserting SGR HSK lesson:", error);
+    return c.json({ error: "Failed to upsert lesson", details: String(error) }, 500);
+  }
+});
+
+// 개별 HSK 레슨 삭제
+app.delete("/make-server-7db3bef3/sgr-hsk/lessons/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    await kv.del(HSK_KEY_PREFIX + id);
+    return c.json({ success: true, id });
+  } catch (error) {
+    console.error("Error deleting SGR HSK lesson:", error);
+    return c.json({ error: "Failed to delete lesson", details: String(error) }, 500);
+  }
+});
+
 Deno.serve(app.fetch);

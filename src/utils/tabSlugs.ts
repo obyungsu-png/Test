@@ -13,6 +13,8 @@ export const TAB_SLUG_MAP: Record<string, string> = {
   "SGR Writing": "sgr-writing",
   "SGR Voca": "sgr-voca",
   "SGR Grammar": "sgr-grammar",
+  "SGR HSK": "sgr-hsk",
+  "SGR Series": "sgr-series",
   "Subject": "subject",
   "전체보기": "all",
   "Key Notes": "key-notes",

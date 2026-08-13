@@ -1,0 +1,72 @@
+section,key,value1,value2,value3,value4
+META,hskLevel,3,,,
+META,unitNumber,01,,,
+META,title,我的一天,,,
+META,titlePinyin,Wǒ de yì tiān,,,
+META,titleKorean,나의 하루,,,
+META,category,HSK 3급 · 일상 회화,,,
+META,previewQuestion,당신의 하루 일과를 중국어로 어떻게 표현할까요?,,,
+META,passageTitle,我的一天,,,
+META,passageTitlePinyin,Wǒ de yì tiān,,,
+META,passageTitleKorean,나의 하루,,,
+PREVIEW_CARD,,早上七点起床,,,
+PREVIEW_CARD,,上午在学校学习,,,
+PREVIEW_CARD,,晚上跟家人一起吃饭,,,
+VOCAB,,起床,qǐchuáng,일어나다,동사
+VOCAB,,刷牙,shuāyá,이를 닦다,동사
+VOCAB,,洗脸,xǐliǎn,세수하다,동사
+VOCAB,,然后,ránhòu,그런 다음,접속사
+VOCAB,,公共汽车,gōnggòng qìchē,버스,명사
+VOCAB,,食堂,shítáng,식당,명사
+VOCAB,,放学,fàngxué,하교하다,동사
+VOCAB,,常常,chángcháng,자주,부사
+VOCAB,,作业,zuòyè,숙제,명사
+VOCAB,,睡觉,shuìjiào,잠자다,동사
+VOCAB_EXAMPLE,起床,我每天早上七点起床。,Wǒ měi tiān zǎoshang qī diǎn qǐchuáng.,저는 매일 아침 7시에 일어납니다.,
+VOCAB_EXAMPLE,食堂,中午在学校的食堂吃午饭。,Zhōngwǔ zài xuéxiào de shítáng chī wǔfàn.,정오에는 학교 식당에서 점심을 먹습니다.,
+PASSAGE,,"我每天早上七点起床。起床以后我先刷牙，洗脸，然后吃早饭。","Wǒ měi tiān zǎoshang qī diǎn qǐchuáng. Qǐchuáng yǐhòu wǒ xiān shuāyá, xǐliǎn, ránhòu chī zǎofàn.","저는 매일 아침 7시에 일어납니다. 일어난 후에 먼저 이를 닦고, 세수를 하고, 그런 다음 아침을 먹습니다.",
+PASSAGE,,"早饭以后我坐公共汽车去学校。我在学校学习汉语和数学。中午在学校的食堂吃午饭。","Zǎofàn yǐhòu wǒ zuò gōnggòng qìchē qù xuéxiào. Wǒ zài xuéxiào xuéxí Hànyǔ hé shùxué. Zhōngwǔ zài xuéxiào de shítáng chī wǔfàn.","아침 식사 후에 저는 버스를 타고 학교에 갑니다. 학교에서 중국어와 수학을 공부합니다. 정오에는 학교 식당에서 점심을 먹습니다.",
+PASSAGE,,"下午四点放学以后，我常常跟朋友一起打篮球。晚上做作业，看书，然后十点睡觉。","Xiàwǔ sì diǎn fàngxué yǐhòu, wǒ chángcháng gēn péngyou yìqǐ dǎ lánqiú. Wǎnshang zuò zuòyè, kànshū, ránhòu shí diǎn shuìjiào.","오후 4시에 하교한 후에는 자주 친구와 함께 농구를 합니다. 저녁에는 숙제를 하고 책을 읽고, 그 다음 10시에 잠을 잡니다.",
+QUESTION_MCQ,我每天早上几点起床？,六点,七点,八点,九点
+QUESTION_ANSWER,1,,,,
+QUESTION_EXPLAIN,본문 첫 문장 「我每天早上七点起床」 에서 7시.,,,,
+QUESTION_FILL,早饭以后我坐 ___ 去学校。,公共汽车,,,
+QUESTION_EXPLAIN,본문 「坐公共汽车去学校」 참고.,,,,
+QUESTION_TRANSZK,晚上做作业，看书，然后十点睡觉。,"저녁에는 숙제를 하고 책을 읽고, 그 다음 10시에 잠을 잡니다.",,,
+QUESTION_TONE,「起床」 의 성조 조합은?,1성+3성,3성+2성,3성+2성(변조),2성+3성
+QUESTION_ANSWER,2,,,,
+QUESTION_EXPLAIN,qǐ(3성) + chuáng(2성). 실제 회화에서는 반3성으로 발음되는 경우가 많음.,,,,
+DIRECT_READING,,"我 / 每天 / 早上七点 / 起床。","Wǒ / měi tiān / zǎoshang qī diǎn / qǐchuáng.",나 / 매일 / 아침 7시에 / 일어난다.,시간 표현은 「时段 + 时刻」 순서.
+DIRECT_READING,,"起床以后 / 我 / 先刷牙，洗脸， / 然后 / 吃早饭。","Qǐchuáng yǐhòu / wǒ / xiān shuāyá, xǐliǎn, / ránhòu / chī zǎofàn.","일어난 후에 / 나는 / 먼저 이 닦고, 세수하고, / 그런 다음 / 아침을 먹는다.","先~，然后~ : 시간·순서 접속사."
+DIRECT_READING,,"我 / 坐公共汽车 / 去 / 学校。","Wǒ / zuò gōnggòng qìchē / qù / xuéxiào.",나 / 버스를 타고 / 가다 / 학교에.,"연동문: 앞 동사 「坐」가 수단, 뒤 동사 「去」가 주 동작."
+LESSON_BREAK,,,,,
+META,hskLevel,3,,,
+META,unitNumber,02,,,
+META,title,我喜欢的运动,,,
+META,titlePinyin,Wǒ xǐhuan de yùndòng,,,
+META,titleKorean,내가 좋아하는 운동,,,
+META,category,HSK 3급 · 일상 회화,,,
+META,previewQuestion,어떤 운동을 좋아하나요? 중국어로 어떻게 말할까요?,,,
+META,passageTitle,我喜欢的运动,,,
+META,passageTitlePinyin,Wǒ xǐhuan de yùndòng,,,
+META,passageTitleKorean,내가 좋아하는 운동,,,
+PREVIEW_CARD,,我喜欢跑步,,,
+PREVIEW_CARD,,周末去打篮球,,,
+PREVIEW_CARD,,运动让我很健康,,,
+VOCAB,,运动,yùndòng,운동/운동하다,명사/동사
+VOCAB,,喜欢,xǐhuan,좋아하다,동사
+VOCAB,,跑步,pǎobù,달리기,동사
+VOCAB,,篮球,lánqiú,농구,명사
+VOCAB,,游泳,yóuyǒng,수영,명사/동사
+VOCAB,,健康,jiànkāng,건강하다,형용사
+VOCAB,,身体,shēntǐ,신체·몸,명사
+VOCAB,,周末,zhōumò,주말,명사
+PASSAGE,,"我最喜欢的运动是跑步。我觉得跑步不但很简单，而且对身体非常好。","Wǒ zuì xǐhuan de yùndòng shì pǎobù. Wǒ juéde pǎobù búdàn hěn jiǎndān, érqiě duì shēntǐ fēicháng hǎo.","제가 가장 좋아하는 운동은 달리기입니다. 저는 달리기가 간단할 뿐만 아니라, 몸에도 아주 좋다고 생각합니다.",
+PASSAGE,,"每个星期六早上，我都跟朋友一起去公园跑步。有时候我们也打篮球或者游泳。","Měi ge xīngqīliù zǎoshang, wǒ dōu gēn péngyou yìqǐ qù gōngyuán pǎobù. Yǒu shíhòu wǒmen yě dǎ lánqiú huòzhě yóuyǒng.","매주 토요일 아침, 저는 친구와 함께 공원에 달리러 갑니다. 때로는 농구를 하거나 수영도 합니다.",
+QUESTION_MCQ,他最喜欢的运动是什么？,篮球,游泳,跑步,足球
+QUESTION_ANSWER,2,,,,
+QUESTION_EXPLAIN,본문 첫 문장 「我最喜欢的运动是跑步」.,,,,
+QUESTION_FILL,每个星期六早上，他跟朋友一起去 ___ 跑步。,公园,,,
+QUESTION_TRANSKZ,저는 달리기가 간단할 뿐만 아니라 몸에도 좋다고 생각합니다.,"我觉得跑步不但很简单，而且对身体非常好。",,,
+DIRECT_READING,,"我最喜欢的 / 运动 / 是 / 跑步。","Wǒ zuì xǐhuan de / yùndòng / shì / pǎobù.",내가 가장 좋아하는 / 운동 / 은 / 달리기이다.,"「A 是 B」 판단문 구조."
+DIRECT_READING,,"跑步 / 不但 / 很简单， / 而且 / 对身体 / 非常好。","Pǎobù / búdàn / hěn jiǎndān, / érqiě / duì shēntǐ / fēicháng hǎo.",달리기는 / (뿐만 아니라) / 간단하며, / (게다가) / 몸에 대해 / 매우 좋다.,"不但~，而且~ : 「A뿐만 아니라 B도」 병렬 접속사."

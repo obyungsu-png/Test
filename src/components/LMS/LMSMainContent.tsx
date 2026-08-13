@@ -16,6 +16,7 @@ import LMSSGRNovel from "./LMSSGRNovel";
 import LMSSGRWriting from "./LMSSGRWriting";
 import LMSSGRVoca from "./LMSSGRVoca";
 import LMSSGRGrammar from "./LMSSGRGrammar";
+import LMSSGRHSK from "./LMSSGRHSK";
 import { VocaManagement } from "../VocaManagement";
 
 interface LMSMainContentProps {
@@ -51,6 +52,8 @@ export default function LMSMainContent({
         return <LMSSGRVoca />;
       case "sgr-grammar":
         return <LMSSGRGrammar />;
+      case "sgr-hsk":
+        return <LMSSGRHSK />;
       case "voca":
         return <VocaManagement />;
       case "categories":
