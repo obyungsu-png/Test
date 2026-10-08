@@ -345,10 +345,15 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
     try {
       const uploadData = material.uploadData;
       if (uploadData?.fileData) {
-        // 원본 파일 있으면 그대로 다운로드
+        // 원본 파일 있으면 선택한 형식의 파일을 그대로 다운로드
+        const file = getDownloadFile(material, format);
+        if (!file) {
+          toast.error(`이 자료에는 ${format === 'pdf' ? 'PDF' : 'Word'} 파일이 없습니다.`);
+          return;
+        }
         const a = document.createElement('a');
-        a.href = uploadData.fileData;
-        const ext = format === 'pdf' ? 'pdf' : 'docx';
+        a.href = file.fileData;
+        const ext = file.fileName?.split('.').pop() || (format === 'pdf' ? 'pdf' : 'docx');
         a.download = `${safeName}.${ext}`;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         toast.success(`"${material.title}" ${format.toUpperCase()} 다운로드를 시작합니다.`);
@@ -1567,28 +1572,38 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
           <div className="bg-white w-full sm:w-80 rounded-t-2xl sm:rounded-2xl shadow-2xl p-6" onClick={e => e.stopPropagation()}>
             <h3 className="text-base font-bold text-gray-800 mb-1">다운로드 형식 선택</h3>
             <p className="text-xs text-gray-400 mb-5 truncate">{downloadFormatMaterial.title}</p>
-            <div className="space-y-3">
-              <button
-                onClick={() => handleDownloadWithFormat(downloadFormatMaterial, 'pdf')}
-                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 border-red-100 hover:border-red-300 hover:bg-red-50 transition-all"
-              >
-                <span className="text-2xl">📄</span>
-                <div className="text-left">
-                  <p className="text-sm font-bold text-gray-800">PDF 다운로드</p>
-                  <p className="text-xs text-gray-400">인쇄 가능한 PDF 파일</p>
+            {(() => {
+              // 첨부 파일이 있는데 해당 형식이 없으면 버튼 비활성화
+              const hasFile = !!downloadFormatMaterial.uploadData?.fileData;
+              const pdfMissing = hasFile && !getDownloadFile(downloadFormatMaterial, 'pdf');
+              const wordMissing = hasFile && !getDownloadFile(downloadFormatMaterial, 'word');
+              return (
+                <div className="space-y-3">
+                  <button
+                    onClick={() => handleDownloadWithFormat(downloadFormatMaterial, 'pdf')}
+                    disabled={pdfMissing}
+                    className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 border-red-100 hover:border-red-300 hover:bg-red-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-red-100 disabled:hover:bg-transparent"
+                  >
+                    <span className="text-2xl">📄</span>
+                    <div className="text-left">
+                      <p className="text-sm font-bold text-gray-800">PDF 다운로드</p>
+                      <p className="text-xs text-gray-400">{pdfMissing ? "이 자료에는 PDF 파일이 없습니다" : "인쇄 가능한 PDF 파일"}</p>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => handleDownloadWithFormat(downloadFormatMaterial, 'word')}
+                    disabled={wordMissing}
+                    className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 border-blue-100 hover:border-blue-300 hover:bg-blue-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-blue-100 disabled:hover:bg-transparent"
+                  >
+                    <span className="text-2xl">📝</span>
+                    <div className="text-left">
+                      <p className="text-sm font-bold text-gray-800">Word 다운로드</p>
+                      <p className="text-xs text-gray-400">{wordMissing ? "이 자료에는 Word 파일이 없습니다" : "편집 가능한 Word 파일"}</p>
+                    </div>
+                  </button>
                 </div>
-              </button>
-              <button
-                onClick={() => handleDownloadWithFormat(downloadFormatMaterial, 'word')}
-                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 border-blue-100 hover:border-blue-300 hover:bg-blue-50 transition-all"
-              >
-                <span className="text-2xl">📝</span>
-                <div className="text-left">
-                  <p className="text-sm font-bold text-gray-800">Word 다운로드</p>
-                  <p className="text-xs text-gray-400">편집 가능한 .doc 파일</p>
-                </div>
-              </button>
-            </div>
+              );
+            })()}
             <button onClick={() => setShowDownloadFormatModal(false)} className="mt-4 w-full py-2.5 text-xs text-gray-400 hover:text-gray-600">취소</button>
           </div>
         </div>
@@ -1913,6 +1928,19 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
 }
 
 // Generate Korean school exam style PDF HTML (한국학교 정기고사 스타일)
+// 다운로드 형식(PDF/Word)에 맞는 첨부 파일. 해당 형식이 없으면 null.
+// PDF·Word 가 아닌 파일(txt 등)만 있으면 형식과 관계없이 그 원본을 내려준다.
+function getDownloadFile(material: any, format: 'pdf' | 'word') {
+  const main = material.uploadData?.fileData ? material.uploadData : null;
+  if (!main) return null;
+  const isPdf = (f: any) => f?.fileType === 'application/pdf' || /\.pdf$/i.test(f?.fileName || '');
+  const isWord = (f: any) => /wordprocessingml|msword/.test(f?.fileType || '') || /\.docx?$/i.test(f?.fileName || '');
+  const pdf = isPdf(main) ? main : null;
+  const word = material.wordFile?.fileData ? material.wordFile : isWord(main) ? main : null;
+  if (!pdf && !word) return main;
+  return format === 'pdf' ? pdf : word;
+}
+
 function generateKoreanExamStyleHTML(content: string, title: string, subject: string, category: string): string {
   const date = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
   const lines = content.split('\n').filter(l => l.trim());
