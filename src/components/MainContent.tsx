@@ -344,7 +344,7 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
     const safeName = material.title.replace(/\s+/g, '_').replace(/[^\w가-힣-]/g, '');
     try {
       const uploadData = material.uploadData;
-      if (material.isUploaded && uploadData?.fileData) {
+      if (uploadData?.fileData) {
         // 원본 파일 있으면 그대로 다운로드
         const a = document.createElement('a');
         a.href = uploadData.fileData;

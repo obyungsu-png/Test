@@ -1,5 +1,6 @@
 import { DEFAULT_CONTENT_BY_TAB, DEFAULT_TABS, CONTENT_BY_SUBJECT_AND_CATEGORY, INTERNATIONAL_CONTENT_BY_TAB, INTERNATIONAL_CONTENT_BY_SUBJECT_AND_CATEGORY, KOREAN_SCHOOL_TABS, INTERNATIONAL_SCHOOL_TABS, CERTIFICATION_TABS, CERTIFICATION_CONTENT_BY_TAB, CERTIFICATION_CONTENT_BY_SUBJECT_AND_CATEGORY } from "../constants/defaultContent";
 import { getFilteredUploadedMaterials, getCategoryCustomName } from "./dataManager";
+import { ENGLISH_SAMPLE_EXAM } from "../constants/sampleMaterials";
 
 export const getDefaultContentByTab = (tabName: string, tabs: string[], schoolType?: 'korean' | 'international' | null, isCertificationMode?: boolean, selectedSubject?: string) => {
   const currentIndex = tabs.indexOf(tabName);
@@ -98,6 +99,11 @@ export const getFilteredMaterials = async (
     baseTabs = schoolType === 'international' ? INTERNATIONAL_SCHOOL_TABS : KOREAN_SCHOOL_TABS;
   }
   const originalTabName = baseTabs[currentIndex] || activeTab;
+
+  // 영어 과목 첫 탭에는 시험보기·다운로드 확인용 샘플을 맨 위에 고정
+  const sampleMaterials = schoolType === 'korean' && !isCertificationMode && selectedSubject === '영어' && originalTabName === '국어'
+    ? [ENGLISH_SAMPLE_EXAM]
+    : [];
   
   // Use new data management system to get uploaded materials
   if (schoolType || isCertificationMode) {
@@ -121,7 +127,7 @@ export const getFilteredMaterials = async (
       previewFileData: upload.previewFileData // ✨ 중요: previewFileData를 포함시킴
     }));
 
-    return [...uploadedForDisplay, ...defaultMaterials];
+    return [...sampleMaterials, ...uploadedForDisplay, ...defaultMaterials];
   }
 
   return defaultMaterials;
