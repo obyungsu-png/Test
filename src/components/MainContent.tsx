@@ -5,7 +5,7 @@ import { Input } from "./ui/input";
 import { toast } from "sonner";
 import { Menu, Calculator, TestTube, Atom, Globe, Users, DollarSign, Leaf, Brain, BookOpen, Languages, ChevronRight, X } from "lucide-react";
 
-import { InteractivePracticeTest, FeedbackTabConfig, DEFAULT_FEEDBACK_TABS } from "./InteractivePracticeTest";
+import { ExamPdfViewer } from "./ExamPdfViewer";
 import { ExamQuestionsViewer } from "./ExamQuestionsViewer";
 import { KeyNotesViewer } from "./KeyNotesViewer";
 import { PracticeTestViewer } from "./PracticeTestViewer";
@@ -130,7 +130,7 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [showPracticeTest, setShowPracticeTest] = useState(false);
+  const [examMaterial, setExamMaterial] = useState<any>(null);
   const [password, setPassword] = useState("");
   const [selectedMaterial, setSelectedMaterial] = useState<any>(null);
   const [pendingDownloadMaterial, setPendingDownloadMaterial] = useState<any>(null);
@@ -139,14 +139,6 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
   const [showAllAnswers, setShowAllAnswers] = useState(false);
   const [showPdfViewer, setShowPdfViewer] = useState(false);
   const [showMyContentRoom, setShowMyContentRoom] = useState(false);
-  // 문제 해설/분석/단어 편집 모달
-  const [showQuestionEditModal, setShowQuestionEditModal] = useState(false);
-  const [editingMaterial, setEditingMaterial] = useState<any>(null);
-  const [questionEdits, setQuestionEdits] = useState<{[key: string]: {explanation: string, analysis: string, vocab: string}}>({});
-  const [feedbackTabs, setFeedbackTabs] = useState<FeedbackTabConfig[]>(() => {
-    try { return JSON.parse(localStorage.getItem('feedbackTabsConfig') || 'null') || DEFAULT_FEEDBACK_TABS; }
-    catch { return DEFAULT_FEEDBACK_TABS; }
-  });
 
   const [uploadedMaterials, setUploadedMaterials] = useState<any[]>([]);
   const [tabs, setTabs] = useState(adjustedTabs);
@@ -555,12 +547,13 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
     }
   };
 
+  // 시험보기: 다운로드 자료를 화면에서만 열람(필기 가능, 다운로드 불가)
   const handlePreviewClick = (material: any) => {
-    // 저장된 문제 편집 내용 로드
-    const saved = JSON.parse(localStorage.getItem('questionEdits') || '{}');
-    setQuestionEdits(saved);
-    setSelectedMaterial(material);
-    setShowPracticeTest(true);
+    if (!material.uploadData?.fileData) {
+      toast.info("이 자료는 아직 시험지 파일이 등록되지 않았습니다.");
+      return;
+    }
+    setExamMaterial(material);
   };
   
   const handleGlimpseClick = (material: any) => {
@@ -1559,140 +1552,12 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
 
 
 
-      {/* 문제 해설/분석/단어 편집 모달 */}
-      {showQuestionEditModal && editingMaterial && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
-            {/* 모달 헤더 */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <div>
-                <h2 className="text-base font-bold text-gray-900">문제 편집</h2>
-                <p className="text-xs text-gray-500 mt-0.5">{editingMaterial.title} — 해설 · 분석 · 단어</p>
-              </div>
-              <button
-                onClick={() => { setShowQuestionEditModal(false); setEditingMaterial(null); }}
-                className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-500"
-              >✕</button>
-            </div>
-            {/* 편집 영역 */}
-            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
-              {[1, 2, 3].map((qNum) => {
-                const key = `${editingMaterial.title}-Q${qNum}`;
-                const edit = questionEdits[key] || { explanation: '', analysis: '', vocab: '' };
-                return (
-                  <div key={qNum} className="rounded-xl border border-gray-200 overflow-hidden">
-                    <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-200">
-                      <span className="text-sm font-semibold text-gray-700">문제 {qNum}</span>
-                    </div>
-                    <div className="p-4 space-y-3">
-                      {/* 해설 */}
-                      <div>
-                        <label className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 mb-1.5">
-                          <span>💡</span> 해설
-                        </label>
-                        <textarea
-                          value={edit.explanation}
-                          onChange={(e) => setQuestionEdits(prev => ({ ...prev, [key]: { ...edit, explanation: e.target.value } }))}
-                          placeholder="문제 해설을 입력하세요..."
-                          className="w-full text-sm border border-amber-200 rounded-lg px-3 py-2 focus:outline-none focus:border-amber-400 bg-amber-50/30 resize-none"
-                          rows={3}
-                        />
-                      </div>
-                      {/* 분석 */}
-                      <div>
-                        <label className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 mb-1.5">
-                          <span>📊</span> 분석
-                        </label>
-                        <textarea
-                          value={edit.analysis}
-                          onChange={(e) => setQuestionEdits(prev => ({ ...prev, [key]: { ...edit, analysis: e.target.value } }))}
-                          placeholder="정답 분석 및 오답 해설을 입력하세요..."
-                          className="w-full text-sm border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-400 bg-blue-50/30 resize-none"
-                          rows={3}
-                        />
-                      </div>
-                      {/* 단어 */}
-                      <div>
-                        <label className="flex items-center gap-1.5 text-xs font-semibold text-violet-600 mb-1.5">
-                          <span>📖</span> 단어
-                        </label>
-                        <textarea
-                          value={edit.vocab}
-                          onChange={(e) => setQuestionEdits(prev => ({ ...prev, [key]: { ...edit, vocab: e.target.value } }))}
-                          placeholder="주요 어휘 및 표현을 입력하세요..."
-                          className="w-full text-sm border border-violet-200 rounded-lg px-3 py-2 focus:outline-none focus:border-violet-400 bg-violet-50/30 resize-none"
-                          rows={3}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            {/* 탭 이름/이모지 설정 */}
-            <div className="px-6 py-4 border-t border-gray-100">
-              <p className="text-xs font-bold text-gray-600 mb-3 flex items-center gap-1.5">
-                <span>🎛️</span> 해설·분석·단어 탭 설정
-              </p>
-              <div className="space-y-2">
-                {feedbackTabs.map((tab, ti) => (
-                  <div key={tab.key} className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={tab.emoji}
-                      onChange={(e) => setFeedbackTabs(prev => prev.map((t, i) => i === ti ? { ...t, emoji: e.target.value } : t))}
-                      className="w-14 text-center text-base border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-cyan-400"
-                      maxLength={4}
-                    />
-                    <input
-                      type="text"
-                      value={tab.label}
-                      onChange={(e) => setFeedbackTabs(prev => prev.map((t, i) => i === ti ? { ...t, label: e.target.value } : t))}
-                      className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-cyan-400"
-                      placeholder="탭 이름"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-            {/* 저장 버튼 */}
-            <div className="px-6 py-4 border-t border-gray-100 flex gap-3 justify-end">
-              <button
-                onClick={() => { setShowQuestionEditModal(false); setEditingMaterial(null); }}
-                className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                취소
-              </button>
-              <button
-                onClick={() => {
-                  // localStorage에 저장
-                  const saved = JSON.parse(localStorage.getItem('questionEdits') || '{}');
-                  const merged = { ...saved, ...questionEdits };
-                  localStorage.setItem('questionEdits', JSON.stringify(merged));
-                  localStorage.setItem('feedbackTabsConfig', JSON.stringify(feedbackTabs));
-                  setShowQuestionEditModal(false);
-                  setEditingMaterial(null);
-                }}
-                className="px-5 py-2 text-sm text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-lg font-semibold hover:opacity-90"
-              >
-                저장
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Interactive Practice Test */}
-      {showPracticeTest && selectedMaterial && (
-        <InteractivePracticeTest
-          materialTitle={selectedMaterial.title}
-          material={selectedMaterial}
-          questionEdits={questionEdits}
-          feedbackTabs={feedbackTabs}
-          onExit={() => {
-            setShowPracticeTest(false);
-            setSelectedMaterial(null);
-          }}
+      {/* 시험보기 (PDF 열람 + 필기) */}
+      {examMaterial && (
+        <ExamPdfViewer
+          key={examMaterial.id ?? examMaterial.title}
+          material={examMaterial}
+          onClose={() => setExamMaterial(null)}
         />
       )}
 
