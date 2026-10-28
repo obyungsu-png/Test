@@ -107,13 +107,12 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
   // school-type 별 localStorage 키 (다른 학교 유형의 커스텀 탭이 섞이지 않도록)
   const customTabNamesKey = isCertificationMode ? 'customTabNames_certification' :
                             (schoolType === 'international' ? 'customTabNames_international' : 'customTabNames_korean');
-  // 영어 과목이 아닌 경우 Voca 탭 숨기기
+  // 한국학교 일반 과목(영어 포함)에서는 Voca·SGR 탭 숨기기 — SGR 탭은 SGR Series 과목에서만 표시
+  const KOREAN_HIDDEN_TABS = ['Voca', 'SGR Class', 'SGR Writing', 'SGR Voca', 'SGR Grammar', 'SGR Novels', 'SGR HSK', '교과서 뽀개기'];
   const adjustedTabs = (() => {
     let tabs = defaultTabs;
-    if (schoolType === 'korean' && selectedSubject === '서류전형') {
-    }
-    if (schoolType === 'korean' && selectedSubject !== '영어' && selectedSubject !== 'SGR Series') {
-      tabs = tabs.filter(tab => tab !== 'Voca' && tab !== 'SGR Class' && tab !== 'SGR Writing' && tab !== 'SGR Voca' && tab !== 'SGR Grammar' && tab !== 'SGR Novels' && tab !== 'SGR HSK' && tab !== '교과서 뽀개기');
+    if (schoolType === 'korean' && selectedSubject !== 'SGR Series') {
+      tabs = tabs.filter(tab => !KOREAN_HIDDEN_TABS.includes(tab));
     }
     // SGR Series 과목: SGR 관련 탭만 표시
     if (schoolType === 'korean' && selectedSubject === 'SGR Series') {
@@ -158,12 +157,12 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
     setCurrentPage(1);
   }, [activeTab, selectedSubject, selectedCategory]);
 
-  // Voca 탭이 사라지면 첫 번째 탭으로 리셋 (URL 갱신)
+  // 숨긴 탭(Voca·SGR) 주소로 들어오면 첫 번째 탭으로 리셋 (URL 갱신)
   useEffect(() => {
-    if (activeTab === 'Voca' && schoolType === 'korean' && selectedSubject !== '영어') {
+    if (schoolType === 'korean' && selectedSubject !== 'SGR Series' && KOREAN_HIDDEN_TABS.includes(activeTab)) {
       onTabSelect(adjustedTabs[0] || '국어');
     }
-  }, [selectedSubject, schoolType]);
+  }, [selectedSubject, schoolType, activeTab]);
 
   // SGR Series 진입 시 활성 탭이 SGR 계열이 아니면 첫 번째 SGR 탭(SGR Novels)으로 이동
   useEffect(() => {
