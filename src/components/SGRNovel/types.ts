@@ -2,6 +2,8 @@
 // Novel-based classroom lesson data model (LitCharts-inspired)
 // 구조: 소설(Novel) > 챕터(Chapter) > 분석(Plot/Theme/Character/Quote/Quiz/직독직해)
 
+import { pickSchool, replaceSchool, tagSchool, type SGRSchool } from "../../utils/sgrSchool";
+
 import type {
   PassageParagraph,
   DirectReadingItem,
@@ -75,6 +77,8 @@ export interface NovelChapter {
 
 // ─── 소설 (Novel) ─────────────────────────────────────
 export interface SGRNovel {
+  /** 소속 학교 (SGR Series 한국학교/국제학교 분리). 없으면 한국학교 */
+  school?: SGRSchool;
   id: string;
   createdAt: number;
   updatedAt: number;
@@ -123,22 +127,36 @@ function initialSeed(): SGRNovel[] {
   return [SAMPLE_NOVEL];
 }
 
-export function loadNovels(): SGRNovel[] {
+/** 저장된 전체 소설 (한국학교·국제학교 모두). 저장된 게 없으면 null */
+function readStoredNovels(): SGRNovel[] | null {
   try {
     const raw = localStorage.getItem(NOVEL_STORAGE_KEY);
-    if (!raw) return initialSeed();
+    if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed) || parsed.length === 0) return initialSeed();
-    return migrateNovels(parsed);
+    return Array.isArray(parsed) ? migrateNovels(parsed) : null;
   } catch {
-    return initialSeed();
+    return null;
   }
 }
 
-export function saveNovels(novels: SGRNovel[]) {
-  localStorage.setItem(NOVEL_STORAGE_KEY, JSON.stringify(novels));
+/** 학교별 소설. 해당 학교 자료가 없으면 한국학교는 샘플, 국제학교는 빈 목록 */
+function scopedOrSeed(all: SGRNovel[] | null, school: SGRSchool): SGRNovel[] {
+  const scoped = pickSchool(all || [], school);
+  if (scoped.length > 0) return scoped;
+  return school === "korean" ? initialSeed() : [];
+}
+
+export function loadNovels(school: SGRSchool = "korean"): SGRNovel[] {
+  return scopedOrSeed(readStoredNovels(), school);
+}
+
+/** 해당 학교 소설만 교체 저장 (다른 학교 소설은 유지) */
+export function saveNovels(novels: SGRNovel[], school: SGRSchool = "korean") {
+  const scoped = tagSchool(novels, school);
+  const all = replaceSchool(readStoredNovels() || [], school, scoped);
+  localStorage.setItem(NOVEL_STORAGE_KEY, JSON.stringify(all));
   window.dispatchEvent(new Event(NOVEL_EVENT));
-  saveNovelsToServer(novels);
+  saveNovelsToServer(scoped, school, all);
 }
 
 // ─── Supabase 서버 연동 (SGR Class 패턴 동일) ─────────
@@ -153,27 +171,35 @@ export function registerNovelServerLoader(fn: () => Promise<SGRNovel[]>) {
   _loadFromServer = fn;
 }
 
-function saveNovelsToServer(novels: SGRNovel[]) {
-  if (_saveToServer) {
-    _saveToServer(novels).catch(err => {
-      console.warn("[SGR Novels] 서버 저장 실패 (로컬에는 저장됨):", err);
-    });
-  }
+/** 서버는 전체 교체 저장이므로 다른 학교 소설은 서버 최신본에서 가져와 함께 저장한다 */
+function saveNovelsToServer(scoped: SGRNovel[], school: SGRSchool, localAll: SGRNovel[]) {
+  const save = _saveToServer;
+  if (!save) return;
+  (async () => {
+    let all = localAll;
+    if (_loadFromServer) {
+      const serverNovels = await _loadFromServer().catch(() => null);
+      if (serverNovels && serverNovels.length > 0) all = replaceSchool(serverNovels, school, scoped);
+    }
+    await save(all);
+  })().catch(err => {
+    console.warn("[SGR Novels] 서버 저장 실패 (로컬에는 저장됨):", err);
+  });
 }
 
-export async function syncNovelsFromServer(): Promise<SGRNovel[]> {
-  if (!_loadFromServer) return loadNovels();
+export async function syncNovelsFromServer(school: SGRSchool = "korean"): Promise<SGRNovel[]> {
+  if (!_loadFromServer) return loadNovels(school);
   try {
     const serverNovels = await _loadFromServer();
     if (serverNovels && serverNovels.length > 0) {
       localStorage.setItem(NOVEL_STORAGE_KEY, JSON.stringify(serverNovels));
       window.dispatchEvent(new Event(NOVEL_EVENT));
-      return serverNovels;
+      return scopedOrSeed(migrateNovels(serverNovels), school);
     }
   } catch (err) {
     console.warn("[SGR Novels] 서버 불러오기 실패 (로컬 사용):", err);
   }
-  return loadNovels();
+  return loadNovels(school);
 }
 
 export function uid() {

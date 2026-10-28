@@ -15,6 +15,7 @@ import {
   vocaLessonToCsv, getVocaCsvTemplate,
 } from "../SGRVoca/csvUtils";
 import { downloadSGRVocaPdf } from "../SGRVoca/pdfUtils";
+import type { SGRSchool } from "../../utils/sgrSchool";
 
 type SubTab = "overview" | "wordlist" | "exerciseA" | "exerciseB" | "exerciseC" | "reading";
 
@@ -81,8 +82,8 @@ function IconBtn({
   );
 }
 
-export default function LMSSGRVoca() {
-  const [lessons, setLessons] = useState<SGRVocaLesson[]>(loadVocaLessons);
+export default function LMSSGRVoca({ school = "korean" }: { school?: SGRSchool }) {
+  const [lessons, setLessons] = useState<SGRVocaLesson[]>(() => loadVocaLessons(school));
   const [selectedId, setSelectedId] = useState<string>(lessons[0]?.id || "");
   const [subTab, setSubTab] = useState<SubTab>("overview");
   const [dirty, setDirty] = useState(false);
@@ -116,7 +117,7 @@ export default function LMSSGRVoca() {
   };
 
   const handleSave = () => {
-    saveVocaLessons(lessons);
+    saveVocaLessons(lessons, school);
     setDirty(false);
     toast.success("SGR Voca 자료가 저장되었습니다.");
   };

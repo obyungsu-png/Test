@@ -17,6 +17,7 @@ import {
   uid, SAMPLE_NOVEL,
 } from "../SGRNovel/types";
 import "../../utils/sgrNovelApi"; // 서버 연동 함수 등록
+import type { SGRSchool } from "../../utils/sgrSchool";
 
 type SubTab = "overview" | "chapters" | "csv";
 
@@ -102,8 +103,8 @@ function SectionCard({ title, icon: Icon, children, onAdd, addLabel }: {
 }
 
 // ─── Main CMS component ─────────────────────────
-export default function LMSSGRNovel() {
-  const [novels, setNovels] = useState<SGRNovel[]>(loadNovels);
+export default function LMSSGRNovel({ school = "korean" }: { school?: SGRSchool }) {
+  const [novels, setNovels] = useState<SGRNovel[]>(() => loadNovels(school));
   const [selectedId, setSelectedId] = useState<string>(novels[0]?.id || "");
   const [subTab, setSubTab] = useState<SubTab>("overview");
   const [dirty, setDirty] = useState(false);
@@ -149,7 +150,7 @@ export default function LMSSGRNovel() {
   };
 
   const handleSave = () => {
-    saveNovels(novels);
+    saveNovels(novels, school);
     setDirty(false);
     toast.success("SGR Novels 자료가 저장되었습니다.");
   };

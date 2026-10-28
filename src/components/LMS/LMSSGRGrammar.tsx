@@ -14,6 +14,7 @@ import {
   grammarUnitToCsv,
   getGrammarCsvTemplate,
 } from "../SGRGrammar/csvUtils";
+import type { SGRSchool } from "../../utils/sgrSchool";
 
 /**
  * SGR Grammar 관리 페이지 (기본 뼈대).
@@ -21,16 +22,16 @@ import {
  * - Textbook / Workbook 유형 확인
  * - 상세 편집 UI는 추후 확장
  */
-export default function LMSSGRGrammar() {
+export default function LMSSGRGrammar({ school = "korean" }: { school?: SGRSchool }) {
   const [units, setUnits] = useState<GrammarUnit[]>([]);
 
   useEffect(() => {
-    setUnits(loadUnits());
+    setUnits(loadUnits(school));
   }, []);
 
   const resetSample = () => {
-    saveUnits([{ ...SAMPLE_UNIT, id: SAMPLE_UNIT.id, updatedAt: Date.now() }]);
-    setUnits(loadUnits());
+    saveUnits([{ ...SAMPLE_UNIT, id: SAMPLE_UNIT.id, updatedAt: Date.now() }], school);
+    setUnits(loadUnits(school));
     toast.success("샘플 단원으로 초기화했습니다.");
   };
 

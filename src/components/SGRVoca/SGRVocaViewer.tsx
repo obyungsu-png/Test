@@ -14,6 +14,7 @@ import { AiActionPopup } from "../SGRClass/AiActionPopup";
 import { ReadingReviewPassage } from "../SGRClass/ReadingReviewPassage";
 import { DrawingCanvas } from "../SGRClass/DrawingCanvas";
 import { ReadingReviewActions } from "../SGRClass/ReadingReviewToolbar";
+import type { SGRSchool } from "../../utils/sgrSchool";
 
 type PageKey = "wordlist" | "exerciseAB" | "exerciseC" | "reading";
 
@@ -404,8 +405,8 @@ function PageReading({
 }
 
 // ─── Main Viewer ───────────────────────────────────
-export default function SGRVocaViewer() {
-  const [lessons, setLessons] = useState<SGRVocaLesson[]>(loadVocaLessons);
+export default function SGRVocaViewer({ school = "korean" }: { school?: SGRSchool }) {
+  const [lessons, setLessons] = useState<SGRVocaLesson[]>(() => loadVocaLessons(school));
   const [selectedId, setSelectedId] = useState<string>(lessons[0]?.id || "");
   const [pageKey, setPageKey] = useState<PageKey>("wordlist");
   const [showAnswer, setShowAnswer] = useState(false);
@@ -468,7 +469,7 @@ export default function SGRVocaViewer() {
   // Sync from CMS
   useEffect(() => {
     const handler = () => {
-      const next = loadVocaLessons();
+      const next = loadVocaLessons(school);
       setLessons(next);
       if (!next.find(l => l.id === selectedId)) {
         setSelectedId(next[0]?.id || "");

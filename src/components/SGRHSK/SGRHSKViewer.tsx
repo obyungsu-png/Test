@@ -23,6 +23,7 @@ import { DrawingCanvas } from "../SGRClass/DrawingCanvas";
 import { WordPopup } from "../SGRClass/WordPopup";
 import { useAnswers, isTextCorrect } from "../SGRClass/answerState";
 import "../../utils/sgrHskApi"; // 서버 연동 함수 등록
+import type { SGRSchool } from "../../utils/sgrSchool";
 
 // ─── Page metadata ────────────────────────────────
 type PageKey = "preview" | "passage" | "vocab" | "questions" | "direct";
@@ -368,8 +369,8 @@ function DirectReadingPage({ lesson, showPinyin, showKorean }: { lesson: HSKLess
 }
 
 // ─── Main viewer ──────────────────────────────────
-export default function SGRHSKViewer() {
-  const [lessons, setLessons] = useState<HSKLesson[]>(loadLessons);
+export default function SGRHSKViewer({ school = "korean" }: { school?: SGRSchool }) {
+  const [lessons, setLessons] = useState<HSKLesson[]>(() => loadLessons(school));
   const [selectedLevel, setSelectedLevel] = useState<HSKLevel | null>(() => {
     if (typeof window === "undefined") return null;
     return (localStorage.getItem("sgrHSK_level") as HSKLevel | null) || null;
@@ -390,12 +391,12 @@ export default function SGRHSKViewer() {
   // 서버 sync + storage change
   useEffect(() => {
     const handler = () => {
-      const next = loadLessons();
+      const next = loadLessons(school);
       setLessons(next);
       if (!next.find(l => l.id === selectedId)) setSelectedId(next[0]?.id || "");
     };
     window.addEventListener(SGR_HSK_EVENT, handler);
-    syncFromServer().then(next => {
+    syncFromServer(school).then(next => {
       setLessons(next);
       if (!next.find(l => l.id === selectedId)) setSelectedId(next[0]?.id || "");
     });

@@ -6,6 +6,8 @@
 // 4. C: Write a word similar in meaning to the underlined word(s) (letter hints)
 // 5. READING COMPREHENSION — passage with bold target words + questions
 
+import { pickSchool, replaceSchool, tagSchool, type SGRSchool } from "../../utils/sgrSchool";
+
 export interface VocaWord {
   id: string;
   word: string;            // 단어 (예: "always")
@@ -47,6 +49,8 @@ export interface VocaPassage {
 }
 
 export interface SGRVocaLesson {
+  /** 소속 학교 (SGR Series 한국학교/국제학교 분리). 없으면 한국학교 */
+  school?: SGRSchool;
   id: string;
   createdAt: number;
   updatedAt: number;
@@ -79,19 +83,25 @@ export interface SGRVocaLesson {
 export const SGR_VOCA_STORAGE_KEY = "sgrVoca_lessons";
 export const SGR_VOCA_EVENT = "sgrVocaUpdated";
 
-export function loadVocaLessons(): SGRVocaLesson[] {
+function readStoredVocaLessons(): SGRVocaLesson[] {
   try {
-    const raw = localStorage.getItem(SGR_VOCA_STORAGE_KEY);
-    if (!raw) return [SAMPLE_VOCA_LESSON];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : [SAMPLE_VOCA_LESSON];
+    const parsed = JSON.parse(localStorage.getItem(SGR_VOCA_STORAGE_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return [SAMPLE_VOCA_LESSON];
+    return [];
   }
 }
 
-export function saveVocaLessons(lessons: SGRVocaLesson[]) {
-  localStorage.setItem(SGR_VOCA_STORAGE_KEY, JSON.stringify(lessons));
+/** 학교별 레슨. 해당 학교 자료가 없으면 한국학교는 샘플, 국제학교는 빈 목록 */
+export function loadVocaLessons(school: SGRSchool = "korean"): SGRVocaLesson[] {
+  const scoped = pickSchool(readStoredVocaLessons(), school);
+  if (scoped.length > 0) return scoped;
+  return school === "korean" ? [SAMPLE_VOCA_LESSON] : [];
+}
+
+/** 해당 학교 레슨만 교체 저장 (다른 학교 레슨은 유지) */
+export function saveVocaLessons(lessons: SGRVocaLesson[], school: SGRSchool = "korean") {
+  localStorage.setItem(SGR_VOCA_STORAGE_KEY, JSON.stringify(replaceSchool(readStoredVocaLessons(), school, lessons)));
   window.dispatchEvent(new Event(SGR_VOCA_EVENT));
 }
 

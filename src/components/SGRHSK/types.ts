@@ -1,6 +1,8 @@
 // SGR HSK — 중국어(HSK) 학습 콘텐츠 타입 정의
 // SGR Class 를 참고하되 HSK 특성(한자·병음·성조·급수)에 맞춰 슬림화
 
+import { pickSchool, replaceSchool, tagSchool, type SGRSchool } from "../../utils/sgrSchool";
+
 // ─── 어휘 항목 ────────────────────────────────────
 export interface HSKVocabItem {
   id: string;
@@ -72,6 +74,8 @@ export function normalizeHSKLevel(l?: string | null): HSKLevel {
 }
 
 export interface HSKLesson {
+  /** 소속 학교 (SGR Series 한국학교/국제학교 분리). 없으면 한국학교 */
+  school?: SGRSchool;
   id: string;
   createdAt: number;
   updatedAt: number;
@@ -271,23 +275,36 @@ function initialSeed(): HSKLesson[] {
   return [SAMPLE_HSK_LESSON];
 }
 
-export function loadLessons(): HSKLesson[] {
+/** 저장된 전체 레슨 (한국학교·국제학교 모두). 저장된 게 없으면 null */
+function readStoredLessons(): HSKLesson[] | null {
   try {
     const raw = localStorage.getItem(SGR_HSK_STORAGE_KEY);
-    if (!raw) return initialSeed();
+    if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed) || parsed.length === 0) return initialSeed();
-    return migrate(parsed);
+    return Array.isArray(parsed) ? migrate(parsed) : null;
   } catch {
-    return initialSeed();
+    return null;
   }
 }
 
-export function saveLessons(lessons: HSKLesson[]) {
-  localStorage.setItem(SGR_HSK_STORAGE_KEY, JSON.stringify(lessons));
+/** 학교별 레슨. 해당 학교 자료가 없으면 한국학교는 샘플, 국제학교는 빈 목록 */
+function scopedOrSeed(all: HSKLesson[] | null, school: SGRSchool): HSKLesson[] {
+  const scoped = pickSchool(all || [], school);
+  if (scoped.length > 0) return scoped;
+  return school === "korean" ? initialSeed() : [];
+}
+
+export function loadLessons(school: SGRSchool = "korean"): HSKLesson[] {
+  return scopedOrSeed(readStoredLessons(), school);
+}
+
+/** 해당 학교 레슨만 교체 저장 (다른 학교 레슨은 유지) */
+export function saveLessons(lessons: HSKLesson[], school: SGRSchool = "korean") {
+  const scoped = tagSchool(lessons, school);
+  localStorage.setItem(SGR_HSK_STORAGE_KEY, JSON.stringify(replaceSchool(readStoredLessons() || [], school, scoped)));
   window.dispatchEvent(new Event(SGR_HSK_EVENT));
   // 서버(Supabase)에 upsert (fire-and-forget)
-  saveLessonsToServer(lessons);
+  saveLessonsToServer(scoped);
 }
 
 // ─── Server sync (upsert-by-id: SGR Class의 전체 교체 버그 재발 방지) ──
@@ -320,7 +337,7 @@ function saveLessonsToServer(lessons: HSKLesson[]) {
 
 /** 서버에서 명시적으로 레슨 삭제 */
 export async function deleteLesson(id: string): Promise<void> {
-  const next = loadLessons().filter(l => l.id !== id);
+  const next = (readStoredLessons() || []).filter(l => l.id !== id);
   localStorage.setItem(SGR_HSK_STORAGE_KEY, JSON.stringify(next));
   window.dispatchEvent(new Event(SGR_HSK_EVENT));
   if (_deleteFromServer) {
@@ -333,18 +350,18 @@ export async function deleteLesson(id: string): Promise<void> {
 }
 
 /** 서버에서 레슨 병합 로드 */
-export async function syncFromServer(): Promise<HSKLesson[]> {
-  if (!_loadFromServer) return loadLessons();
+export async function syncFromServer(school: SGRSchool = "korean"): Promise<HSKLesson[]> {
+  if (!_loadFromServer) return loadLessons(school);
   try {
     const serverLessons = await _loadFromServer();
     if (serverLessons && serverLessons.length > 0) {
       // 서버 데이터를 진실의 원본으로 갱신
       localStorage.setItem(SGR_HSK_STORAGE_KEY, JSON.stringify(serverLessons));
       window.dispatchEvent(new Event(SGR_HSK_EVENT));
-      return serverLessons;
+      return scopedOrSeed(migrate(serverLessons), school);
     }
   } catch (err) {
     console.warn("[SGR HSK] 서버 로드 실패 (로컬 사용):", err);
   }
-  return loadLessons();
+  return loadLessons(school);
 }

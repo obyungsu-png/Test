@@ -117,7 +117,7 @@ export function Header({ selectedSubject, onSubjectChange, onUploadClick, onHome
   };
 
   const koreanSubjects = ["국어", "영어", "수학", "과학", "사회", "서류전형", "특례시험", "SGR Series"];
-  const internationalSubjects = ["GPA", "AP", "IB", "A-level", "AS", "IGCSE", "Writing"];
+  const internationalSubjects = ["GPA", "AP", "IB", "A-level", "AS", "IGCSE", "Writing", "SGR Series"];
   const certificationSubjects = ["TOEFL", "SAT", "ACT", "IELTS", "TOEIC", "Voca"];
   
   const subjects = isCertificationMode ? certificationSubjects : 

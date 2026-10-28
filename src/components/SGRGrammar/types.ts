@@ -3,6 +3,8 @@
 // - Textbook: 여러 유형(첫 유형: "문법 writing")
 // - Workbook: 여러 유형(첫 유형: "문법 writing workbook", 추후 구현)
 
+import { pickSchool, replaceSchool, tagSchool, type SGRSchool } from "../../utils/sgrSchool";
+
 export type GrammarKind = "textbook" | "workbook";
 
 /** Textbook 유형 슬러그 */
@@ -162,6 +164,8 @@ export type WorkbookContent = GrammarWritingWorkbookContent;
 
 // ─── Unit / Lesson ──────────────────────────────────
 export interface GrammarUnit {
+  /** 소속 학교 (SGR Series 한국학교/국제학교 분리). 없으면 한국학교 */
+  school?: SGRSchool;
   id: string;
   createdAt: number;
   updatedAt: number;
@@ -193,21 +197,27 @@ export function uid(): string {
 const STORAGE_KEY = "sgr_grammar_units_v1";
 export const SGR_GRAMMAR_EVENT = "sgr-grammar-update";
 
-export function loadUnits(): GrammarUnit[] {
-  if (typeof window === "undefined") return [SAMPLE_UNIT];
+function readStoredUnits(): GrammarUnit[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [SAMPLE_UNIT];
-    const parsed = JSON.parse(raw) as GrammarUnit[];
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : [SAMPLE_UNIT];
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]") as GrammarUnit[];
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return [SAMPLE_UNIT];
+    return [];
   }
 }
 
-export function saveUnits(units: GrammarUnit[]) {
+/** 학교별 단원. 해당 학교 자료가 없으면 한국학교는 샘플, 국제학교는 빈 목록 */
+export function loadUnits(school: SGRSchool = "korean"): GrammarUnit[] {
+  const fallback = school === "korean" ? [SAMPLE_UNIT] : [];
+  if (typeof window === "undefined") return fallback;
+  const scoped = pickSchool(readStoredUnits(), school);
+  return scoped.length > 0 ? scoped : fallback;
+}
+
+/** 해당 학교 단원만 교체 저장 (다른 학교 단원은 유지) */
+export function saveUnits(units: GrammarUnit[], school: SGRSchool = "korean") {
   if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(units));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(replaceSchool(readStoredUnits(), school, units)));
   window.dispatchEvent(new CustomEvent(SGR_GRAMMAR_EVENT));
 }
 

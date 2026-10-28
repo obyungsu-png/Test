@@ -23,6 +23,7 @@ import {
 import { parseCsvToLesson, parseCsvToLessons, parseTextToLessons, lessonToCsv, getCsvTemplate, getTextTemplate } from "../SGRClass/csvUtils";
 import { downloadSGRPdf } from "../SGRClass/pdfUtils";
 import "../../utils/sgrClassApi"; // 서버 연동 함수 등록
+import type { SGRSchool } from "../../utils/sgrSchool";
 
 type SubTab = "overview" | "preview" | "passage" | "questions" | "vocabReview" | "directReading";
 
@@ -93,8 +94,8 @@ function IconBtn({
 }
 
 // ─── Main component ─────────────────────────────
-export default function LMSSGRClass() {
-  const [lessons, setLessons] = useState<SGRLesson[]>(loadLessons);
+export default function LMSSGRClass({ school = "korean" }: { school?: SGRSchool }) {
+  const [lessons, setLessons] = useState<SGRLesson[]>(() => loadLessons(school));
   const [selectedId, setSelectedId] = useState<string>(lessons[0]?.id || "");
   const [subTab, setSubTab] = useState<SubTab>("overview");
   const [dirty, setDirty] = useState(false);
@@ -146,7 +147,7 @@ export default function LMSSGRClass() {
   };
 
   const handleSave = () => {
-    saveLessons(lessons);
+    saveLessons(lessons, school);
     setDirty(false);
     toast.success("SGR Class 자료가 저장되었습니다.");
   };

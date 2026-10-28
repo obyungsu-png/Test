@@ -24,11 +24,12 @@ import {
 } from "../SGRHSK/types";
 import { parseBulkCsv, lessonsToCsv } from "../SGRHSK/csvUtils";
 import "../../utils/sgrHskApi"; // 서버 연동 함수 등록
+import type { SGRSchool } from "../../utils/sgrSchool";
 
 const LEVELS: HSKLevel[] = ["1", "2", "3", "4", "5", "6", "7-9"];
 
-export default function LMSSGRHSK() {
-  const [lessons, setLessons] = useState<HSKLesson[]>(loadLessons);
+export default function LMSSGRHSK({ school = "korean" }: { school?: SGRSchool }) {
+  const [lessons, setLessons] = useState<HSKLesson[]>(() => loadLessons(school));
   const [selectedId, setSelectedId] = useState<string>(lessons[0]?.id || "");
   const [levelFilter, setLevelFilter] = useState<HSKLevel | "all">("all");
   const [search, setSearch] = useState("");
@@ -38,7 +39,7 @@ export default function LMSSGRHSK() {
 
   // 마운트 시 서버 데이터로 로컬 병합 → 데이터 유실 방지
   useEffect(() => {
-    syncFromServer().then(serverLessons => {
+    syncFromServer(school).then(serverLessons => {
       setLessons(serverLessons);
       if (!serverLessons.find(l => l.id === selectedId)) {
         setSelectedId(serverLessons[0]?.id || "");
@@ -79,7 +80,7 @@ export default function LMSSGRHSK() {
   };
 
   const handleSave = () => {
-    saveLessons(lessons);
+    saveLessons(lessons, school);
     setDirty(false);
     toast.success("SGR HSK 자료가 저장되었습니다.");
   };

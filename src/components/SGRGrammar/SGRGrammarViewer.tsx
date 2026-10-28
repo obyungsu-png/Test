@@ -25,6 +25,7 @@ import { AiActionPopup } from "../SGRClass/AiActionPopup";
 import { ReadingReviewPassage } from "../SGRClass/ReadingReviewPassage";
 import { DrawingCanvas } from "../SGRClass/DrawingCanvas";
 import { ReadingReviewActions } from "../SGRClass/ReadingReviewToolbar";
+import type { SGRSchool } from "../../utils/sgrSchool";
 
 // ─── inline formatter: **bold**, __underline__ ─────
 export function fmt(text: string): React.ReactNode[] {
@@ -55,8 +56,8 @@ export function fmt(text: string): React.ReactNode[] {
   return nodes;
 }
 
-export default function SGRGrammarViewer() {
-  const [units, setUnits] = useState<GrammarUnit[]>(loadUnits);
+export default function SGRGrammarViewer({ school = "korean" }: { school?: SGRSchool }) {
+  const [units, setUnits] = useState<GrammarUnit[]>(() => loadUnits(school));
   const [selectedId, setSelectedId] = useState<string>(units[0]?.id || "");
   const [kind, setKind] = useState<GrammarKind | null>(null); // null → 선택 화면
   const [typeIdx, setTypeIdx] = useState<number>(0);
@@ -102,7 +103,7 @@ export default function SGRGrammarViewer() {
 
   useEffect(() => {
     const handler = () => {
-      const next = loadUnits();
+      const next = loadUnits(school);
       setUnits(next);
       if (!next.find((u) => u.id === selectedId)) {
         setSelectedId(next[0]?.id || "");

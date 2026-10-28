@@ -17,6 +17,7 @@ import { ReadingReviewActions } from "../SGRClass/ReadingReviewToolbar";
 import { DrawingCanvas } from "../SGRClass/DrawingCanvas";
 import "../../utils/sgrNovelApi"; // 서버 연동 함수 등록
 import { useAnswers, isTextCorrect, type AnswerValue } from "../SGRClass/answerState";
+import type { SGRSchool } from "../../utils/sgrSchool";
 
 // ─── inline formatter: **bold**, __underline__, ___blank___ ──
 function formatInline(text: string, showAnswer: boolean, answer?: string) {
@@ -710,6 +711,9 @@ function NovelPicker({ novels, onPick }: { novels: SGRNovel[]; onPick: (n: SGRNo
         </h1>
         <p className="text-gray-500 dark:text-gray-400">읽고 싶은 소설을 선택하세요. 챕터별로 분석과 퀴즈가 제공됩니다.</p>
       </div>
+      {novels.length === 0 && (
+        <p className="py-16 text-center text-gray-500 dark:text-gray-400">아직 등록된 SGR Novels 자료가 없습니다. CMS에서 추가해주세요.</p>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {novels.map((n) => (
           <button
@@ -757,8 +761,8 @@ const PAGES: Array<{ key: PageKey; label: string; icon: any }> = [
   { key: "directReading", label: "직독직해", icon: Zap },
 ];
 
-export default function SGRNovelViewer() {
-  const [novels, setNovels] = useState<SGRNovel[]>(loadNovels);
+export default function SGRNovelViewer({ school = "korean" }: { school?: SGRSchool }) {
+  const [novels, setNovels] = useState<SGRNovel[]>(() => loadNovels(school));
   // 내부 상태(novel/chapter/page)를 URL query param으로 주소화 → 딥링크 + 브라우저 뒤로/앞으로 지원
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedId = searchParams.get("novel") || "";
@@ -813,12 +817,12 @@ export default function SGRNovelViewer() {
   // Sync from CMS / server
   useEffect(() => {
     const handler = () => {
-      const next = loadNovels();
+      const next = loadNovels(school);
       setNovels(next);
       if (!next.find(n => n.id === selectedId)) selectNovel("");
     };
     window.addEventListener(NOVEL_EVENT, handler);
-    syncNovelsFromServer().then(serverNovels => {
+    syncNovelsFromServer(school).then(serverNovels => {
       setNovels(serverNovels);
       if (selectedId && !serverNovels.find(n => n.id === selectedId)) selectNovel("");
     });

@@ -1,6 +1,8 @@
 // ===================== SGR Class Types =====================
 // Textbook-style classroom lesson data model
 
+import { pickSchool, replaceSchool, tagSchool, type SGRSchool } from "../../utils/sgrSchool";
+
 export interface PreviewCard {
   id: string;
   image?: string;    // base64 or URL
@@ -245,6 +247,8 @@ export interface ReadingExploreContent {
 
 // ─── Full lesson ───────────────────────────────────
 export interface SGRLesson {
+  /** 소속 학교 (SGR Series 한국학교/국제학교 분리). 없으면 한국학교 */
+  school?: SGRSchool;
   id: string;
   createdAt: number;
   updatedAt: number;
@@ -300,23 +304,37 @@ function initialSeed(): SGRLesson[] {
   return [SAMPLE_LESSON, SAMPLE_READING_EXPLORE_LESSON];
 }
 
-export function loadLessons(): SGRLesson[] {
+/** 저장된 전체 레슨 (한국학교·국제학교 모두). 저장된 게 없으면 null */
+function readStoredLessons(): SGRLesson[] | null {
   try {
     const raw = localStorage.getItem(SGR_STORAGE_KEY);
-    if (!raw) return initialSeed();
+    if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed) || parsed.length === 0) return initialSeed();
-    return migrateLessons(parsed);
+    return Array.isArray(parsed) ? migrateLessons(parsed) : null;
   } catch {
-    return initialSeed();
+    return null;
   }
 }
 
-export function saveLessons(lessons: SGRLesson[]) {
-  localStorage.setItem(SGR_STORAGE_KEY, JSON.stringify(lessons));
+/** 학교별 레슨. 해당 학교 자료가 없으면 한국학교는 샘플, 국제학교는 빈 목록 */
+function scopedOrSeed(all: SGRLesson[] | null, school: SGRSchool): SGRLesson[] {
+  const scoped = pickSchool(all || [], school);
+  if (scoped.length > 0) return scoped;
+  return school === "korean" ? initialSeed() : [];
+}
+
+export function loadLessons(school: SGRSchool = "korean"): SGRLesson[] {
+  return scopedOrSeed(readStoredLessons(), school);
+}
+
+/** 해당 학교 레슨만 교체 저장 (다른 학교 레슨은 유지) */
+export function saveLessons(lessons: SGRLesson[], school: SGRSchool = "korean") {
+  const scoped = tagSchool(lessons, school);
+  const all = replaceSchool(readStoredLessons() || [], school, scoped);
+  localStorage.setItem(SGR_STORAGE_KEY, JSON.stringify(all));
   window.dispatchEvent(new Event(SGR_EVENT));
   // Supabase에도 비동기 저장 (fire-and-forget)
-  saveLessonsToServer(lessons);
+  saveLessonsToServer(scoped, school, all);
 }
 
 // ─── Supabase 서버 연동 ─────────────────────────────
@@ -334,30 +352,40 @@ export function registerServerLoader(fn: () => Promise<SGRLesson[]>) {
   _loadFromServer = fn;
 }
 
-/** 서버에 레슨 저장 (fire-and-forget, 실패해도 조용히 넘어감) */
-function saveLessonsToServer(lessons: SGRLesson[]) {
-  if (_saveToServer) {
-    _saveToServer(lessons).catch(err => {
-      console.warn("[SGR Class] 서버 저장 실패 (로컬에는 저장됨):", err);
-    });
-  }
+/**
+ * 서버에 레슨 저장 (fire-and-forget, 실패해도 조용히 넘어감).
+ * 서버는 전체 교체 저장이므로 다른 학교 레슨은 서버 최신본에서 가져와 함께 저장한다.
+ */
+function saveLessonsToServer(scoped: SGRLesson[], school: SGRSchool, localAll: SGRLesson[]) {
+  const save = _saveToServer;
+  if (!save) return;
+  (async () => {
+    let all = localAll;
+    if (_loadFromServer) {
+      const serverLessons = await _loadFromServer().catch(() => null);
+      if (serverLessons && serverLessons.length > 0) all = replaceSchool(serverLessons, school, scoped);
+    }
+    await save(all);
+  })().catch(err => {
+    console.warn("[SGR Class] 서버 저장 실패 (로컬에는 저장됨):", err);
+  });
 }
 
-/** 서버에서 레슨 불러오기 (localStorage에 병합) */
-export async function syncFromServer(): Promise<SGRLesson[]> {
-  if (!_loadFromServer) return loadLessons();
+/** 서버에서 레슨 불러오기 (localStorage 갱신 후 해당 학교 레슨 반환) */
+export async function syncFromServer(school: SGRSchool = "korean"): Promise<SGRLesson[]> {
+  if (!_loadFromServer) return loadLessons(school);
   try {
     const serverLessons = await _loadFromServer();
     if (serverLessons && serverLessons.length > 0) {
       // 서버 데이터가 있으면 localStorage 갱신
       localStorage.setItem(SGR_STORAGE_KEY, JSON.stringify(serverLessons));
       window.dispatchEvent(new Event(SGR_EVENT));
-      return serverLessons;
+      return scopedOrSeed(migrateLessons(serverLessons), school);
     }
   } catch (err) {
     console.warn("[SGR Class] 서버 불러오기 실패 (로컬 사용):", err);
   }
-  return loadLessons();
+  return loadLessons(school);
 }
 
 export function uid() {

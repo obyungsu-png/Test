@@ -18,6 +18,7 @@ import { ReadingReviewActions } from "./ReadingReviewToolbar";
 import { DrawingCanvas } from "./DrawingCanvas";
 import "../../utils/sgrClassApi"; // 서버 연동 함수 등록
 import { useAnswers, isTextCorrect, type AnswerValue } from "./answerState";
+import type { SGRSchool } from "../../utils/sgrSchool";
 
 // ─── inline formatter: **bold**, __underline__, ___blank___ ──
 function formatInline(text: string, showAnswer: boolean, answer?: string) {
@@ -1206,8 +1207,8 @@ function BookTypePicker({
   );
 }
 
-export default function SGRClassViewer() {
-  const [lessons, setLessons] = useState<SGRLesson[]>(loadLessons);
+export default function SGRClassViewer({ school = "korean" }: { school?: SGRSchool }) {
+  const [lessons, setLessons] = useState<SGRLesson[]>(() => loadLessons(school));
   const [selectedBookType, setSelectedBookType] = useState<BookType | null>(() => {
     if (typeof window === "undefined") return null;
     return (localStorage.getItem("sgrClass_bookType") as BookType | null) || null;
@@ -1295,7 +1296,7 @@ export default function SGRClassViewer() {
   // Sync from CMS
   useEffect(() => {
     const handler = () => {
-      const next = loadLessons();
+      const next = loadLessons(school);
       setLessons(next);
       if (!next.find(l => l.id === selectedId)) {
         setSelectedId(next[0]?.id || "");
@@ -1303,7 +1304,7 @@ export default function SGRClassViewer() {
     };
     window.addEventListener(SGR_EVENT, handler);
     // 마운트 시 Supabase에서 데이터 동기화
-    syncFromServer().then(serverLessons => {
+    syncFromServer(school).then(serverLessons => {
       setLessons(serverLessons);
       if (!serverLessons.find(l => l.id === selectedId)) {
         setSelectedId(serverLessons[0]?.id || "");
@@ -1316,8 +1317,8 @@ export default function SGRClassViewer() {
     localStorage.setItem("sgrClass_dark", dark ? "1" : "0");
   }, [dark]);
 
-  // 책 종류 선택 화면: 항상 picker를 거쳐 진입
-  if (!selectedBookType) {
+  // 책 종류 선택 화면: 항상 picker를 거쳐 진입 (레슨이 하나도 없으면 아래 안내 화면)
+  if (!selectedBookType && lessons.length > 0) {
     return (
       <BookTypePicker
         groups={bookGroups}

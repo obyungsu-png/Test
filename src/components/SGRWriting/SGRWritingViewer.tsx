@@ -14,6 +14,7 @@ import { AiActionPopup } from "../SGRClass/AiActionPopup";
 import { ReadingReviewPassage } from "../SGRClass/ReadingReviewPassage";
 import { DrawingCanvas } from "../SGRClass/DrawingCanvas";
 import { ReadingReviewActions } from "../SGRClass/ReadingReviewToolbar";
+import type { SGRSchool } from "../../utils/sgrSchool";
 
 type PageKey = "words" | "expressions" | "review";
 
@@ -283,8 +284,8 @@ function PageReview({
 }
 
 // ─── Main Viewer ───────────────────────────────────
-export default function SGRWritingViewer() {
-  const [lessons, setLessons] = useState<SGRWritingLesson[]>(loadWritingLessons);
+export default function SGRWritingViewer({ school = "korean" }: { school?: SGRSchool }) {
+  const [lessons, setLessons] = useState<SGRWritingLesson[]>(() => loadWritingLessons(school));
   const [selectedId, setSelectedId] = useState<string>(lessons[0]?.id || "");
   const [pageKey, setPageKey] = useState<PageKey>("words");
   const [showAnswer, setShowAnswer] = useState(false);
@@ -342,7 +343,7 @@ export default function SGRWritingViewer() {
   // Sync from CMS
   useEffect(() => {
     const handler = () => {
-      const next = loadWritingLessons();
+      const next = loadWritingLessons(school);
       setLessons(next);
       if (!next.find(l => l.id === selectedId)) {
         setSelectedId(next[0]?.id || "");

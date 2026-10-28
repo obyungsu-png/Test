@@ -18,6 +18,8 @@ import SGRWritingViewer from "./SGRWriting/SGRWritingViewer";
 import SGRVocaViewer from "./SGRVoca/SGRVocaViewer";
 import SGRGrammarViewer from "./SGRGrammar/SGRGrammarViewer";
 import SGRHSKViewer from "./SGRHSK/SGRHSKViewer";
+import { SGRSeriesMenu } from "./SGRSeriesMenu";
+import { SGR_SCHOOL_LABEL, type SGRSchool } from "../utils/sgrSchool";
 import { getFilteredMaterials } from "./utils/materialHelpers";
 import { getCategoryCustomName, updateUploadedMaterial } from "./utils/dataManager";
 import { DEFAULT_TABS, KOREAN_SCHOOL_TABS, INTERNATIONAL_SCHOOL_TABS, CERTIFICATION_TABS, CERTIFICATION_CONTENT_BY_TAB, CERTIFICATION_CONTENT_BY_SUBJECT_AND_CATEGORY } from "./constants/defaultContent";
@@ -107,21 +109,17 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
   // school-type 별 localStorage 키 (다른 학교 유형의 커스텀 탭이 섞이지 않도록)
   const customTabNamesKey = isCertificationMode ? 'customTabNames_certification' :
                             (schoolType === 'international' ? 'customTabNames_international' : 'customTabNames_korean');
-  // 한국학교 일반 과목(영어 포함)에서는 Voca·SGR 탭 숨기기 — SGR 탭은 SGR Series 과목에서만 표시
-  const KOREAN_HIDDEN_TABS = ['Voca', 'SGR Class', 'SGR Writing', 'SGR Voca', 'SGR Grammar', 'SGR Novels', 'SGR HSK', '교과서 뽀개기'];
+  // SGR Series 과목(한국학교·국제학교 각각): 첫 화면은 묶음 메뉴(SGR_HUB_TAB), 각 SGR 탭은 전체화면으로 열림
+  const SGR_HUB_TAB = 'SGR Series';
+  const SGR_TABS = ['SGR Novels', 'SGR Class', 'SGR Writing', 'SGR Voca', 'SGR Grammar', 'SGR HSK'];
+  const isSGRSeries = !isCertificationMode && selectedSubject === 'SGR Series';
+  const sgrSchool: SGRSchool = schoolType === 'international' ? 'international' : 'korean';
+  // 일반 과목에서는 SGR·Voca 탭 숨기기 — SGR 탭은 SGR Series 과목에서만 표시
+  const HIDDEN_TABS = [...SGR_TABS, 'Voca', '교과서 뽀개기'];
   const adjustedTabs = (() => {
-    let tabs = defaultTabs;
-    if (schoolType === 'korean' && selectedSubject !== 'SGR Series') {
-      tabs = tabs.filter(tab => !KOREAN_HIDDEN_TABS.includes(tab));
-    }
-    // SGR Series 과목: SGR 관련 탭만 표시
-    if (schoolType === 'korean' && selectedSubject === 'SGR Series') {
-      const sgrOnly = ['SGR Novels', 'SGR Class', 'SGR Writing', 'SGR Voca', 'SGR Grammar', 'SGR HSK'];
-      tabs = tabs.filter(tab => sgrOnly.includes(tab));
-      // 원하는 순서로 정렬
-      tabs = sgrOnly.filter(t => tabs.includes(t));
-    }
-    return tabs;
+    if (isCertificationMode) return defaultTabs;
+    if (isSGRSeries) return SGR_TABS;
+    return defaultTabs.filter(tab => !HIDDEN_TABS.includes(tab));
   })();
   // activeTab은 URL 라우팅(:tab 슬러그)에서 파생되어 prop으로 전달됨
   const [currentPage, setCurrentPage] = useState(1);
@@ -157,22 +155,15 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
     setCurrentPage(1);
   }, [activeTab, selectedSubject, selectedCategory]);
 
-  // 숨긴 탭(Voca·SGR) 주소로 들어오면 첫 번째 탭으로 리셋 (URL 갱신)
+  // SGR Series 는 묶음 메뉴 또는 SGR 탭만, 일반 과목은 숨긴 탭(SGR·Voca) 주소로 들어오면 첫 탭으로 (URL 갱신)
   useEffect(() => {
-    if (schoolType === 'korean' && selectedSubject !== 'SGR Series' && KOREAN_HIDDEN_TABS.includes(activeTab)) {
+    if (isCertificationMode) return;
+    if (isSGRSeries) {
+      if (activeTab !== SGR_HUB_TAB && !SGR_TABS.includes(activeTab)) onTabSelect(SGR_HUB_TAB);
+    } else if (HIDDEN_TABS.includes(activeTab)) {
       onTabSelect(adjustedTabs[0] || '국어');
     }
-  }, [selectedSubject, schoolType, activeTab]);
-
-  // SGR Series 진입 시 활성 탭이 SGR 계열이 아니면 첫 번째 SGR 탭(SGR Novels)으로 이동
-  useEffect(() => {
-    if (schoolType === 'korean' && selectedSubject === 'SGR Series') {
-      const sgrTabs = ['SGR Novels', 'SGR Class', 'SGR Writing', 'SGR Voca', 'SGR Grammar', 'SGR HSK'];
-      if (!sgrTabs.includes(activeTab)) {
-        onTabSelect('SGR Novels');
-      }
-    }
-  }, [selectedSubject, schoolType]);
+  }, [selectedSubject, schoolType, isCertificationMode, activeTab]);
 
   // Load uploaded materials and custom tab names from localStorage
   useEffect(() => {
@@ -603,7 +594,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
   const showKoreanVocaPage = activeTab === "Voca" && schoolType === 'korean';
   
   // Check if we should show SGR Class
-  const showSGRClass = activeTab === "SGR Class" && schoolType === 'korean';
+  const showSGRClass = activeTab === "SGR Class" && isSGRSeries;
   const [sgrClassFullscreen, setSgrClassFullscreen] = useState(false);
 
   // SGR Class: 전체화면 상태를 URL(activeTab)에 추종 — 뒤로/앞으로 버튼 지원
@@ -612,7 +603,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
   }, [showSGRClass]);
 
   // Check if we should show SGR Novels
-  const showSGRNovel = activeTab === "SGR Novels";
+  const showSGRNovel = activeTab === "SGR Novels" && isSGRSeries;
   const [sgrNovelFullscreen, setSgrNovelFullscreen] = useState(false);
 
   // SGR Novels: 전체화면 상태를 URL(activeTab)에 추종
@@ -621,7 +612,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
   }, [showSGRNovel]);
 
   // Check if we should show SGR Writing
-  const showSGRWriting = activeTab === "SGR Writing" && schoolType === 'korean';
+  const showSGRWriting = activeTab === "SGR Writing" && isSGRSeries;
   const [sgrWritingFullscreen, setSgrWritingFullscreen] = useState(false);
 
   // SGR Writing: 전체화면 상태를 URL(activeTab)에 추종
@@ -630,7 +621,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
   }, [showSGRWriting]);
 
   // Check if we should show SGR Voca
-  const showSGRVoca = activeTab === "SGR Voca" && schoolType === 'korean';
+  const showSGRVoca = activeTab === "SGR Voca" && isSGRSeries;
   const [sgrVocaFullscreen, setSgrVocaFullscreen] = useState(false);
 
   // SGR Voca: 전체화면 상태를 URL(activeTab)에 추종
@@ -639,7 +630,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
   }, [showSGRVoca]);
 
   // Check if we should show SGR Grammar
-  const showSGRGrammar = activeTab === "SGR Grammar" && schoolType === 'korean';
+  const showSGRGrammar = activeTab === "SGR Grammar" && isSGRSeries;
   const [sgrGrammarFullscreen, setSgrGrammarFullscreen] = useState(false);
 
   // SGR Grammar: 전체화면 상태를 URL(activeTab)에 추종
@@ -648,7 +639,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
   }, [showSGRGrammar]);
 
   // Check if we should show SGR HSK
-  const showSGRHSK = activeTab === "SGR HSK" && schoolType === 'korean';
+  const showSGRHSK = activeTab === "SGR HSK" && isSGRSeries;
   const [sgrHskFullscreen, setSgrHskFullscreen] = useState(false);
 
   // SGR HSK: 전체화면 상태를 URL(activeTab)에 추종
@@ -808,8 +799,8 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
   return (
     <>
       <div className="bg-white rounded-lg flex-1 max-w-none flex flex-col min-h-0" style={{ maxHeight: 'calc(100vh - 140px)' }}>
-        {/* Tabs - Fixed at top - Hide for Voca */}
-        {!showVocaPage && (
+        {/* Tabs - Fixed at top - Hide for Voca and SGR Series (묶음 메뉴 사용) */}
+        {!showVocaPage && !isSGRSeries && (
           <div className="flex flex-wrap mb-0 border-b border-gray-200 relative px-2 pt-2 sm:px-4 sm:pt-4 lg:px-6 pb-0 gap-y-0">
             {tabs.map((tab, index) => (
               <motion.button
@@ -920,7 +911,9 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
         {/* Scrollable content area */}
         <div id="scrollable-content" className="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-6 pt-3 sm:pt-4">
           {/* Show Exam Questions Viewer, Key Notes Viewer, or Practice Test Viewer if conditions are met */}
-          {showExamQuestionsViewer ? (
+          {isSGRSeries ? (
+            <SGRSeriesMenu school={sgrSchool} onSelect={onTabSelect} />
+          ) : showExamQuestionsViewer ? (
             <ExamQuestionsViewer 
               subject={selectedSubject} 
               category={selectedCategory} 
@@ -939,62 +932,6 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
             <VocaPage />
           ) : showKoreanVocaPage ? (
             <KoreanVocaPage selectedCategory={selectedCategory} />
-          ) : showSGRClass ? (
-            <div className="flex items-center justify-center py-20 text-center">
-              <div>
-                <BookOpen className="w-16 h-16 text-cyan-400 mx-auto mb-4" />
-                <h2 className="text-xl font-bold text-gray-700 mb-2">SGR Class</h2>
-                <p className="text-gray-500 mb-4">전체화면에서 학습 중입니다</p>
-                <button
-                  onClick={() => setSgrClassFullscreen(true)}
-                  className="px-6 py-3 bg-cyan-600 text-white rounded-xl font-bold hover:bg-cyan-700 transition-colors"
-                >
-                  전체화면 열기
-                </button>
-              </div>
-            </div>
-          ) : showSGRWriting ? (
-            <div className="flex items-center justify-center py-20 text-center">
-              <div>
-                <BookOpen className="w-16 h-16 text-indigo-400 mx-auto mb-4" />
-                <h2 className="text-xl font-bold text-gray-700 mb-2">SGR Writing</h2>
-                <p className="text-gray-500 mb-4">전체화면에서 학습 중입니다</p>
-                <button
-                  onClick={() => setSgrWritingFullscreen(true)}
-                  className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors"
-                >
-                  전체화면 열기
-                </button>
-              </div>
-            </div>
-          ) : showSGRVoca ? (
-            <div className="flex items-center justify-center py-20 text-center">
-              <div>
-                <BookOpen className="w-16 h-16 text-rose-400 mx-auto mb-4" />
-                <h2 className="text-xl font-bold text-gray-700 mb-2">SGR Voca</h2>
-                <p className="text-gray-500 mb-4">전체화면에서 학습 중입니다</p>
-                <button
-                  onClick={() => setSgrVocaFullscreen(true)}
-                  className="px-6 py-3 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 transition-colors"
-                >
-                  전체화면 열기
-                </button>
-              </div>
-            </div>
-          ) : showSGRGrammar ? (
-            <div className="flex items-center justify-center py-20 text-center">
-              <div>
-                <BookOpen className="w-16 h-16 text-emerald-400 mx-auto mb-4" />
-                <h2 className="text-xl font-bold text-gray-700 mb-2">SGR Grammar</h2>
-                <p className="text-gray-500 mb-4">전체화면에서 학습 중입니다</p>
-                <button
-                  onClick={() => setSgrGrammarFullscreen(true)}
-                  className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-colors"
-                >
-                  전체화면 열기
-                </button>
-              </div>
-            </div>
           ) : (
             <>
             {/* Header with title and button */}
@@ -1676,13 +1613,13 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
                     <h1 className="text-lg font-bold text-gray-800">SGR Class</h1>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-sm">수업용</span>
                   </div>
-                  <p className="text-xs text-gray-400">{selectedSubject} · {selectedCategory || '전체'}</p>
+                  <p className="text-xs text-gray-400">SGR Series · {SGR_SCHOOL_LABEL[sgrSchool]}</p>
                 </div>
               </div>
               <button
                 onClick={() => {
                   setSgrClassFullscreen(false);
-                  onTabSelect(tabs[0] || '국어');
+                  onTabSelect(SGR_HUB_TAB);
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-600 transition-colors"
               >
@@ -1693,7 +1630,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
             {/* Fullscreen Content */}
             <div className="flex-1 overflow-y-auto">
               <div className="max-w-7xl mx-auto">
-                <SGRClassViewer />
+                <SGRClassViewer key={sgrSchool} school={sgrSchool} />
               </div>
             </div>
           </motion.div>
@@ -1721,13 +1658,13 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
                     <h1 className="text-lg font-bold text-gray-800">SGR Novels</h1>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-sm">수업용</span>
                   </div>
-                  <p className="text-xs text-gray-400">{selectedSubject} · {selectedCategory || '전체'}</p>
+                  <p className="text-xs text-gray-400">SGR Series · {SGR_SCHOOL_LABEL[sgrSchool]}</p>
                 </div>
               </div>
               <button
                 onClick={() => {
                   setSgrNovelFullscreen(false);
-                  onTabSelect(tabs[0] || '국어');
+                  onTabSelect(SGR_HUB_TAB);
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-600 transition-colors"
               >
@@ -1738,7 +1675,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
             {/* Fullscreen Content */}
             <div className="flex-1 overflow-y-auto">
               <div className="max-w-7xl mx-auto">
-                <SGRNovelViewer />
+                <SGRNovelViewer key={sgrSchool} school={sgrSchool} />
               </div>
             </div>
           </motion.div>
@@ -1766,13 +1703,13 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
                     <h1 className="text-lg font-bold text-gray-800">SGR Writing</h1>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-sm">수업용</span>
                   </div>
-                  <p className="text-xs text-gray-400">{selectedSubject} · {selectedCategory || '전체'}</p>
+                  <p className="text-xs text-gray-400">SGR Series · {SGR_SCHOOL_LABEL[sgrSchool]}</p>
                 </div>
               </div>
               <button
                 onClick={() => {
                   setSgrWritingFullscreen(false);
-                  onTabSelect(tabs[0] || '국어');
+                  onTabSelect(SGR_HUB_TAB);
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-600 transition-colors"
               >
@@ -1783,7 +1720,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
             {/* Fullscreen Content */}
             <div className="flex-1 overflow-y-auto">
               <div className="max-w-7xl mx-auto">
-                <SGRWritingViewer />
+                <SGRWritingViewer key={sgrSchool} school={sgrSchool} />
               </div>
             </div>
           </motion.div>
@@ -1811,13 +1748,13 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
                     <h1 className="text-lg font-bold text-gray-800">SGR Grammar</h1>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm">수업용</span>
                   </div>
-                  <p className="text-xs text-gray-400">{selectedSubject} · {selectedCategory || '전체'}</p>
+                  <p className="text-xs text-gray-400">SGR Series · {SGR_SCHOOL_LABEL[sgrSchool]}</p>
                 </div>
               </div>
               <button
                 onClick={() => {
                   setSgrGrammarFullscreen(false);
-                  onTabSelect(tabs[0] || '국어');
+                  onTabSelect(SGR_HUB_TAB);
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-600 transition-colors"
               >
@@ -1828,7 +1765,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
             {/* Fullscreen Content */}
             <div className="flex-1 overflow-y-auto">
               <div className="max-w-7xl mx-auto">
-                <SGRGrammarViewer />
+                <SGRGrammarViewer key={sgrSchool} school={sgrSchool} />
               </div>
             </div>
           </motion.div>
@@ -1855,13 +1792,13 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
                     <h1 className="text-lg font-bold text-gray-800">SGR HSK</h1>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-sm">중국어</span>
                   </div>
-                  <p className="text-xs text-gray-400">{selectedSubject} · {selectedCategory || '전체'}</p>
+                  <p className="text-xs text-gray-400">SGR Series · {SGR_SCHOOL_LABEL[sgrSchool]}</p>
                 </div>
               </div>
               <button
                 onClick={() => {
                   setSgrHskFullscreen(false);
-                  onTabSelect(tabs[0] || 'SGR Novels');
+                  onTabSelect(SGR_HUB_TAB);
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-600 transition-colors"
               >
@@ -1871,7 +1808,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
             </div>
             <div className="flex-1 overflow-y-auto">
               <div className="max-w-7xl mx-auto">
-                <SGRHSKViewer />
+                <SGRHSKViewer key={sgrSchool} school={sgrSchool} />
               </div>
             </div>
           </motion.div>
@@ -1899,13 +1836,13 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
                     <h1 className="text-lg font-bold text-gray-800">SGR Voca</h1>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-sm">수업용</span>
                   </div>
-                  <p className="text-xs text-gray-400">{selectedSubject} · {selectedCategory || '전체'}</p>
+                  <p className="text-xs text-gray-400">SGR Series · {SGR_SCHOOL_LABEL[sgrSchool]}</p>
                 </div>
               </div>
               <button
                 onClick={() => {
                   setSgrVocaFullscreen(false);
-                  onTabSelect(tabs[0] || '국어');
+                  onTabSelect(SGR_HUB_TAB);
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-600 transition-colors"
               >
@@ -1916,7 +1853,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
             {/* Fullscreen Content */}
             <div className="flex-1 overflow-y-auto">
               <div className="max-w-7xl mx-auto">
-                <SGRVocaViewer />
+                <SGRVocaViewer key={sgrSchool} school={sgrSchool} />
               </div>
             </div>
           </motion.div>

@@ -1,6 +1,8 @@
 // ===================== SGR Writing Types =====================
 // Based on gemini-code-1784514468160.py structure
 
+import { pickSchool, replaceSchool, tagSchool, type SGRSchool } from "../../utils/sgrSchool";
+
 export interface WritingWord {
   id: string;
   hint: string;      // 첫 글자 힌트 (예: "e")
@@ -26,6 +28,8 @@ export interface WritingReview {
 }
 
 export interface SGRWritingLesson {
+  /** 소속 학교 (SGR Series 한국학교/국제학교 분리). 없으면 한국학교 */
+  school?: SGRSchool;
   id: string;
   createdAt: number;
   updatedAt: number;
@@ -60,19 +64,25 @@ export interface SGRWritingLesson {
 export const SGR_WRITING_STORAGE_KEY = "sgrWriting_lessons";
 export const SGR_WRITING_EVENT = "sgrWritingUpdated";
 
-export function loadWritingLessons(): SGRWritingLesson[] {
+function readStoredWritingLessons(): SGRWritingLesson[] {
   try {
-    const raw = localStorage.getItem(SGR_WRITING_STORAGE_KEY);
-    if (!raw) return [SAMPLE_WRITING_LESSON];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : [SAMPLE_WRITING_LESSON];
+    const parsed = JSON.parse(localStorage.getItem(SGR_WRITING_STORAGE_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return [SAMPLE_WRITING_LESSON];
+    return [];
   }
 }
 
-export function saveWritingLessons(lessons: SGRWritingLesson[]) {
-  localStorage.setItem(SGR_WRITING_STORAGE_KEY, JSON.stringify(lessons));
+/** 학교별 레슨. 해당 학교 자료가 없으면 한국학교는 샘플, 국제학교는 빈 목록 */
+export function loadWritingLessons(school: SGRSchool = "korean"): SGRWritingLesson[] {
+  const scoped = pickSchool(readStoredWritingLessons(), school);
+  if (scoped.length > 0) return scoped;
+  return school === "korean" ? [SAMPLE_WRITING_LESSON] : [];
+}
+
+/** 해당 학교 레슨만 교체 저장 (다른 학교 레슨은 유지) */
+export function saveWritingLessons(lessons: SGRWritingLesson[], school: SGRSchool = "korean") {
+  localStorage.setItem(SGR_WRITING_STORAGE_KEY, JSON.stringify(replaceSchool(readStoredWritingLessons(), school, lessons)));
   window.dispatchEvent(new Event(SGR_WRITING_EVENT));
 }
 

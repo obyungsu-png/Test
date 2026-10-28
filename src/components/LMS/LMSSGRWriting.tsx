@@ -15,6 +15,7 @@ import {
   writingLessonToCsv, getWritingCsvTemplate,
 } from "../SGRWriting/csvUtils";
 import { downloadSGRWritingPdf } from "../SGRWriting/pdfUtils";
+import type { SGRSchool } from "../../utils/sgrSchool";
 
 type SubTab = "overview" | "words" | "expressions" | "reviews";
 
@@ -79,8 +80,8 @@ function IconBtn({
   );
 }
 
-export default function LMSSGRWriting() {
-  const [lessons, setLessons] = useState<SGRWritingLesson[]>(loadWritingLessons);
+export default function LMSSGRWriting({ school = "korean" }: { school?: SGRSchool }) {
+  const [lessons, setLessons] = useState<SGRWritingLesson[]>(() => loadWritingLessons(school));
   const [selectedId, setSelectedId] = useState<string>(lessons[0]?.id || "");
   const [subTab, setSubTab] = useState<SubTab>("overview");
   const [dirty, setDirty] = useState(false);
@@ -114,7 +115,7 @@ export default function LMSSGRWriting() {
   };
 
   const handleSave = () => {
-    saveWritingLessons(lessons);
+    saveWritingLessons(lessons, school);
     setDirty(false);
     toast.success("SGR Writing 자료가 저장되었습니다.");
   };
