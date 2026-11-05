@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { ReactNode } from 'react';
+import type { ReactNode, CSSProperties } from 'react';
 import { ChevronLeft, Sparkles, Send, Bot, User, Pin, PinOff, Move, Maximize2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -11,6 +11,7 @@ import { Input } from './ui/input';
 //           (키 노출 방지 / 트래픽 제어 / CORS 우회)
 // ───────────────────────────────────────────────────────────────────────────
 import { CLAUDE_PROXY_URL, getServerHeaders } from '../utils/apiConfig';
+import AiTutorRobot, { useDraggableFab } from './AiTutorRobot';
 
 const GLM_API_ENDPOINT = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
 const GLM_API_KEY = 'dc2213720f4b4a88ae06ddbd434ab1dd.qDGcLtBM9gGqp6ff';
@@ -225,6 +226,9 @@ export function ToeflAiWidget({ position = 'right', contextLabel, questionData, 
   const [selectedModel, setSelectedModel] = useState<AiModel>('glm');
   const chatEndRef = useRef<HTMLDivElement>(null);
   const activeQuestions = propQuestions ?? defaultSuggestedQuestions;
+
+  // ─── AI 튜터 FAB 드래그 훅 (3D 로봇) ───
+  const fab = useDraggableFab<HTMLDivElement>();
 
   // ─── 고정(undocked) 모드: 드래그 이동 + 크기 조절 ───
   const [pinned, setPinned] = useState(false);
@@ -462,7 +466,8 @@ export function ToeflAiWidget({ position = 'right', contextLabel, questionData, 
     }
   };
 
-  const fabSideClass = position === 'left' ? 'left-6' : 'right-6';
+  const fabDefaultPos: CSSProperties =
+    position === 'left' ? { left: 24, bottom: 24 } : { right: 24, bottom: 24 };
 
   return (
     <>
@@ -594,18 +599,21 @@ export function ToeflAiWidget({ position = 'right', contextLabel, questionData, 
       `}</style>
 
       {showFab && (
-        <button
-          onClick={() => setIsOpen(true)}
-          className={`toefl-ai-fab fixed bottom-16 md:bottom-6 ${fabSideClass}`}
-          style={{ zIndex }}
-          aria-label="AI 튜터에게 물어보세요"
-          title="AI 튜터에게 물어보세요"
+        <div
+          ref={fab.boxRef}
+          className="fixed"
+          style={{ ...fabDefaultPos, ...(fab.style || {}), zIndex }}
         >
-          <span className="toefl-ai-fab-eyes">
-            <span></span>
-            <span></span>
-          </span>
-        </button>
+          <button
+            {...fab.handlers}
+            onClick={() => { if (fab.consumeDrag()) return; setIsOpen(true); }}
+            className={`aibot-btn ${fab.dragging ? 'aibot-dragging' : ''}`}
+            aria-label="AI 튜터에게 물어보세요"
+            title="AI 튜터에게 물어보세요"
+          >
+            <AiTutorRobot size={62} />
+          </button>
+        </div>
       )}
 
       {isOpen && (
@@ -650,11 +658,8 @@ export function ToeflAiWidget({ position = 'right', contextLabel, questionData, 
 
             <div className="flex items-center justify-between px-5 py-4 border-b" style={pinned ? { paddingTop: 36 } : undefined}>
               <div className="flex items-center gap-2">
-                <span className="toefl-ai-fab" style={{ width: 36, height: 36 }}>
-                  <span className="toefl-ai-fab-eyes">
-                    <span style={{ width: 3, height: 3 }}></span>
-                    <span style={{ width: 3, height: 3 }}></span>
-                  </span>
+                <span className="aibot-avatar">
+                  <AiTutorRobot size={44} still />
                 </span>
                 <div className="flex flex-col">
                   <span className="font-bold text-gray-800">AI 튜터</span>
