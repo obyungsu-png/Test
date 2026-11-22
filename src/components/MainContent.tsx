@@ -144,7 +144,6 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
   const [tabs, setTabs] = useState(adjustedTabs);
   const [materials, setMaterials] = useState<any[]>([]);
   const [tabCounts, setTabCounts] = useState<{[key: string]: number}>({});
-  const [isLoading, setIsLoading] = useState(false);
   
   // 페이지별 materials 계산
   const totalPages = Math.ceil(materials.length / ITEMS_PER_PAGE);
@@ -192,11 +191,10 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
   useEffect(() => {
     let isMounted = true;
     
+    // 탭·학년을 빠르게 바꿔도 마지막 요청 결과만 반영 (이전 요청은 isMounted=false 로 무시)
+    // ※ 예전의 "로딩 중이면 건너뛰기" 가드는 로딩 중 학년을 바꾸면 이후 목록이 영영 비어 버리는 문제가 있어 제거
+    //   (같은 서버 요청은 getUploadedMaterials 에서 이미 하나로 합쳐짐)
     const loadAllData = async () => {
-      if (isLoading) return; // Prevent duplicate calls
-      
-      setIsLoading(true);
-      
       try {
         // Load materials for active tab
         const loadedMaterials = await getFilteredMaterials(
@@ -231,10 +229,6 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
         }
       } catch (error) {
         console.error('Error loading data:', error);
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
       }
     };
     
