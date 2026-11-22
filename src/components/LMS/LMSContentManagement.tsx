@@ -2,11 +2,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { useState, useEffect, useRef } from "react";
 import TestFormBuilder from "./TestFormBuilder";
+import LMSHtmlResourceUpload from "./LMSHtmlResourceUpload";
 import { getUploadedMaterials, addUploadedMaterial, deleteUploadedMaterial, updateUploadedMaterial, getSubjectStructure } from "../utils/dataManager";
 import { KOREAN_SCHOOL_TABS, INTERNATIONAL_SCHOOL_TABS, CERTIFICATION_TABS } from "../constants/defaultContent";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
-import { FileText, Upload, Trash2, Download, Eye, Edit, File, BookOpen, Zap, Search, Filter, Image, X, ChevronDown, Pencil, Plus } from "lucide-react";
+import { FileText, Upload, Trash2, Download, Eye, Edit, File, BookOpen, Zap, Search, Filter, Image, X, ChevronDown, Pencil, Plus, FileCode2 } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
@@ -414,7 +415,7 @@ D. collaboration is key
       </div>
       
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="builder" className="text-xs sm:text-sm">
             <FileText className="w-4 h-4 mr-1 sm:mr-2" />
             시험지 작성
@@ -426,6 +427,10 @@ D. collaboration is key
           <TabsTrigger value="edit" className="text-xs sm:text-sm">
             <Pencil className="w-4 h-4 mr-1 sm:mr-2" />
             편집 ({uploadedMaterials.length})
+          </TabsTrigger>
+          <TabsTrigger value="html" className="text-xs sm:text-sm">
+            <FileCode2 className="w-4 h-4 mr-1 sm:mr-2" />
+            HTML 보조자료
           </TabsTrigger>
         </TabsList>
 
@@ -550,6 +555,11 @@ D. collaboration is key
               </Button>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Tab 4: HTML 보조자료 (사이트 보조자료 탭에서 START 로 전체화면 실행) */}
+        <TabsContent value="html" className="space-y-4">
+          <LMSHtmlResourceUpload materials={uploadedMaterials} onChanged={loadMaterials} />
         </TabsContent>
 
         {/* Tab 3: 편집 (기존 자료 불러오기 + 수정/삭제/이미지 첨부) */}
@@ -767,7 +777,7 @@ D. collaboration is key
                     </p>
                     <Input
                       type="file"
-                      accept=".pdf,.doc,.docx,.txt"
+                      accept=".pdf,.doc,.docx,.txt,.html,.htm"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {

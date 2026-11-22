@@ -3,9 +3,10 @@ import { motion, AnimatePresence } from "motion/react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { toast } from "sonner";
-import { Menu, Calculator, TestTube, Atom, Globe, Users, DollarSign, Leaf, Brain, BookOpen, Languages, ChevronRight, X } from "lucide-react";
+import { Menu, Calculator, TestTube, Atom, Globe, Users, DollarSign, Leaf, Brain, BookOpen, Languages, ChevronRight, X, Play } from "lucide-react";
 
 import { ExamPdfViewer } from "./ExamPdfViewer";
+import { InteractiveHtmlPlayer } from "./InteractiveHtmlPlayer";
 import { ExamQuestionsViewer } from "./ExamQuestionsViewer";
 import { KeyNotesViewer } from "./KeyNotesViewer";
 import { PracticeTestViewer } from "./PracticeTestViewer";
@@ -24,6 +25,7 @@ import { getFilteredMaterials } from "./utils/materialHelpers";
 import { getCategoryCustomName, updateUploadedMaterial } from "./utils/dataManager";
 import { DEFAULT_TABS, KOREAN_SCHOOL_TABS, INTERNATIONAL_SCHOOL_TABS, CERTIFICATION_TABS, CERTIFICATION_CONTENT_BY_TAB, CERTIFICATION_CONTENT_BY_SUBJECT_AND_CATEGORY } from "./constants/defaultContent";
 import { downloadFile, downloadDefaultFile, downloadAsWord } from "./utils/fileDownloader";
+import { START_ONLY_SUBJECTS, START_ONLY_TAB, enterFullscreen, isInteractiveMaterial } from "./utils/interactiveHtml";
 import { PasswordModal } from "./PasswordModal";
 import {
   Dialog,
@@ -128,6 +130,7 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
 
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [examMaterial, setExamMaterial] = useState<any>(null);
+  const [playerMaterial, setPlayerMaterial] = useState<any>(null);
   const [password, setPassword] = useState("");
   const [selectedMaterial, setSelectedMaterial] = useState<any>(null);
   const [pendingDownloadMaterial, setPendingDownloadMaterial] = useState<any>(null);
@@ -150,6 +153,13 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
     currentPage * ITEMS_PER_PAGE
   );
   
+  // 보조자료(영어): 시험보기·다운로드 대신 START 버튼 하나만 표시
+  // 탭 이름이 바뀌어 있어도 원래 탭 기준으로 판별
+  const baseTabsForType = isCertificationMode ? CERTIFICATION_TABS : (schoolType === 'international' ? INTERNATIONAL_SCHOOL_TABS : KOREAN_SCHOOL_TABS);
+  const originalActiveTab = baseTabsForType[tabs.indexOf(activeTab)] || activeTab;
+  const isStartOnlyTab = schoolType === 'korean' && !isCertificationMode && originalActiveTab === START_ONLY_TAB && START_ONLY_SUBJECTS.includes(selectedSubject);
+  const usesStartButton = (material: any) => isStartOnlyTab || isInteractiveMaterial(material);
+
   // Reset to page 1 when tab changes
   useEffect(() => {
     setCurrentPage(1);
@@ -201,11 +211,13 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
         );
         
         if (isMounted) {
-          setMaterials(loadedMaterials);
+          // START 전용 보조자료 탭에는 실제 업로드 자료만 (실행할 수 없는 기본 예시 자료 숨김)
+          const visibleMaterials = isStartOnlyTab ? loadedMaterials.filter((m: any) => !m.isDefault) : loadedMaterials;
+          setMaterials(visibleMaterials);
           
           // Calculate tab counts from loaded materials without additional API calls
           const counts: {[key: string]: number} = {};
-          counts[activeTab] = loadedMaterials.length;
+          counts[activeTab] = visibleMaterials.length;
           
           // For other tabs, just set to 0 to avoid memory issues
           // They will be updated when user clicks on them
@@ -549,6 +561,17 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
       return;
     }
     setExamMaterial(material);
+  };
+
+  // 보조자료 START: HTML 자료를 사이트 안 전체화면에서 바로 실행
+  // (전체화면은 클릭 직후에만 허용되므로 여기서 바로 요청)
+  const handleStartClick = (material: any) => {
+    if (!isInteractiveMaterial(material)) {
+      toast.info("이 보조자료는 아직 실행할 HTML 파일이 등록되지 않았습니다.");
+      return;
+    }
+    enterFullscreen();
+    setPlayerMaterial(material);
   };
   
   const handleGlimpseClick = (material: any) => {
@@ -1290,6 +1313,17 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
                       </div>
                     </td>
                     <td className="py-3 px-4 text-center">
+                      {usesStartButton(material) ? (
+                      <div className="flex items-center justify-center">
+                        <button
+                          onClick={() => handleStartClick(material)}
+                          className="flex items-center justify-center gap-1.5 w-full max-w-[176px] bg-cyan-500 hover:bg-cyan-600 rounded px-4 py-1.5 text-xs font-semibold tracking-wide text-white shadow-sm transition-all whitespace-nowrap"
+                        >
+                          <Play className="w-3 h-3 fill-current" />
+                          START
+                        </button>
+                      </div>
+                      ) : (
                       <div className="flex items-center justify-center gap-2">
                         <button
                           onClick={() => handlePreviewClick(material)}
@@ -1305,6 +1339,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
                           다운로드
                         </button>
                       </div>
+                      )}
                     </td>
                   </motion.tr>
                 ))}
@@ -1350,6 +1385,17 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
                     </div>
                   </div>
                   {/* 버튼 줄 */}
+                  {usesStartButton(material) ? (
+                  <div className="flex items-center">
+                    <button
+                      onClick={() => handleStartClick(material)}
+                      className="flex-1 flex items-center justify-center gap-1.5 bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-lg py-2.5 text-xs text-white font-semibold tracking-wide shadow-sm active:opacity-80 transition-all"
+                    >
+                      <Play className="w-3.5 h-3.5 fill-current" />
+                      START
+                    </button>
+                  </div>
+                  ) : (
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handlePreviewClick(material)}
@@ -1365,6 +1411,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
                       다운로드
                     </button>
                   </div>
+                  )}
                 </motion.div>
               ))}
             </div>
@@ -1499,6 +1546,15 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
           key={examMaterial.id ?? examMaterial.title}
           material={examMaterial}
           onClose={() => setExamMaterial(null)}
+        />
+      )}
+
+      {/* 보조자료 START (HTML 전체화면 실행) */}
+      {playerMaterial && (
+        <InteractiveHtmlPlayer
+          key={playerMaterial.id ?? playerMaterial.title}
+          material={playerMaterial}
+          onClose={() => setPlayerMaterial(null)}
         />
       )}
 

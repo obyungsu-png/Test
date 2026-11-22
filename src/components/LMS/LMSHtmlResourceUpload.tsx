@@ -1,0 +1,335 @@
+import { useRef, useState } from "react";
+import { toast } from "sonner";
+import { FileCode2, Play, Trash2, Upload, X } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Badge } from "../ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { addUploadedMaterial, deleteUploadedMaterial, getSubjectStructure } from "../utils/dataManager";
+import {
+  MAX_HTML_BYTES,
+  START_ONLY_TAB,
+  enterFullscreen,
+  extractHtmlTitle,
+  isHtmlFile,
+  isInteractiveMaterial,
+  readFileAsDataUrl,
+} from "../utils/interactiveHtml";
+import { InteractiveHtmlPlayer } from "../InteractiveHtmlPlayer";
+
+type SchoolType = "korean" | "international" | "certification";
+
+interface LMSHtmlResourceUploadProps {
+  /** 콘텐츠 관리에서 불러온 업로드 자료 전체 */
+  materials: any[];
+  /** 업로드·삭제 후 목록 새로고침 */
+  onChanged: () => void;
+}
+
+const SCHOOL_LABEL: Record<SchoolType, string> = { korean: "한국학교", international: "국제학교", certification: "인증시험" };
+
+const formatSize = (bytes: number) =>
+  bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(2)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+
+/**
+ * CMS > 콘텐츠 관리 > HTML 보조자료
+ * .html 파일을 학년별 '보조자료' 탭에 올리면, 사이트에서 START 버튼으로 전체화면 실행된다.
+ */
+export default function LMSHtmlResourceUpload({ materials, onChanged }: LMSHtmlResourceUploadProps) {
+  const [schoolType, setSchoolType] = useState<SchoolType>("korean");
+  const [subject, setSubject] = useState("영어");
+  const [level, setLevel] = useState("");
+  const [category, setCategory] = useState("");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [fileDataUrl, setFileDataUrl] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [playing, setPlaying] = useState<any>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const hierarchy: Record<string, Record<string, string[]>> = getSubjectStructure(schoolType) as any;
+  const levels = hierarchy[subject] || {};
+  const categories = levels[level] || [];
+  const htmlMaterials = materials.filter(isInteractiveMaterial);
+
+  const pickFile = async (f?: File | null) => {
+    if (!f) return;
+    if (!isHtmlFile({ fileName: f.name, fileType: f.type })) {
+      toast.error(".html 파일만 올릴 수 있습니다.");
+      return;
+    }
+    if (f.size > MAX_HTML_BYTES) {
+      toast.error(`파일이 너무 큽니다 (${formatSize(f.size)}). ${formatSize(MAX_HTML_BYTES)} 이하로 올려 주세요.`);
+      return;
+    }
+    try {
+      const [dataUrl, text] = await Promise.all([readFileAsDataUrl(f), f.text()]);
+      setFile(f);
+      setFileDataUrl(dataUrl);
+      setTitle((prev) => prev.trim() || extractHtmlTitle(text) || f.name.replace(/\.html?$/i, ""));
+    } catch (err) {
+      console.error(err);
+      toast.error("파일을 읽지 못했습니다.");
+    }
+  };
+
+  const clearFile = () => {
+    setFile(null);
+    setFileDataUrl(null);
+    setTitle("");
+    if (inputRef.current) inputRef.current.value = "";
+  };
+
+  const play = (material: any) => {
+    enterFullscreen(); // 클릭 직후에 요청해야 허용됨
+    setPlaying(material);
+  };
+
+  const handleUpload = async () => {
+    if (!subject || !level || !category) {
+      toast.error("과목 · 학습 단계 · 학년(세부 과목)을 모두 선택해 주세요.");
+      return;
+    }
+    if (!file || !fileDataUrl) {
+      toast.error("HTML 파일을 선택해 주세요.");
+      return;
+    }
+    const finalTitle = title.trim() || file.name;
+    const now = new Date().toISOString();
+    setSaving(true);
+    try {
+      await addUploadedMaterial({
+        id: `html-${Date.now()}`,
+        title: finalTitle,
+        description: description.trim() || "HTML 보조자료 (사이트에서 START 로 실행)",
+        subject,
+        level,
+        category,
+        schoolType,
+        contentType: START_ONLY_TAB,
+        uploadDate: now,
+        password: "",
+        downloadCount: 0,
+        fileSize: formatSize(file.size),
+        isUploaded: true,
+        source: "content-management",
+        uploadData: {
+          fileName: file.name,
+          fileType: "text/html",
+          fileData: fileDataUrl,
+          fileSize: file.size,
+          uploadDate: now,
+        },
+      });
+      toast.success(`"${finalTitle}" 업로드 완료`, {
+        description: `${subject} › ${category} › ${START_ONLY_TAB} 탭에서 START 로 실행됩니다.`,
+      });
+      clearFile();
+      setDescription("");
+      onChanged();
+    } catch (err) {
+      console.error(err);
+      toast.error("업로드 중 오류가 발생했습니다.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (material: any) => {
+    if (!confirm(`"${material.title}" 을(를) 삭제할까요?`)) return;
+    await deleteUploadedMaterial(material.id);
+    toast.success("삭제했습니다.");
+    onChanged();
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center text-base">
+            <FileCode2 className="w-5 h-5 mr-2" style={{ color: "#00bcd4" }} />
+            HTML 보조자료 업로드
+          </CardTitle>
+          <p className="text-sm text-gray-500">
+            .html 학습 자료를 학년별 <b>보조자료</b> 탭에 올립니다. 사이트에서는 다운로드·시험보기 대신{" "}
+            <b>START</b> 버튼 하나로 전체화면 실행됩니다.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* 분류 */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">학교 타입</label>
+              <Select
+                value={schoolType}
+                onValueChange={(v) => {
+                  setSchoolType(v as SchoolType);
+                  setSubject(v === "korean" ? "영어" : "");
+                  setLevel("");
+                  setCategory("");
+                }}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="korean">한국학교</SelectItem>
+                  <SelectItem value="international">국제학교</SelectItem>
+                  <SelectItem value="certification">인증시험</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">과목</label>
+              <Select value={subject} onValueChange={(v) => { setSubject(v); setLevel(""); setCategory(""); }}>
+                <SelectTrigger><SelectValue placeholder="선택" /></SelectTrigger>
+                <SelectContent>
+                  {Object.keys(hierarchy).map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">학습 단계</label>
+              <Select value={level} onValueChange={(v) => { setLevel(v); setCategory(""); }}>
+                <SelectTrigger><SelectValue placeholder="선택" /></SelectTrigger>
+                <SelectContent>
+                  {Object.keys(levels).map((l) => (
+                    <SelectItem key={l} value={l}>{l}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">학년 (세부 과목)</label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger><SelectValue placeholder="선택" /></SelectTrigger>
+                <SelectContent>
+                  {categories.map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">콘텐츠 타입</label>
+              <Input value={START_ONLY_TAB} disabled className="bg-gray-50" />
+            </div>
+          </div>
+
+          {/* 파일 */}
+          <div
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => { e.preventDefault(); setDragOver(false); pickFile(e.dataTransfer.files?.[0]); }}
+            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${dragOver ? "border-cyan-400 bg-cyan-50" : "border-gray-300"}`}
+          >
+            <input
+              ref={inputRef}
+              type="file"
+              accept=".html,.htm,text/html"
+              className="hidden"
+              onChange={(e) => pickFile(e.target.files?.[0])}
+            />
+            {file ? (
+              <div className="flex items-center justify-center gap-3 flex-wrap">
+                <FileCode2 className="w-8 h-8 text-cyan-600" />
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-gray-800 break-all">{file.name}</p>
+                  <p className="text-xs text-gray-500">{formatSize(file.size)}</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={clearFile} title="파일 빼기">
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            ) : (
+              <>
+                <Upload className="w-10 h-10 mx-auto mb-3 text-gray-400" />
+                <p className="text-sm text-gray-600 mb-3">HTML 파일을 여기로 끌어 놓거나 선택하세요</p>
+                <Button variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
+                  파일 선택
+                </Button>
+              </>
+            )}
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">제목 (사이트 목록에 표시)</label>
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="파일을 고르면 HTML 제목으로 자동 입력" />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">설명 (선택)</label>
+              <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="예: Part 5 홀수 · Part 6 전체" />
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              className="sm:flex-1"
+              disabled={!fileDataUrl}
+              onClick={() =>
+                fileDataUrl &&
+                play({ title: title || file?.name, uploadData: { fileName: file?.name, fileType: "text/html", fileData: fileDataUrl } })
+              }
+            >
+              <Play className="w-4 h-4 mr-2" />
+              미리 실행 (업로드 전 확인)
+            </Button>
+            <Button
+              className="sm:flex-1"
+              disabled={saving}
+              onClick={handleUpload}
+              style={{ backgroundColor: "#00bcd4", color: "white" }}
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              {saving ? "업로드 중…" : "보조자료로 업로드"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 등록된 HTML 보조자료 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">등록된 HTML 보조자료 ({htmlMaterials.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {htmlMaterials.length === 0 ? (
+            <p className="text-sm text-gray-500 text-center py-6">아직 올린 HTML 보조자료가 없습니다.</p>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {htmlMaterials.map((m) => (
+                <div key={m.id} className="flex items-center gap-3 py-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate" title={m.title}>{m.title}</p>
+                    <div className="flex gap-1.5 mt-1 flex-wrap">
+                      <Badge variant="outline" style={{ borderColor: "#00bcd4", color: "#00bcd4" }} className="text-[10px]">
+                        {SCHOOL_LABEL[m.schoolType as SchoolType] || m.schoolType}
+                      </Badge>
+                      <Badge variant="outline" className="text-[10px]">{m.subject}</Badge>
+                      <Badge variant="outline" className="text-[10px]">{m.category}</Badge>
+                      <Badge variant="outline" className="text-[10px]">{m.contentType}</Badge>
+                      <span className="text-[11px] text-gray-400">{m.fileSize}</span>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => play(m)} title="실행">
+                    <Play className="w-4 h-4 text-cyan-600" />
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => handleDelete(m)} title="삭제">
+                    <Trash2 className="w-4 h-4 text-red-500" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {playing && <InteractiveHtmlPlayer material={playing} onClose={() => setPlaying(null)} />}
+    </div>
+  );
+}
