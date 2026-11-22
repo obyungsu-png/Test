@@ -777,7 +777,7 @@ D. collaboration is key
                     </p>
                     <Input
                       type="file"
-                      accept=".pdf,.doc,.docx,.txt,.html,.htm"
+                      accept=".pdf,.doc,.docx,.txt"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {

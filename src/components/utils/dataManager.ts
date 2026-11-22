@@ -39,6 +39,47 @@ export interface UploadedMaterial {
   source: 'content-management' | 'upload-page';
 }
 
+// 자료 목록의 이 브라우저 백업 — 저장 공간(약 5MB)이 꽉 차도 예외를 던지지 않는다.
+// (예전에는 여기서 실패하면 방금 받은 서버 목록 대신 옛 백업을 보여 주는 문제가 있었다)
+function backupUploadsLocally(materials: UploadedMaterial[]) {
+  try {
+    localStorage.setItem('uploads', JSON.stringify(materials));
+  } catch (error) {
+    console.warn('[DataManager] local backup skipped:', (error as Error)?.message || error);
+  }
+}
+
+function serverErrorText(error: any, prefix: string) {
+  const timedOut = error?.name === 'AbortError' || /abort/i.test(String(error?.message || ''));
+  return `${prefix} (${timedOut ? '서버 응답 시간 초과' : String(error?.message || error)})`;
+}
+
+/**
+ * 서버에 확실히 저장한다 — 실패하면 오류를 그대로 던진다 (조용히 이 브라우저에만 저장하지 않음).
+ * 저장 직전에 서버의 최신 목록을 다시 받아 변경을 적용하므로, 그사이 다른 곳에서 바뀐 내용을 덮어쓰지 않는다.
+ */
+export const saveMaterialsStrict = async (
+  mutate: (materials: UploadedMaterial[]) => UploadedMaterial[]
+): Promise<UploadedMaterial[]> => {
+  lmsApi.invalidateCache('materials');
+  let latest: UploadedMaterial[];
+  try {
+    latest = await lmsApi.fetchMaterials();
+  } catch (error) {
+    throw new Error(serverErrorText(error, '자료 목록을 불러오지 못했습니다'));
+  }
+  const next = mutate([...latest]);
+  try {
+    await lmsApi.saveMaterials(next);
+  } catch (error) {
+    throw new Error(serverErrorText(error, '서버 저장에 실패했습니다'));
+  }
+  backupUploadsLocally(next);
+  window.dispatchEvent(new Event('storage'));
+  window.dispatchEvent(new CustomEvent('materialsUpdated'));
+  return next;
+};
+
 // 카테고리 이름 관리 - Supabase 통합
 export const getCategoryCustomNames = async (): Promise<CategoryData[]> => {
   if (categoriesInflight) {
@@ -128,13 +169,13 @@ export const getUploadedMaterials = async (): Promise<UploadedMaterial[]> => {
         console.log(`✅ Generated and saved ${sampleMaterials.length} sample materials`);
         
         // 로컬에도 백업 저장
-        localStorage.setItem('uploads', JSON.stringify(sampleMaterials));
+        backupUploadsLocally(sampleMaterials);
         
         return resolve(sampleMaterials);
       }
       
       // 로컬에도 백업 저장
-      localStorage.setItem('uploads', JSON.stringify(serverMaterials));
+      backupUploadsLocally(serverMaterials);
       
       resolve(serverMaterials);
     } catch (error) {
@@ -144,7 +185,7 @@ export const getUploadedMaterials = async (): Promise<UploadedMaterial[]> => {
       // localStorage도 비어있으면 샘플 생성
       if (!stored || JSON.parse(stored).length === 0) {
         const sampleMaterials = generateSampleMaterials();
-        localStorage.setItem('uploads', JSON.stringify(sampleMaterials));
+        backupUploadsLocally(sampleMaterials);
         return resolve(sampleMaterials);
       }
       
@@ -164,11 +205,11 @@ export const addUploadedMaterial = async (material: UploadedMaterial) => {
   try {
     await lmsApi.saveMaterials(materials);
     // 로컬에도 백업 저장
-    localStorage.setItem('uploads', JSON.stringify(materials));
+    backupUploadsLocally(materials);
   } catch (error) {
     console.error('Failed to save materials to server:', error);
     // 로컬에만 저장
-    localStorage.setItem('uploads', JSON.stringify(materials));
+    backupUploadsLocally(materials);
   }
   
   // Trigger storage event for real-time updates across components
@@ -185,11 +226,11 @@ export const updateUploadedMaterial = async (id: string, updates: Partial<Upload
     try {
       await lmsApi.saveMaterials(materials);
       // 로컬에도 백업 저장
-      localStorage.setItem('uploads', JSON.stringify(materials));
+      backupUploadsLocally(materials);
     } catch (error) {
       console.error('Failed to save materials to server:', error);
       // 로컬에만 저장
-      localStorage.setItem('uploads', JSON.stringify(materials));
+      backupUploadsLocally(materials);
     }
     
     // Trigger storage event for real-time updates across components
@@ -205,11 +246,11 @@ export const deleteUploadedMaterial = async (id: string) => {
   try {
     await lmsApi.saveMaterials(filtered);
     // 로컬에도 백업 저장
-    localStorage.setItem('uploads', JSON.stringify(filtered));
+    backupUploadsLocally(filtered);
   } catch (error) {
     console.error('Failed to save materials to server:', error);
     // 로컬에만 저장
-    localStorage.setItem('uploads', JSON.stringify(filtered));
+    backupUploadsLocally(filtered);
   }
   
   // Trigger storage event for real-time updates across components

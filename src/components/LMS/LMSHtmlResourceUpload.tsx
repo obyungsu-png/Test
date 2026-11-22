@@ -1,12 +1,12 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { FileCode2, Play, Trash2, Upload, X } from "lucide-react";
+import { AlertTriangle, Copy, ExternalLink, FileCode2, HardDriveUpload, Play, RefreshCw, Trash2, Upload, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Badge } from "../ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { addUploadedMaterial, deleteUploadedMaterial, getSubjectStructure } from "../utils/dataManager";
+import { getSubjectStructure, saveMaterialsStrict } from "../utils/dataManager";
 import {
   MAX_HTML_BYTES,
   START_ONLY_TAB,
@@ -14,8 +14,19 @@ import {
   extractHtmlTitle,
   isHtmlFile,
   isInteractiveMaterial,
+  loadHtmlBlob,
   readFileAsDataUrl,
 } from "../utils/interactiveHtml";
+import {
+  HTML_BUCKET,
+  HTML_STORAGE_SETUP_SQL,
+  SUPABASE_SQL_EDITOR_URL,
+  checkHtmlStorage,
+  newHtmlMaterialId,
+  removeHtmlFile,
+  uploadHtmlFile,
+  type HtmlStorageStatus,
+} from "../../utils/htmlMaterialStorage";
 import { InteractiveHtmlPlayer } from "../InteractiveHtmlPlayer";
 
 type SchoolType = "korean" | "international" | "certification";
@@ -29,12 +40,16 @@ interface LMSHtmlResourceUploadProps {
 
 const SCHOOL_LABEL: Record<SchoolType, string> = { korean: "한국학교", international: "국제학교", certification: "인증시험" };
 
+/** 예전 방식(파일 내용을 자료 목록 안에 통째로 저장)으로 올라간 자료인지 */
+const isEmbeddedHtml = (m: any) => String(m?.uploadData?.fileData || "").startsWith("data:");
+
 const formatSize = (bytes: number) =>
   bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(2)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 
 /**
  * CMS > 콘텐츠 관리 > HTML 보조자료
  * .html 파일을 학년별 '보조자료' 탭에 올리면, 사이트에서 START 버튼으로 전체화면 실행된다.
+ * 파일은 Supabase 파일 저장소에 하나씩 따로 저장하고, 자료 목록에는 주소만 남긴다.
  */
 export default function LMSHtmlResourceUpload({ materials, onChanged }: LMSHtmlResourceUploadProps) {
   const [schoolType, setSchoolType] = useState<SchoolType>("korean");
@@ -48,12 +63,24 @@ export default function LMSHtmlResourceUpload({ materials, onChanged }: LMSHtmlR
   const [dragOver, setDragOver] = useState(false);
   const [saving, setSaving] = useState(false);
   const [playing, setPlaying] = useState<any>(null);
+  const [storage, setStorage] = useState<HtmlStorageStatus | "checking">("checking");
+  const [migrating, setMigrating] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const refreshStorageStatus = async () => {
+    setStorage("checking");
+    setStorage(await checkHtmlStorage());
+  };
+  useEffect(() => {
+    refreshStorageStatus();
+  }, []);
 
   const hierarchy: Record<string, Record<string, string[]>> = getSubjectStructure(schoolType) as any;
   const levels = hierarchy[subject] || {};
   const categories = levels[level] || [];
   const htmlMaterials = materials.filter(isInteractiveMaterial);
+  const embeddedMaterials = htmlMaterials.filter(isEmbeddedHtml);
+  const storageMissing = storage === "missing";
 
   const pickFile = async (f?: File | null) => {
     if (!f) return;
@@ -98,55 +125,167 @@ export default function LMSHtmlResourceUpload({ materials, onChanged }: LMSHtmlR
       return;
     }
     const finalTitle = title.trim() || file.name;
+    const id = newHtmlMaterialId();
     const now = new Date().toISOString();
     setSaving(true);
+    let uploadedPath: string | null = null;
     try {
-      await addUploadedMaterial({
-        id: `html-${Date.now()}`,
-        title: finalTitle,
-        description: description.trim() || "HTML 보조자료 (사이트에서 START 로 실행)",
-        subject,
-        level,
-        category,
-        schoolType,
-        contentType: START_ONLY_TAB,
-        uploadDate: now,
-        password: "",
-        downloadCount: 0,
-        fileSize: formatSize(file.size),
-        isUploaded: true,
-        source: "content-management",
-        uploadData: {
-          fileName: file.name,
-          fileType: "text/html",
-          fileData: fileDataUrl,
-          fileSize: file.size,
+      // ① 파일은 파일 저장소에 따로
+      const { url, path } = await uploadHtmlFile(id, file);
+      uploadedPath = path;
+      // ② 자료 목록에는 정보와 주소만 (자료당 1KB 미만)
+      await saveMaterialsStrict((list) => [
+        ...list,
+        {
+          id,
+          title: finalTitle,
+          description: description.trim() || "HTML 보조자료 (사이트에서 START 로 실행)",
+          subject,
+          level,
+          category,
+          schoolType,
+          contentType: START_ONLY_TAB,
           uploadDate: now,
+          password: "",
+          downloadCount: 0,
+          fileSize: formatSize(file.size),
+          isUploaded: true,
+          source: "content-management",
+          uploadData: {
+            fileName: file.name,
+            fileType: "text/html",
+            fileData: url,
+            fileSize: file.size,
+            storageBucket: HTML_BUCKET,
+            storagePath: path,
+            uploadDate: now,
+          },
         },
-      });
+      ]);
       toast.success(`"${finalTitle}" 업로드 완료`, {
         description: `${subject} › ${category} › ${START_ONLY_TAB} 탭에서 START 로 실행됩니다.`,
       });
       clearFile();
       setDescription("");
       onChanged();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      toast.error("업로드 중 오류가 발생했습니다.");
+      if (uploadedPath) removeHtmlFile(uploadedPath); // 목록 저장 실패 시 올린 파일 정리
+      toast.error("업로드하지 못했습니다", { description: err?.message || String(err), duration: 10000 });
+      if (/저장소가 아직 없습니다/.test(err?.message || "")) setStorage("missing");
     } finally {
       setSaving(false);
     }
   };
 
+  // 예전 방식으로 목록 안에 들어 있는 HTML 을 파일 저장소로 옮겨 목록을 가볍게
+  const handleMigrate = async () => {
+    if (!embeddedMaterials.length) return;
+    setMigrating(true);
+    const moved: Record<string, { url: string; path: string }> = {};
+    try {
+      for (const m of embeddedMaterials) {
+        const blob = await loadHtmlBlob(m.uploadData.fileData);
+        moved[m.id] = await uploadHtmlFile(newHtmlMaterialId(), blob);
+      }
+      await saveMaterialsStrict((list) =>
+        list.map((m: any) =>
+          moved[m.id]
+            ? {
+                ...m,
+                uploadData: {
+                  ...m.uploadData,
+                  fileType: "text/html",
+                  fileData: moved[m.id].url,
+                  storageBucket: HTML_BUCKET,
+                  storagePath: moved[m.id].path,
+                },
+              }
+            : m
+        )
+      );
+      toast.success(`${Object.keys(moved).length}개 자료를 파일 저장소로 옮겼습니다.`);
+      onChanged();
+    } catch (err: any) {
+      console.error(err);
+      Object.values(moved).forEach((f) => removeHtmlFile(f.path));
+      toast.error("옮기지 못했습니다", { description: err?.message || String(err), duration: 10000 });
+    } finally {
+      setMigrating(false);
+    }
+  };
+
   const handleDelete = async (material: any) => {
     if (!confirm(`"${material.title}" 을(를) 삭제할까요?`)) return;
-    await deleteUploadedMaterial(material.id);
-    toast.success("삭제했습니다.");
-    onChanged();
+    try {
+      await saveMaterialsStrict((list) => list.filter((m: any) => m.id !== material.id));
+      await removeHtmlFile(material.uploadData?.storagePath);
+      toast.success("삭제했습니다.");
+      onChanged();
+    } catch (err: any) {
+      toast.error("삭제하지 못했습니다", { description: err?.message || String(err) });
+    }
+  };
+
+  const copySetupSql = async () => {
+    try {
+      await navigator.clipboard.writeText(HTML_STORAGE_SETUP_SQL);
+      toast.success("SQL 을 복사했습니다. Supabase SQL Editor 에 붙여 넣고 Run 을 누르세요.");
+    } catch {
+      toast.error("복사하지 못했습니다. 아래 SQL 을 직접 선택해 복사해 주세요.");
+    }
   };
 
   return (
     <div className="space-y-4">
+      {/* 파일 저장소 최초 설정 안내 */}
+      {storageMissing && (
+        <Card className="border-amber-300 bg-amber-50">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="text-sm text-amber-900 space-y-1">
+                <p className="font-semibold">파일 저장소 설정이 한 번 필요합니다</p>
+                <p>
+                  HTML 파일은 자료 목록과 따로 Supabase 파일 저장소에 저장합니다. 아래 SQL 을 복사해
+                  Supabase <b>SQL Editor</b> 에 붙여 넣고 <b>Run</b> 을 누른 뒤, <b>다시 확인</b>을 눌러 주세요.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" onClick={copySetupSql} style={{ backgroundColor: "#00bcd4", color: "white" }}>
+                <Copy className="w-4 h-4 mr-1.5" /> SQL 복사
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => window.open(SUPABASE_SQL_EDITOR_URL, "_blank", "noopener")}>
+                <ExternalLink className="w-4 h-4 mr-1.5" /> Supabase SQL Editor 열기
+              </Button>
+              <Button size="sm" variant="outline" onClick={refreshStorageStatus}>
+                <RefreshCw className="w-4 h-4 mr-1.5" /> 다시 확인
+              </Button>
+            </div>
+            <pre className="text-[11px] leading-relaxed bg-white border border-amber-200 rounded p-3 overflow-x-auto whitespace-pre select-all">
+{HTML_STORAGE_SETUP_SQL}
+            </pre>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 예전 방식 자료 → 파일 저장소로 옮기기 */}
+      {!storageMissing && embeddedMaterials.length > 0 && (
+        <Card className="border-cyan-200 bg-cyan-50">
+          <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+            <p className="flex-1 text-sm text-cyan-900">
+              자료 목록 안에 통째로 저장된 HTML 이 <b>{embeddedMaterials.length}개</b> 있습니다. 파일 저장소로 옮기면
+              사이트가 가벼워집니다. (사이트에서 보이는 모습은 그대로)
+            </p>
+            <Button onClick={handleMigrate} disabled={migrating} style={{ backgroundColor: "#00bcd4", color: "white" }}>
+              <HardDriveUpload className="w-4 h-4 mr-2" />
+              {migrating ? "옮기는 중…" : "파일 저장소로 옮기기"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center text-base">
@@ -281,12 +420,12 @@ export default function LMSHtmlResourceUpload({ materials, onChanged }: LMSHtmlR
             </Button>
             <Button
               className="sm:flex-1"
-              disabled={saving}
+              disabled={saving || storageMissing || storage === "checking"}
               onClick={handleUpload}
               style={{ backgroundColor: "#00bcd4", color: "white" }}
             >
               <Upload className="w-4 h-4 mr-2" />
-              {saving ? "업로드 중…" : "보조자료로 업로드"}
+              {saving ? "업로드 중…" : storageMissing ? "파일 저장소 설정 후 업로드 가능" : "보조자료로 업로드"}
             </Button>
           </div>
         </CardContent>
@@ -314,6 +453,7 @@ export default function LMSHtmlResourceUpload({ materials, onChanged }: LMSHtmlR
                       <Badge variant="outline" className="text-[10px]">{m.category}</Badge>
                       <Badge variant="outline" className="text-[10px]">{m.contentType}</Badge>
                       <span className="text-[11px] text-gray-400">{m.fileSize}</span>
+                      {isEmbeddedHtml(m) && <span className="text-[11px] text-amber-600">· 예전 방식 저장</span>}
                     </div>
                   </div>
                   <Button variant="outline" size="sm" onClick={() => play(m)} title="실행">
