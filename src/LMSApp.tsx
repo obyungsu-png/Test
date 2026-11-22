@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import LMSHeader from "./components/LMS/LMSHeader";
 import LMSSidebar from "./components/LMS/LMSSidebar";
 import LMSMainContent from "./components/LMS/LMSMainContent";
@@ -20,14 +20,25 @@ export interface User {
 export default function LMSApp() {
   const { menu } = useParams<{ menu: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [selectedSubject, setSelectedSubject] = useState("국어");
+
+  const legacySgrSection = menu?.startsWith("sgr-")
+    ? ["class", "novel", "writing", "voca", "grammar", "hsk"].find((section) => menu === `sgr-${section}`)
+    : undefined;
+  useEffect(() => {
+    if (legacySgrSection) {
+      navigate(`/lms/sgr?section=${legacySgrSection}`, { replace: true });
+    }
+  }, [legacySgrSection, navigate]);
 
   // selectedMenu를 URL :menu 파라미터에서 파생 (없으면 dashboard)
   const selectedMenu = menu || "dashboard";
+  const sgrSection = selectedMenu === "sgr" ? (searchParams.get("section") || "class") : (legacySgrSection || "class");
 
   // 메뉴 선택 → URL 갱신
   const handleMenuSelect = (newMenu: string) => {
-    navigate(`/lms/${newMenu}`);
+    navigate(newMenu === "sgr" ? "/lms/sgr?section=class" : `/lms/${newMenu}`);
   };
 
   // LMS 나가기 → 직전 메인 URL로 복귀
@@ -51,7 +62,8 @@ export default function LMSApp() {
             selectedMenu={selectedMenu}
             selectedSubject={selectedSubject}
             onSubjectSelect={setSelectedSubject}
-            onMenuSelect={handleMenuSelect}
+            sgrSection={sgrSection}
+            onSgrSectionSelect={(section) => navigate(`/lms/sgr?section=${section}`)}
           />
         </div>
       </div>

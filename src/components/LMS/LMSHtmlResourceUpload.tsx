@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, Copy, ExternalLink, FileCode2, HardDriveUpload, Play, RefreshCw, Trash2, Upload, X } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, Check, Copy, ExternalLink, FileCode2, HardDriveUpload, Pencil, Play, RefreshCw, Trash2, Upload, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -34,8 +34,8 @@ type SchoolType = "korean" | "international" | "certification";
 interface LMSHtmlResourceUploadProps {
   /** 콘텐츠 관리에서 불러온 업로드 자료 전체 */
   materials: any[];
-  /** 업로드·삭제 후 목록 새로고침 */
-  onChanged: () => void;
+  /** 업로드·수정·삭제 후 목록 새로고침 */
+  onChanged: () => Promise<void>;
 }
 
 const SCHOOL_LABEL: Record<SchoolType, string> = { korean: "한국학교", international: "국제학교", certification: "인증시험" };
@@ -65,6 +65,10 @@ export default function LMSHtmlResourceUpload({ materials, onChanged }: LMSHtmlR
   const [playing, setPlaying] = useState<any>(null);
   const [storage, setStorage] = useState<HtmlStorageStatus | "checking">("checking");
   const [migrating, setMigrating] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editedTitle, setEditedTitle] = useState("");
+  const [listSaving, setListSaving] = useState(false);
+  const listSavingRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const refreshStorageStatus = async () => {
@@ -215,15 +219,82 @@ export default function LMSHtmlResourceUpload({ materials, onChanged }: LMSHtmlR
     }
   };
 
+  const handleRename = async (material: any) => {
+    if (listSavingRef.current) return;
+    const nextTitle = editedTitle.trim();
+    if (!nextTitle) {
+      toast.error("제목을 입력해 주세요.");
+      return;
+    }
+    if (nextTitle === material.title) {
+      setEditingId(null);
+      return;
+    }
+    listSavingRef.current = true;
+    setListSaving(true);
+    try {
+      await saveMaterialsStrict((list) => {
+        if (!list.some((m) => m.id === material.id && isInteractiveMaterial(m))) {
+          throw new Error("자료를 찾을 수 없습니다. 목록을 새로고침해 주세요.");
+        }
+        return list.map((m) => m.id === material.id ? { ...m, title: nextTitle } : m);
+      });
+      setEditingId(null);
+      await onChanged();
+      toast.success("자료 이름을 변경했습니다.");
+    } catch (err: any) {
+      toast.error("이름을 변경하지 못했습니다", { description: err?.message || String(err) });
+    } finally {
+      listSavingRef.current = false;
+      setListSaving(false);
+    }
+  };
+
+  const handleMove = async (material: any, direction: -1 | 1) => {
+    if (listSavingRef.current) return;
+    listSavingRef.current = true;
+    setListSaving(true);
+    try {
+      await saveMaterialsStrict((list) => {
+        const positions = list.flatMap((m, index) => isInteractiveMaterial(m) ? [index] : []);
+        const from = positions.findIndex((index) => list[index].id === material.id);
+        const currentOrder = positions.map((index) => list[index].id);
+        if (from < 0 || currentOrder.length !== htmlMaterials.length || currentOrder.some((id, index) => id !== htmlMaterials[index].id)) {
+          throw new Error("자료 순서가 바뀌었습니다. 목록을 새로고침해 주세요.");
+        }
+        const to = from + direction;
+        if (to < 0 || to >= positions.length) {
+          throw new Error("자료 순서가 바뀌었습니다. 목록을 새로고침해 주세요.");
+        }
+        const next = [...list];
+        [next[positions[from]], next[positions[to]]] = [next[positions[to]], next[positions[from]]];
+        return next;
+      });
+      await onChanged();
+      toast.success("자료 순서를 변경했습니다.");
+    } catch (err: any) {
+      toast.error("순서를 변경하지 못했습니다", { description: err?.message || String(err) });
+    } finally {
+      listSavingRef.current = false;
+      setListSaving(false);
+    }
+  };
+
   const handleDelete = async (material: any) => {
+    if (listSavingRef.current) return;
     if (!confirm(`"${material.title}" 을(를) 삭제할까요?`)) return;
+    listSavingRef.current = true;
+    setListSaving(true);
     try {
       await saveMaterialsStrict((list) => list.filter((m: any) => m.id !== material.id));
       await removeHtmlFile(material.uploadData?.storagePath);
       toast.success("삭제했습니다.");
-      onChanged();
+      await onChanged();
     } catch (err: any) {
       toast.error("삭제하지 못했습니다", { description: err?.message || String(err) });
+    } finally {
+      listSavingRef.current = false;
+      setListSaving(false);
     }
   };
 
@@ -441,10 +512,33 @@ export default function LMSHtmlResourceUpload({ materials, onChanged }: LMSHtmlR
             <p className="text-sm text-gray-500 text-center py-6">아직 올린 HTML 보조자료가 없습니다.</p>
           ) : (
             <div className="divide-y divide-gray-100">
-              {htmlMaterials.map((m) => (
+              {htmlMaterials.map((m, index) => (
                 <div key={m.id} className="flex items-center gap-3 py-3">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate" title={m.title}>{m.title}</p>
+                    {editingId === m.id ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Input
+                          value={editedTitle}
+                          onChange={(e) => setEditedTitle(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleRename(m);
+                            if (e.key === "Escape" && !listSaving) setEditingId(null);
+                          }}
+                          aria-label="HTML 보조자료 제목"
+                          className="max-w-md"
+                          autoFocus
+                          disabled={listSaving}
+                        />
+                        <Button variant="outline" size="sm" onClick={() => handleRename(m)} disabled={listSaving} title="이름 저장" aria-label="이름 저장">
+                          <Check className="w-4 h-4 text-cyan-600" />
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => setEditingId(null)} disabled={listSaving} title="취소" aria-label="이름 변경 취소">
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-sm font-medium text-gray-900 truncate" title={m.title}>{m.title}</p>
+                    )}
                     <div className="flex gap-1.5 mt-1 flex-wrap">
                       <Badge variant="outline" style={{ borderColor: "#00bcd4", color: "#00bcd4" }} className="text-[10px]">
                         {SCHOOL_LABEL[m.schoolType as SchoolType] || m.schoolType}
@@ -456,12 +550,25 @@ export default function LMSHtmlResourceUpload({ materials, onChanged }: LMSHtmlR
                       {isEmbeddedHtml(m) && <span className="text-[11px] text-amber-600">· 예전 방식 저장</span>}
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => play(m)} title="실행">
-                    <Play className="w-4 h-4 text-cyan-600" />
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => handleDelete(m)} title="삭제">
-                    <Trash2 className="w-4 h-4 text-red-500" />
-                  </Button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button variant="outline" size="sm" onClick={() => handleMove(m, -1)} disabled={listSaving || index === 0} title="위로 이동" aria-label={`${m.title} 위로 이동`}>
+                      <ArrowUp className="w-4 h-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => handleMove(m, 1)} disabled={listSaving || index === htmlMaterials.length - 1} title="아래로 이동" aria-label={`${m.title} 아래로 이동`}>
+                      <ArrowDown className="w-4 h-4" />
+                    </Button>
+                    {editingId !== m.id && (
+                      <Button variant="outline" size="sm" disabled={listSaving} onClick={() => { setEditingId(m.id); setEditedTitle(m.title || ""); }} title="이름 변경" aria-label={`${m.title} 이름 변경`}>
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                    )}
+                    <Button variant="outline" size="sm" onClick={() => play(m)} title="실행" aria-label={`${m.title} 실행`}>
+                      <Play className="w-4 h-4 text-cyan-600" />
+                    </Button>
+                    <Button variant="outline" size="sm" disabled={listSaving} onClick={() => handleDelete(m)} title="삭제" aria-label={`${m.title} 삭제`}>
+                      <Trash2 className="w-4 h-4 text-red-500" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>

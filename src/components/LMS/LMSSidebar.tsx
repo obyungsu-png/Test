@@ -27,12 +27,7 @@ export default function LMSSidebar({ selectedMenu, onMenuSelect }: LMSSidebarPro
     { id: "users", label: "회원 관리", icon: Users },
     { id: "content", label: "콘텐츠 관리", icon: BookOpen },
     { id: "textbook-mastery", label: "뽀개기 관리", icon: GraduationCap },
-    { id: "sgr-class", label: "SGR Class 관리", icon: Sparkles },
-    { id: "sgr-novel", label: "SGR Novels 관리", icon: BookOpen },
-    { id: "sgr-writing", label: "SGR Writing 관리", icon: Sparkles },
-    { id: "sgr-voca", label: "SGR Voca 관리", icon: Sparkles },
-    { id: "sgr-grammar", label: "SGR Grammar 관리", icon: Sparkles },
-    { id: "sgr-hsk", label: "SGR HSK 관리", icon: Sparkles },
+    { id: "sgr", label: "SGR 관리", icon: Sparkles },
     { id: "voca", label: "Voca 관리", icon: Languages },
     { id: "categories", label: "카테고리 관리", icon: Tags },
     { id: "site-management", label: "사이트 관리", icon: Globe },
@@ -57,7 +52,7 @@ export default function LMSSidebar({ selectedMenu, onMenuSelect }: LMSSidebarPro
                 key={item.id}
                 onClick={() => onMenuSelect(item.id)}
                 className={`w-full flex items-center px-3 py-2 text-sm rounded-md transition-colors ${
-                  selectedMenu === item.id
+                  selectedMenu === item.id || (item.id === "sgr" && selectedMenu.startsWith("sgr-"))
                     ? "bg-cyan-50 text-cyan-700 border-r-2 border-cyan-700"
                     : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                 }`}
