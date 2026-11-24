@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AlertTriangle, ArrowDown, ArrowUp, Check, Copy, ExternalLink, FileCode2, HardDriveUpload, Pencil, Play, RefreshCw, Trash2, Upload, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import { Badge } from "../ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { getSubjectStructure, saveMaterialsStrict } from "../utils/dataManager";
 import {
@@ -85,6 +84,22 @@ export default function LMSHtmlResourceUpload({ materials, onChanged }: LMSHtmlR
   const htmlMaterials = materials.filter(isInteractiveMaterial);
   const embeddedMaterials = htmlMaterials.filter(isEmbeddedHtml);
   const storageMissing = storage === "missing";
+
+  // 사이트는 학년(카테고리)별 탭에 나눠 보여 주므로, 목록도 같은 기준으로 묶는다
+  const htmlGroups = useMemo(() => {
+    const map = new Map<string, { schoolType: string; subject: string; category: string; contentType: string; items: any[] }>();
+    for (const m of htmlMaterials) {
+      const key = [m.schoolType, m.subject, m.category, m.contentType].join("|");
+      let g = map.get(key);
+      if (!g) {
+        g = { schoolType: m.schoolType, subject: m.subject, category: m.category, contentType: m.contentType, items: [] };
+        map.set(key, g);
+      }
+      g.items.push(m);
+    }
+    return [...map.values()];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [materials]);
 
   const pickFile = async (f?: File | null) => {
     if (!f) return;
@@ -250,16 +265,18 @@ export default function LMSHtmlResourceUpload({ materials, onChanged }: LMSHtmlR
     }
   };
 
-  const handleMove = async (material: any, direction: -1 | 1) => {
+  // 순서 이동은 같은 분류(그룹) 안에서만 — 사이트에 보이는 순서와 일치
+  const handleMove = async (material: any, groupItems: any[], direction: -1 | 1) => {
     if (listSavingRef.current) return;
     listSavingRef.current = true;
     setListSaving(true);
     try {
       await saveMaterialsStrict((list) => {
-        const positions = list.flatMap((m, index) => isInteractiveMaterial(m) ? [index] : []);
+        const ids = groupItems.map((g) => g.id);
+        const idSet = new Set(ids);
+        const positions = list.flatMap((m, index) => (idSet.has(m.id) ? [index] : []));
         const from = positions.findIndex((index) => list[index].id === material.id);
-        const currentOrder = positions.map((index) => list[index].id);
-        if (from < 0 || currentOrder.length !== htmlMaterials.length || currentOrder.some((id, index) => id !== htmlMaterials[index].id)) {
+        if (from < 0 || positions.length !== ids.length || positions.some((index, i) => list[index].id !== ids[i])) {
           throw new Error("자료 순서가 바뀌었습니다. 목록을 새로고침해 주세요.");
         }
         const to = from + direction;
@@ -502,72 +519,80 @@ export default function LMSHtmlResourceUpload({ materials, onChanged }: LMSHtmlR
         </CardContent>
       </Card>
 
-      {/* 등록된 HTML 보조자료 */}
+      {/* 등록된 HTML 보조자료 — 사이트와 같은 분류별 묶음 */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">등록된 HTML 보조자료 ({htmlMaterials.length})</CardTitle>
+          <p className="text-sm text-gray-500">
+            순서는 사이트의 해당 학년 <b>보조자료</b> 탭에 그대로 보입니다.
+          </p>
         </CardHeader>
         <CardContent>
           {htmlMaterials.length === 0 ? (
             <p className="text-sm text-gray-500 text-center py-6">아직 올린 HTML 보조자료가 없습니다.</p>
           ) : (
-            <div className="divide-y divide-gray-100">
-              {htmlMaterials.map((m, index) => (
-                <div key={m.id} className="flex items-center gap-3 py-3">
-                  <div className="flex-1 min-w-0">
-                    {editingId === m.id ? (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Input
-                          value={editedTitle}
-                          onChange={(e) => setEditedTitle(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") handleRename(m);
-                            if (e.key === "Escape" && !listSaving) setEditingId(null);
-                          }}
-                          aria-label="HTML 보조자료 제목"
-                          className="max-w-md"
-                          autoFocus
-                          disabled={listSaving}
-                        />
-                        <Button variant="outline" size="sm" onClick={() => handleRename(m)} disabled={listSaving} title="이름 저장" aria-label="이름 저장">
-                          <Check className="w-4 h-4 text-cyan-600" />
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => setEditingId(null)} disabled={listSaving} title="취소" aria-label="이름 변경 취소">
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <p className="text-sm font-medium text-gray-900 truncate" title={m.title}>{m.title}</p>
-                    )}
-                    <div className="flex gap-1.5 mt-1 flex-wrap">
-                      <Badge variant="outline" style={{ borderColor: "#00bcd4", color: "#00bcd4" }} className="text-[10px]">
-                        {SCHOOL_LABEL[m.schoolType as SchoolType] || m.schoolType}
-                      </Badge>
-                      <Badge variant="outline" className="text-[10px]">{m.subject}</Badge>
-                      <Badge variant="outline" className="text-[10px]">{m.category}</Badge>
-                      <Badge variant="outline" className="text-[10px]">{m.contentType}</Badge>
-                      <span className="text-[11px] text-gray-400">{m.fileSize}</span>
-                      {isEmbeddedHtml(m) && <span className="text-[11px] text-amber-600">· 예전 방식 저장</span>}
-                    </div>
+            <div className="space-y-5">
+              {htmlGroups.map((g) => (
+                <div key={`${g.schoolType}|${g.subject}|${g.category}|${g.contentType}`}>
+                  <div className="flex items-baseline gap-2 px-1 mb-1.5">
+                    <p className="text-xs font-semibold text-gray-700">
+                      {SCHOOL_LABEL[g.schoolType as SchoolType] || g.schoolType} · {g.subject} · {g.category}
+                    </p>
+                    <span className="text-[11px] text-gray-400">{g.contentType} · {g.items.length}개</span>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Button variant="outline" size="sm" onClick={() => handleMove(m, -1)} disabled={listSaving || index === 0} title="위로 이동" aria-label={`${m.title} 위로 이동`}>
-                      <ArrowUp className="w-4 h-4" />
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => handleMove(m, 1)} disabled={listSaving || index === htmlMaterials.length - 1} title="아래로 이동" aria-label={`${m.title} 아래로 이동`}>
-                      <ArrowDown className="w-4 h-4" />
-                    </Button>
-                    {editingId !== m.id && (
-                      <Button variant="outline" size="sm" disabled={listSaving} onClick={() => { setEditingId(m.id); setEditedTitle(m.title || ""); }} title="이름 변경" aria-label={`${m.title} 이름 변경`}>
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                    )}
-                    <Button variant="outline" size="sm" onClick={() => play(m)} title="실행" aria-label={`${m.title} 실행`}>
-                      <Play className="w-4 h-4 text-cyan-600" />
-                    </Button>
-                    <Button variant="outline" size="sm" disabled={listSaving} onClick={() => handleDelete(m)} title="삭제" aria-label={`${m.title} 삭제`}>
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                    </Button>
+                  <div className="divide-y divide-gray-100 border border-gray-200 rounded-lg">
+                    {g.items.map((m, i) => (
+                      <div key={m.id} className="flex items-center gap-2 px-3 py-2">
+                        <span className="w-4 shrink-0 text-right text-[11px] text-gray-400">{i + 1}</span>
+                        {editingId === m.id ? (
+                          <div className="flex flex-1 min-w-0 items-center gap-1">
+                            <Input
+                              value={editedTitle}
+                              onChange={(e) => setEditedTitle(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") handleRename(m);
+                                if (e.key === "Escape" && !listSaving) setEditingId(null);
+                              }}
+                              aria-label="HTML 보조자료 제목"
+                              className="h-8"
+                              autoFocus
+                              disabled={listSaving}
+                            />
+                            <Button variant="ghost" size="sm" className="px-2" onClick={() => handleRename(m)} disabled={listSaving} title="이름 저장" aria-label="이름 저장">
+                              <Check className="w-4 h-4 text-cyan-600" />
+                            </Button>
+                            <Button variant="ghost" size="sm" className="px-2" onClick={() => setEditingId(null)} disabled={listSaving} title="취소" aria-label="이름 변경 취소">
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <p className="flex-1 min-w-0 truncate text-sm text-gray-900" title={m.title}>
+                            {m.title}
+                            {isEmbeddedHtml(m) && <span className="ml-1.5 text-[11px] text-amber-600">예전 방식</span>}
+                          </p>
+                        )}
+                        <span className="hidden sm:block shrink-0 text-[11px] text-gray-400">{m.fileSize}</span>
+                        {editingId !== m.id && (
+                          <div className="flex shrink-0 items-center">
+                            <Button variant="ghost" size="sm" className="px-1.5" onClick={() => handleMove(m, g.items, -1)} disabled={listSaving || i === 0} title="위로 이동" aria-label={`${m.title} 위로 이동`}>
+                              <ArrowUp className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" className="px-1.5" onClick={() => handleMove(m, g.items, 1)} disabled={listSaving || i === g.items.length - 1} title="아래로 이동" aria-label={`${m.title} 아래로 이동`}>
+                              <ArrowDown className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" className="px-1.5" onClick={() => play(m)} title="실행" aria-label={`${m.title} 실행`}>
+                              <Play className="w-4 h-4 text-cyan-600" />
+                            </Button>
+                            <Button variant="ghost" size="sm" className="px-1.5" disabled={listSaving} onClick={() => { setEditingId(m.id); setEditedTitle(m.title || ""); }} title="이름 변경" aria-label={`${m.title} 이름 변경`}>
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" className="px-1.5" disabled={listSaving} onClick={() => handleDelete(m)} title="삭제" aria-label={`${m.title} 삭제`}>
+                              <Trash2 className="w-4 h-4 text-red-500" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
               ))}
