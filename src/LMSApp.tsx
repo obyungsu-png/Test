@@ -26,19 +26,22 @@ export default function LMSApp() {
   const legacySgrSection = menu?.startsWith("sgr-")
     ? ["class", "novel", "writing", "voca", "grammar", "hsk"].find((section) => menu === `sgr-${section}`)
     : undefined;
+  const validSgrSections = ["novel", "writing", "grammar", "voca"];
+  const requestedSgrSection = legacySgrSection || searchParams.get("section");
+  const sgrSection = requestedSgrSection && validSgrSections.includes(requestedSgrSection)
+    ? requestedSgrSection : "novel";
   useEffect(() => {
-    if (legacySgrSection) {
-      navigate(`/lms/sgr?section=${legacySgrSection}`, { replace: true });
+    if (legacySgrSection || (menu === "sgr" && requestedSgrSection !== sgrSection)) {
+      navigate(`/lms/sgr?section=${sgrSection}`, { replace: true });
     }
-  }, [legacySgrSection, navigate]);
+  }, [legacySgrSection, menu, requestedSgrSection, sgrSection, navigate]);
 
   // selectedMenu를 URL :menu 파라미터에서 파생 (없으면 dashboard)
   const selectedMenu = menu || "dashboard";
-  const sgrSection = selectedMenu === "sgr" ? (searchParams.get("section") || "class") : (legacySgrSection || "class");
 
   // 메뉴 선택 → URL 갱신
   const handleMenuSelect = (newMenu: string) => {
-    navigate(newMenu === "sgr" ? "/lms/sgr?section=class" : `/lms/${newMenu}`);
+    navigate(newMenu === "sgr" ? "/lms/sgr?section=novel" : `/lms/${newMenu}`);
   };
 
   // LMS 나가기 → 직전 메인 URL로 복귀
