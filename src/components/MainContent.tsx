@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -20,6 +20,8 @@ import SGRVocaViewer from "./SGRVoca/SGRVocaViewer";
 import SGRGrammarViewer from "./SGRGrammar/SGRGrammarViewer";
 import SGRHSKViewer from "./SGRHSK/SGRHSKViewer";
 import { SGRSeriesMenu } from "./SGRSeriesMenu";
+import { TeacherTabIntro } from "./TeacherTabIntro";
+import { TEACHER_SUBJECT, TEACHER_SGR_TAB, TEACHER_TABS } from "./constants/teacherTabs";
 import { SGR_SCHOOL_LABEL, type SGRSchool } from "../utils/sgrSchool";
 import { getFilteredMaterials } from "./utils/materialHelpers";
 import { getCategoryCustomName, updateUploadedMaterial } from "./utils/dataManager";
@@ -115,14 +117,23 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
   const SGR_HUB_TAB = 'SGR Series';
   const SGR_TABS = ['SGR Novels', 'SGR Class', 'SGR Writing', 'SGR Voca', 'SGR Grammar', 'SGR HSK'];
   const isSGRSeries = !isCertificationMode && selectedSubject === 'SGR Series';
+  // 교사·강사 과목(한국학교): 교사용 탭, 그중 'SGR 수업 교재' 탭이 SGR 묶음 메뉴를 연다
+  const isTeacher = schoolType === 'korean' && !isCertificationMode && selectedSubject === TEACHER_SUBJECT;
+  const sgrHost = isSGRSeries || isTeacher;
+  const sgrHubTab = isTeacher ? TEACHER_SGR_TAB : SGR_HUB_TAB;
   const sgrSchool: SGRSchool = schoolType === 'international' ? 'international' : 'korean';
-  // 일반 과목에서는 SGR·Voca 탭 숨기기 — SGR 탭은 SGR Series 과목에서만 표시
-  const HIDDEN_TABS = [...SGR_TABS, 'Voca', '교과서 뽀개기'];
+  // 일반 과목에서는 SGR·Voca·교사용 탭 숨기기 — SGR 탭은 SGR Series·교사·강사 과목에서만 표시
+  const HIDDEN_TABS = [...SGR_TABS, ...TEACHER_TABS, 'Voca', '교과서 뽀개기'];
   const adjustedTabs = (() => {
     if (isCertificationMode) return defaultTabs;
     if (isSGRSeries) return SGR_TABS;
+    if (isTeacher) return TEACHER_TABS;
     return defaultTabs.filter(tab => !HIDDEN_TABS.includes(tab));
   })();
+  // 커스텀 탭 이름(관리자 > 사이트 관리)은 일반 과목에만 적용
+  const usesCustomTabs = !isSGRSeries && !isTeacher;
+  const tabSourceRef = useRef({ adjustedTabs, usesCustomTabs });
+  tabSourceRef.current = { adjustedTabs, usesCustomTabs };
   // activeTab은 URL 라우팅(:tab 슬러그)에서 파생되어 prop으로 전달됨
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 20; // 한 페이지당 20개만 표시
@@ -143,6 +154,7 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
   const [uploadedMaterials, setUploadedMaterials] = useState<any[]>([]);
   const [tabs, setTabs] = useState(adjustedTabs);
   const [materials, setMaterials] = useState<any[]>([]);
+  const [materialsReady, setMaterialsReady] = useState(false);
   const [tabCounts, setTabCounts] = useState<{[key: string]: number}>({});
   
   // 페이지별 materials 계산
@@ -169,6 +181,8 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
     if (isCertificationMode) return;
     if (isSGRSeries) {
       if (activeTab !== SGR_HUB_TAB && !SGR_TABS.includes(activeTab)) onTabSelect(SGR_HUB_TAB);
+    } else if (isTeacher) {
+      if (!TEACHER_TABS.includes(activeTab) && !SGR_TABS.includes(activeTab)) onTabSelect(TEACHER_TABS[0]);
     } else if (HIDDEN_TABS.includes(activeTab)) {
       onTabSelect(adjustedTabs[0] || '국어');
     }
@@ -180,7 +194,7 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
     setUploadedMaterials([]);
     
     const customTabs = JSON.parse(localStorage.getItem(customTabNamesKey) || 'null');
-    if (customTabs) {
+    if (customTabs && usesCustomTabs) {
       setTabs(customTabs);
     } else {
       setTabs(adjustedTabs);
@@ -194,6 +208,7 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
     // 탭·학년을 빠르게 바꿔도 마지막 요청 결과만 반영 (이전 요청은 isMounted=false 로 무시)
     // ※ 예전의 "로딩 중이면 건너뛰기" 가드는 로딩 중 학년을 바꾸면 이후 목록이 영영 비어 버리는 문제가 있어 제거
     //   (같은 서버 요청은 getUploadedMaterials 에서 이미 하나로 합쳐짐)
+    setMaterialsReady(false);
     const loadAllData = async () => {
       try {
         // Load materials for active tab
@@ -212,6 +227,7 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
           // START 전용 보조자료 탭에는 실제 업로드 자료만 (실행할 수 없는 기본 예시 자료 숨김)
           const visibleMaterials = isStartOnlyTab ? loadedMaterials.filter((m: any) => !m.isDefault) : loadedMaterials;
           setMaterials(visibleMaterials);
+          setMaterialsReady(true);
           
           // Calculate tab counts from loaded materials without additional API calls
           const counts: {[key: string]: number} = {};
@@ -229,6 +245,7 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
         }
       } catch (error) {
         console.error('Error loading data:', error);
+        if (isMounted) setMaterialsReady(true);
       }
     };
     
@@ -246,10 +263,11 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
       setUploadedMaterials([]);
       
       const customTabs = JSON.parse(localStorage.getItem(customTabNamesKey) || 'null');
-      if (customTabs) {
+      const { adjustedTabs: currentTabs, usesCustomTabs: currentUsesCustom } = tabSourceRef.current;
+      if (customTabs && currentUsesCustom) {
         setTabs(customTabs);
       } else {
-        setTabs(defaultTabs);
+        setTabs(currentTabs);
       }
     };
 
@@ -344,15 +362,12 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
         // 원본 파일 있으면 선택한 형식의 파일을 그대로 다운로드
         const file = getDownloadFile(material, format);
         if (!file) {
-          toast.error(`이 자료에는 ${format === 'pdf' ? 'PDF' : 'Word'} 파일이 없습니다.`);
+          toast.error(`이 자료에는 ${format === 'pdf' ? 'PDF' : editableFileLabel(null)} 파일이 없습니다.`);
           return;
         }
-        const a = document.createElement('a');
-        a.href = file.fileData;
         const ext = file.fileName?.split('.').pop() || (format === 'pdf' ? 'pdf' : 'docx');
-        a.download = `${safeName}.${ext}`;
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        toast.success(`"${material.title}" ${format.toUpperCase()} 다운로드를 시작합니다.`);
+        await saveFileAs(file.fileData, `${safeName}.${ext}`);
+        toast.success(`"${material.title}" ${format === 'pdf' ? 'PDF' : editableFileLabel(file)} 다운로드를 시작합니다.`);
       } else {
         // 샘플 자료 → 문제 목록으로 파일 생성
         const GLM_API_KEY = "dc2213720f4b4a88ae06ddbd434ab1dd.qDGcLtBM9gGqp6ff";
@@ -611,7 +626,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
   const showKoreanVocaPage = activeTab === "Voca" && schoolType === 'korean';
   
   // Check if we should show SGR Class
-  const showSGRClass = activeTab === "SGR Class" && isSGRSeries;
+  const showSGRClass = activeTab === "SGR Class" && sgrHost;
   const [sgrClassFullscreen, setSgrClassFullscreen] = useState(false);
 
   // SGR Class: 전체화면 상태를 URL(activeTab)에 추종 — 뒤로/앞으로 버튼 지원
@@ -620,7 +635,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
   }, [showSGRClass]);
 
   // Check if we should show SGR Novels
-  const showSGRNovel = activeTab === "SGR Novels" && isSGRSeries;
+  const showSGRNovel = activeTab === "SGR Novels" && sgrHost;
   const [sgrNovelFullscreen, setSgrNovelFullscreen] = useState(false);
 
   // SGR Novels: 전체화면 상태를 URL(activeTab)에 추종
@@ -629,7 +644,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
   }, [showSGRNovel]);
 
   // Check if we should show SGR Writing
-  const showSGRWriting = activeTab === "SGR Writing" && isSGRSeries;
+  const showSGRWriting = activeTab === "SGR Writing" && sgrHost;
   const [sgrWritingFullscreen, setSgrWritingFullscreen] = useState(false);
 
   // SGR Writing: 전체화면 상태를 URL(activeTab)에 추종
@@ -638,7 +653,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
   }, [showSGRWriting]);
 
   // Check if we should show SGR Voca
-  const showSGRVoca = activeTab === "SGR Voca" && isSGRSeries;
+  const showSGRVoca = activeTab === "SGR Voca" && sgrHost;
   const [sgrVocaFullscreen, setSgrVocaFullscreen] = useState(false);
 
   // SGR Voca: 전체화면 상태를 URL(activeTab)에 추종
@@ -647,7 +662,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
   }, [showSGRVoca]);
 
   // Check if we should show SGR Grammar
-  const showSGRGrammar = activeTab === "SGR Grammar" && isSGRSeries;
+  const showSGRGrammar = activeTab === "SGR Grammar" && sgrHost;
   const [sgrGrammarFullscreen, setSgrGrammarFullscreen] = useState(false);
 
   // SGR Grammar: 전체화면 상태를 URL(activeTab)에 추종
@@ -656,7 +671,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
   }, [showSGRGrammar]);
 
   // Check if we should show SGR HSK
-  const showSGRHSK = activeTab === "SGR HSK" && isSGRSeries;
+  const showSGRHSK = activeTab === "SGR HSK" && sgrHost;
   const [sgrHskFullscreen, setSgrHskFullscreen] = useState(false);
 
   // SGR HSK: 전체화면 상태를 URL(activeTab)에 추종
@@ -904,7 +919,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
                 ) : (
                   tab
                 )}
-                {tab !== "SGR Class" && tab !== "SGR Novels" && tab !== "SGR Writing" && tab !== "SGR Voca" && tab !== "SGR Grammar" && tab !== "SGR HSK" && (
+                {tab !== "SGR Class" && tab !== "SGR Novels" && tab !== "SGR Writing" && tab !== "SGR Voca" && tab !== "SGR Grammar" && tab !== "SGR HSK" && tab !== TEACHER_SGR_TAB && (
                   <span className={`text-[10px] sm:text-xs font-bold ml-0.5 ${
                     activeTab === tab ? "text-red-500" : "text-red-400"
                   }`}>
@@ -930,6 +945,11 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
           {/* Show Exam Questions Viewer, Key Notes Viewer, or Practice Test Viewer if conditions are met */}
           {isSGRSeries ? (
             <SGRSeriesMenu school={sgrSchool} onSelect={onTabSelect} />
+          ) : isTeacher && (activeTab === TEACHER_SGR_TAB || SGR_TABS.includes(activeTab)) ? (
+            <>
+              <TeacherTabIntro tab={TEACHER_SGR_TAB} />
+              <SGRSeriesMenu school={sgrSchool} onSelect={onTabSelect} />
+            </>
           ) : showExamQuestionsViewer ? (
             <ExamQuestionsViewer 
               subject={selectedSubject} 
@@ -951,6 +971,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
             <KoreanVocaPage selectedCategory={selectedCategory} />
           ) : (
             <>
+            {isTeacher && <TeacherTabIntro tab={activeTab} />}
             {/* Header with title and button */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-5 lg:mb-6 space-y-3 sm:space-y-0">
               <div className="flex items-center flex-wrap">
@@ -966,6 +987,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
                   </motion.span>
                 )}
               </div>
+              {!isTeacher && (
               <button 
                 onClick={() => {
                   if (schoolType === 'korean') {
@@ -1002,6 +1024,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
               >
                 VIP 콘텐츠룸
               </button>
+              )}
             </div>
             
             {/* Grid Layout for Subject and 보조자료 */}
@@ -1409,6 +1432,9 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
                 </motion.div>
               ))}
             </div>
+            {materials.length === 0 && materialsReady && (
+              <p className="py-12 text-center text-sm text-gray-500">아직 등록된 자료가 없습니다.</p>
+            )}
           </motion.div>
         </AnimatePresence>
         
@@ -1563,6 +1589,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
               const hasFile = !!downloadFormatMaterial.uploadData?.fileData;
               const pdfMissing = hasFile && !getDownloadFile(downloadFormatMaterial, 'pdf');
               const wordMissing = hasFile && !getDownloadFile(downloadFormatMaterial, 'word');
+              const editableLabel = editableFileLabel(getDownloadFile(downloadFormatMaterial, 'word'));
               return (
                 <div className="space-y-3">
                   <button
@@ -1583,8 +1610,8 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
                   >
                     <span className="text-2xl">📝</span>
                     <div className="text-left">
-                      <p className="text-sm font-bold text-gray-800">Word 다운로드</p>
-                      <p className="text-xs text-gray-400">{wordMissing ? "이 자료에는 Word 파일이 없습니다" : "편집 가능한 Word 파일"}</p>
+                      <p className="text-sm font-bold text-gray-800">{editableLabel} 다운로드</p>
+                      <p className="text-xs text-gray-400">{wordMissing ? "이 자료에는 편집용 원본 파일이 없습니다" : `편집 가능한 ${editableLabel} 파일`}</p>
                     </div>
                   </button>
                 </div>
@@ -1669,7 +1696,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
               <button
                 onClick={() => {
                   setSgrClassFullscreen(false);
-                  onTabSelect(SGR_HUB_TAB);
+                  onTabSelect(sgrHubTab);
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-600 transition-colors"
               >
@@ -1714,7 +1741,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
               <button
                 onClick={() => {
                   setSgrNovelFullscreen(false);
-                  onTabSelect(SGR_HUB_TAB);
+                  onTabSelect(sgrHubTab);
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-600 transition-colors"
               >
@@ -1759,7 +1786,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
               <button
                 onClick={() => {
                   setSgrWritingFullscreen(false);
-                  onTabSelect(SGR_HUB_TAB);
+                  onTabSelect(sgrHubTab);
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-600 transition-colors"
               >
@@ -1804,7 +1831,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
               <button
                 onClick={() => {
                   setSgrGrammarFullscreen(false);
-                  onTabSelect(SGR_HUB_TAB);
+                  onTabSelect(sgrHubTab);
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-600 transition-colors"
               >
@@ -1848,7 +1875,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
               <button
                 onClick={() => {
                   setSgrHskFullscreen(false);
-                  onTabSelect(SGR_HUB_TAB);
+                  onTabSelect(sgrHubTab);
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-600 transition-colors"
               >
@@ -1892,7 +1919,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
               <button
                 onClick={() => {
                   setSgrVocaFullscreen(false);
-                  onTabSelect(SGR_HUB_TAB);
+                  onTabSelect(sgrHubTab);
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-600 transition-colors"
               >
@@ -1920,11 +1947,37 @@ function getDownloadFile(material: any, format: 'pdf' | 'word') {
   const main = material.uploadData?.fileData ? material.uploadData : null;
   if (!main) return null;
   const isPdf = (f: any) => f?.fileType === 'application/pdf' || /\.pdf$/i.test(f?.fileName || '');
-  const isWord = (f: any) => /wordprocessingml|msword/.test(f?.fileType || '') || /\.docx?$/i.test(f?.fileName || '');
+  // 편집용 원본: Word·PowerPoint·한글
+  const isWord = (f: any) => /wordprocessingml|msword|presentationml|ms-powerpoint|hwp/.test(f?.fileType || '') || /\.(docx?|pptx?|hwpx?)$/i.test(f?.fileName || '');
   const pdf = isPdf(main) ? main : null;
   const word = material.wordFile?.fileData ? material.wordFile : isWord(main) ? main : null;
   if (!pdf && !word) return main;
   return format === 'pdf' ? pdf : word;
+}
+
+// 편집용 원본 파일의 종류 이름 (다운로드 버튼·안내에 사용)
+function editableFileLabel(file: any): string {
+  const ext = String(file?.fileName || '').split('.').pop()?.toLowerCase();
+  if (ext === 'ppt' || ext === 'pptx') return 'PowerPoint';
+  if (ext === 'hwp' || ext === 'hwpx') return '한글';
+  return 'Word';
+}
+
+// 파일 저장. 파일 저장소(다른 주소)의 파일은 링크로 열면 새 화면에서 열리므로 내려받아 저장
+async function saveFileAs(url: string, fileName: string) {
+  let href = url;
+  let objectUrl: string | null = null;
+  if (/^https?:/i.test(url) && new URL(url, window.location.href).origin !== window.location.origin) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`파일을 받지 못했습니다 (${res.status})`);
+    objectUrl = URL.createObjectURL(await res.blob());
+    href = objectUrl;
+  }
+  const a = document.createElement('a');
+  a.href = href;
+  a.download = fileName;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  if (objectUrl) setTimeout(() => URL.revokeObjectURL(objectUrl!), 10000);
 }
 
 function generateKoreanExamStyleHTML(content: string, title: string, subject: string, category: string): string {

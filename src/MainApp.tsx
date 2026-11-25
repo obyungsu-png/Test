@@ -8,6 +8,7 @@ import { Footer } from "./components/Footer";
 import { Toaster } from "./components/ui/sonner";
 import { useSession } from "./session/SessionContext";
 import { modeToSchoolType, slugToTab, tabToSlug } from "./utils/tabSlugs";
+import { TEACHER_SUBJECT, TEACHER_SGR_TAB } from "./components/constants/teacherTabs";
 
 export default function MainApp() {
   const { mode = "korean", subject, tab } = useParams<{ mode: string; subject?: string; tab?: string }>();
@@ -28,6 +29,14 @@ export default function MainApp() {
 
   // activeTab 파생 — URL :tab 슬러그에서 변환
   const activeTab = useMemo(() => slugToTab(mode, tab), [mode, tab]);
+
+  // 한국학교 SGR Series 는 교사·강사 > SGR 수업 교재로 옮겨짐 — 예전 주소는 그쪽으로
+  useEffect(() => {
+    if (mode === "korean" && selectedSubject === "SGR Series") {
+      const sgrTab = activeTab.startsWith("SGR ") && activeTab !== "SGR Series" ? activeTab : TEACHER_SGR_TAB;
+      navigate(`/app/korean/${encodeURIComponent(TEACHER_SUBJECT)}/${tabToSlug(sgrTab)}`, { replace: true });
+    }
+  }, [mode, selectedSubject, activeTab]);
 
   const [selectedCategory, setSelectedCategory] = useState(isCertificationMode ? "Reading" : "");
   const [selectedSubCategory, setSelectedSubCategory] = useState("");

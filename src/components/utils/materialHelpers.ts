@@ -1,6 +1,7 @@
 import { DEFAULT_CONTENT_BY_TAB, DEFAULT_TABS, CONTENT_BY_SUBJECT_AND_CATEGORY, INTERNATIONAL_CONTENT_BY_TAB, INTERNATIONAL_CONTENT_BY_SUBJECT_AND_CATEGORY, KOREAN_SCHOOL_TABS, INTERNATIONAL_SCHOOL_TABS, CERTIFICATION_TABS, CERTIFICATION_CONTENT_BY_TAB, CERTIFICATION_CONTENT_BY_SUBJECT_AND_CATEGORY } from "../constants/defaultContent";
 import { getFilteredUploadedMaterials, getCategoryCustomName } from "./dataManager";
 import { ENGLISH_SAMPLE_EXAM } from "../constants/sampleMaterials";
+import { TEACHER_SUBJECT } from "../constants/teacherTabs";
 
 export const getDefaultContentByTab = (tabName: string, tabs: string[], schoolType?: 'korean' | 'international' | null, isCertificationMode?: boolean, selectedSubject?: string) => {
   const currentIndex = tabs.indexOf(tabName);
@@ -81,9 +82,13 @@ export const getFilteredMaterials = async (
   selectedSubCategory?: string
 ) => {
   let defaultMaterials = [];
+  // 교사·강사 과목: 예시 목록 없이 업로드 자료만, 탭 이름 그대로 콘텐츠 타입으로 사용
+  const isTeacher = schoolType === 'korean' && !isCertificationMode && selectedSubject === TEACHER_SUBJECT;
   
   // 카테고리가 선택된 경우 해당 카테고리의 콘텐츠 사용
-  if (selectedCategory) {
+  if (isTeacher) {
+    defaultMaterials = [];
+  } else if (selectedCategory) {
     defaultMaterials = getContentBySubjectAndCategory(selectedSubject, selectedCategory, activeTab, isCertificationMode, selectedSubCategory, schoolType);
   } else {
     // 카테고리가 선택되지 않은 경우 기본 콘텐츠 사용
@@ -98,7 +103,7 @@ export const getFilteredMaterials = async (
   } else {
     baseTabs = schoolType === 'international' ? INTERNATIONAL_SCHOOL_TABS : KOREAN_SCHOOL_TABS;
   }
-  const originalTabName = baseTabs[currentIndex] || activeTab;
+  const originalTabName = isTeacher ? activeTab : (baseTabs[currentIndex] || activeTab);
 
   // 영어 과목 첫 탭에는 시험보기·다운로드 확인용 샘플을 맨 위에 고정
   const sampleMaterials = schoolType === 'korean' && !isCertificationMode && selectedSubject === '영어' && originalTabName === '국어'
@@ -124,6 +129,7 @@ export const getFilteredMaterials = async (
       password: upload.password,
       downloadCount: upload.downloadCount,
       uploadData: upload.uploadData,
+      wordFile: (upload as any).wordFile, // 편집용 원본 (Word·PPT·한글) — 다운로드 > 원본
       previewFileData: upload.previewFileData // ✨ 중요: previewFileData를 포함시킴
     }));
 

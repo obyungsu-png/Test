@@ -2,6 +2,11 @@ import { motion } from "motion/react";
 import { ChevronRight } from "lucide-react";
 import { useState, useEffect } from "react";
 import { getSubjectStructure, getCategoryCustomName } from "./utils/dataManager";
+import { TEACHER_SUBJECT, TEACHER_STRUCTURE } from "./constants/teacherTabs";
+
+// 학교별 과목 구조 + 한국학교의 교사·강사 과목
+const subjectStructureFor = (schoolType: any) =>
+  schoolType === "korean" ? { ...getSubjectStructure(schoolType), [TEACHER_SUBJECT]: TEACHER_STRUCTURE } : getSubjectStructure(schoolType);
 
 interface SidebarProps {
   selectedSubject: string;
@@ -25,7 +30,7 @@ export function Sidebar({ selectedSubject, selectedCategory, selectedSubCategory
   useEffect(() => {
     if (!schoolType || isCertificationMode) return;
     
-    const subjectStructure = getSubjectStructure(schoolType);
+    const subjectStructure = subjectStructureFor(schoolType);
     const categories = subjectStructure[selectedSubject] || {};
     
     const loadCustomNames = async () => {
@@ -230,7 +235,7 @@ export function Sidebar({ selectedSubject, selectedCategory, selectedSubCategory
     }
   };
 
-  const subjectStructure = isCertificationMode ? certificationCategories : getSubjectStructure(schoolType);
+  const subjectStructure = isCertificationMode ? certificationCategories : subjectStructureFor(schoolType);
   const categories = subjectStructure[selectedSubject] || {};
 
   return (

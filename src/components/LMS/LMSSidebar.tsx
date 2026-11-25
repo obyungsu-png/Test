@@ -13,7 +13,8 @@ import {
   Smartphone,
   GraduationCap,
   Languages,
-  Sparkles
+  Sparkles,
+  Presentation
 } from "lucide-react";
 
 interface LMSSidebarProps {
@@ -26,6 +27,7 @@ export default function LMSSidebar({ selectedMenu, onMenuSelect }: LMSSidebarPro
     { id: "dashboard", label: "대시보드", icon: LayoutDashboard },
     { id: "users", label: "회원 관리", icon: Users },
     { id: "content", label: "콘텐츠 관리", icon: BookOpen },
+    { id: "teacher-materials", label: "교사·강사 자료", icon: Presentation },
     { id: "textbook-mastery", label: "뽀개기 관리", icon: GraduationCap },
     { id: "sgr", label: "SGR 관리", icon: Sparkles },
     { id: "voca", label: "Voca 관리", icon: Languages },

@@ -17,6 +17,7 @@ import LMSSGRWriting from "./LMSSGRWriting";
 import LMSSGRVoca from "./LMSSGRVoca";
 import LMSSGRGrammar from "./LMSSGRGrammar";
 import LMSSGRHSK from "./LMSSGRHSK";
+import LMSTeacherMaterials from "./LMSTeacherMaterials";
 import { VocaManagement } from "../VocaManagement";
 import { SGR_SCHOOL_LABEL, type SGRSchool } from "../../utils/sgrSchool";
 
@@ -79,6 +80,8 @@ export default function LMSMainContent({
         return <LMSUserManagement />;
       case "content":
         return <LMSContentManagement selectedSubject={selectedSubject} onSubjectSelect={onSubjectSelect} />;
+      case "teacher-materials":
+        return <LMSTeacherMaterials />;
       case "textbook-mastery":
         return <LMSTextbookMastery />;
       case "sgr":

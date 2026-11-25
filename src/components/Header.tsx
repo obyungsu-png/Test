@@ -12,6 +12,7 @@ import { SignupModal } from "./auth/SignupModal";
 import { CustomerSupportModal } from "./support/CustomerSupportModal";
 import { LoginForm } from "./auth/LoginForm";
 import { supabase } from "../utils/supabase/client";
+import { TEACHER_SUBJECT } from "./constants/teacherTabs";
 
 interface HeaderProps {
   selectedSubject: string;
@@ -116,7 +117,7 @@ export function Header({ selectedSubject, onSubjectChange, onUploadClick, onHome
     setMobileMenuOpen(false);
   };
 
-  const koreanSubjects = ["국어", "영어", "수학", "과학", "사회", "서류전형", "특례시험", "SGR Series"];
+  const koreanSubjects = ["국어", "영어", "수학", "과학", "사회", "서류전형", "특례시험", TEACHER_SUBJECT];
   const internationalSubjects = ["GPA", "AP", "IB", "A-level", "AS", "IGCSE", "Writing", "SGR Series"];
   const certificationSubjects = ["TOEFL", "SAT", "ACT", "IELTS", "TOEIC", "Voca"];
   

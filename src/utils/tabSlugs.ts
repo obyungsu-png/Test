@@ -25,6 +25,11 @@ export const TAB_SLUG_MAP: Record<string, string> = {
   "Mock Exams": "mock-exams",
   "실전문제": "real-exam",
   "교과서 뽀개기": "textbook",
+  "수업 자료": "class-materials",
+  "SGR 수업 교재": "sgr",
+  "정답·해설": "answer-keys",
+  "평가·문제은행": "assessment",
+  "숙제·과제": "homework",
 };
 
 // 모드별 기본 탭 슬러그
