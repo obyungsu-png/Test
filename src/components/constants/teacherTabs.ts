@@ -1,6 +1,6 @@
 // 교사·강사 과목 (한국학교) — 학생용 자료 외에 수업·채점·평가·숙제에 쓰는 자료를 모은다.
 // 탭(콘텐츠 타입)별로 관리자 > "교사·강사 자료"에서 올린 파일이 표시되고,
-// "SGR 수업 교재" 탭은 SGR Series 묶음 메뉴(Novels·Class·Writing·Grammar·Voca·HSK)를 연다.
+// "SGR 수업 교재" 탭은 SGR Series 메뉴(Novels·Writing·Grammar·Voca)를 연다.
 
 export const TEACHER_SUBJECT = "교사·강사";
 export const TEACHER_SGR_TAB = "SGR 수업 교재";
@@ -26,7 +26,7 @@ export const TEACHER_TAB_INFO: Record<string, { description: string; examples: s
   },
   [TEACHER_SGR_TAB]: {
     description: "SGR 수업용 교재 — 화면에 띄워 함께 읽고 풀어 보는 수업 자료",
-    examples: ["Novels", "Class", "Writing", "Grammar", "Voca", "HSK"],
+    examples: ["Novels", "Writing", "Grammar", "Voca"],
   },
   "정답·해설": {
     description: "학생용 시험지·교재의 정답과 풀이",

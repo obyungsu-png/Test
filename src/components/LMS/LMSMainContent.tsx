@@ -11,23 +11,19 @@ import LMSNotices from "./LMSNotices";
 import LMSSettings from "./LMSSettings";
 import LMSAdManagement from "./LMSAdManagement";
 import LMSTextbookMastery from "./LMSTextbookMastery";
-import LMSSGRClass from "./LMSSGRClass";
 import LMSSGRNovel from "./LMSSGRNovel";
 import LMSSGRWriting from "./LMSSGRWriting";
 import LMSSGRVoca from "./LMSSGRVoca";
 import LMSSGRGrammar from "./LMSSGRGrammar";
-import LMSSGRHSK from "./LMSSGRHSK";
 import LMSTeacherMaterials from "./LMSTeacherMaterials";
 import { VocaManagement } from "../VocaManagement";
 import { SGR_SCHOOL_LABEL, type SGRSchool } from "../../utils/sgrSchool";
 
 const SGR_SECTIONS = [
-  { id: "class", label: "Class" },
   { id: "novel", label: "Novels" },
   { id: "writing", label: "Writing" },
-  { id: "voca", label: "Voca" },
   { id: "grammar", label: "Grammar" },
-  { id: "hsk", label: "HSK" },
+  { id: "voca", label: "Voca" },
 ] as const;
 const SGR_SCHOOL_PREF_KEY = "lmsSgrSchool";
 
@@ -60,15 +56,13 @@ export default function LMSMainContent({
   };
 
   const isSgrMenu = selectedMenu === "sgr" || SGR_SECTIONS.some(({ id }) => selectedMenu === `sgr-${id}`);
-  const activeSgrSection = SGR_SECTIONS.some(({ id }) => id === sgrSection) ? sgrSection : "class";
+  const activeSgrSection = SGR_SECTIONS.some(({ id }) => id === sgrSection) ? sgrSection : "novel";
   const renderSgrSection = () => {
     switch (activeSgrSection) {
-      case "novel": return <LMSSGRNovel key={sgrSchool} school={sgrSchool} />;
       case "writing": return <LMSSGRWriting key={sgrSchool} school={sgrSchool} />;
       case "voca": return <LMSSGRVoca key={sgrSchool} school={sgrSchool} />;
       case "grammar": return <LMSSGRGrammar key={sgrSchool} school={sgrSchool} />;
-      case "hsk": return <LMSSGRHSK key={sgrSchool} school={sgrSchool} />;
-      default: return <LMSSGRClass key={sgrSchool} school={sgrSchool} />;
+      default: return <LMSSGRNovel key={sgrSchool} school={sgrSchool} />;
     }
   };
 
