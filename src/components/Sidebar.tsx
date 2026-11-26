@@ -8,6 +8,24 @@ import { TEACHER_SUBJECT, TEACHER_STRUCTURE } from "./constants/teacherTabs";
 const subjectStructureFor = (schoolType: any) =>
   schoolType === "korean" ? { ...getSubjectStructure(schoolType), [TEACHER_SUBJECT]: TEACHER_STRUCTURE } : getSubjectStructure(schoolType);
 
+// 'Grade N' 학년이 많은 과목(국제학교 GPA)은 학교급으로 묶어 보여준다: 묶음 → 학년 → 세부 과목
+const GRADE_GROUPS = [
+  { name: "Elementary School", from: 1, to: 5 },
+  { name: "Middle School", from: 6, to: 8 },
+  { name: "High School", from: 9, to: 12 },
+];
+
+function groupGrades(levelNames: string[]) {
+  if (levelNames.length === 0 || !levelNames.every((n) => /^Grade \d+$/.test(n))) return null;
+  return GRADE_GROUPS.map((g) => ({
+    ...g,
+    levels: levelNames.filter((n) => {
+      const grade = Number(n.slice(6));
+      return grade >= g.from && grade <= g.to;
+    }),
+  })).filter((g) => g.levels.length > 0);
+}
+
 interface SidebarProps {
   selectedSubject: string;
   selectedCategory: string;
@@ -21,6 +39,8 @@ interface SidebarProps {
 export function Sidebar({ selectedSubject, selectedCategory, selectedSubCategory, onCategoryChange, onSubCategoryChange, schoolType, isCertificationMode }: SidebarProps) {
   // 확장된 카테고리를 추적하는 state
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  // 학교급 묶음(Elementary/Middle/High School) 확장 상태
+  const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
   // 중첩된 서브카테고리 확장 상태를 추적하는 state (SAT Reading 등)
   const [expandedSubCategory, setExpandedSubCategory] = useState<string | null>(null);
   // 카테고리 커스텀 이름 캐시
@@ -237,6 +257,62 @@ export function Sidebar({ selectedSubject, selectedCategory, selectedSubCategory
 
   const subjectStructure = isCertificationMode ? certificationCategories : subjectStructureFor(schoolType);
   const categories = subjectStructure[selectedSubject] || {};
+  const gradeGroups = isCertificationMode ? null : groupGrades(Object.keys(categories));
+
+  // 학년(레벨) 한 줄 + 펼치면 세부 과목. nested: 학년 묶음 안에 들어갈 때 한 단계 작게
+  const renderLevel = (levelName: string, items: string[], nested: boolean) => (
+    <div key={levelName}>
+      <motion.div
+        onClick={() => {
+          setExpandedCategory(expandedCategory === levelName ? null : levelName);
+        }}
+        whileHover={{ scale: 1.01 }}
+        whileTap={{ scale: 0.99 }}
+        className={nested
+          ? "cursor-pointer text-sm sm:text-base text-gray-700 hover:text-cyan-600 py-1.5 flex items-center justify-between transition-colors duration-200"
+          : "cursor-pointer text-sm sm:text-base lg:text-lg text-gray-800 hover:text-cyan-600 mb-2 sm:mb-3 lg:mb-4 pb-1.5 sm:pb-2 lg:pb-3 border-b border-gray-200 font-medium flex items-center justify-between transition-colors duration-200"}
+      >
+        <span>{levelName}</span>
+        <motion.div
+          animate={{ rotate: expandedCategory === levelName ? 90 : 0 }}
+          transition={{ duration: 0.2 }}
+          className="ml-2"
+        >
+          <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
+        </motion.div>
+      </motion.div>
+      
+      {expandedCategory === levelName && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.3 }}
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-1.5 sm:gap-2 lg:space-y-1.5 lg:space-x-0 text-xs sm:text-sm"
+        >
+          {(items as string[]).map((item) => {
+            const key = `${levelName}::${item}`;
+            const customName = customNames[key] || item;
+            return (
+              <motion.div
+                key={item}
+                onClick={() => onCategoryChange(item)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className={`cursor-pointer transition-all duration-200 text-center sm:text-left lg:text-left min-h-8 sm:min-h-10 flex items-center justify-center sm:justify-start lg:justify-start ${
+                  selectedCategory === item 
+                    ? "bg-cyan-600 text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg shadow-md inline-block w-full font-medium"
+                    : "text-gray-600 hover:text-gray-800 hover:bg-gray-50 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg"
+                }`}
+              >
+                {customName}
+              </motion.div>
+            );
+          })}
+        </motion.div>
+      )}
+    </div>
+  );
 
   return (
     <motion.div
@@ -365,59 +441,39 @@ export function Sidebar({ selectedSubject, selectedCategory, selectedSubCategory
               </div>
             );
           })
-        ) : (
-          // Regular mode
-          Object.entries(categories).map(([levelName, items]) => (
-            <div key={levelName}>
+        ) : gradeGroups ? (
+          // 학년 묶음: 묶음 → 학년 → 세부 과목
+          gradeGroups.map((group) => (
+            <div key={group.name}>
               <motion.div
-                onClick={() => {
-                  setExpandedCategory(expandedCategory === levelName ? null : levelName);
-                }}
+                onClick={() => setExpandedGroup(expandedGroup === group.name ? null : group.name)}
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.99 }}
-                className="cursor-pointer text-sm sm:text-base lg:text-lg text-gray-800 hover:text-cyan-600 mb-2 sm:mb-3 lg:mb-4 pb-1.5 sm:pb-2 lg:pb-3 border-b border-gray-200 font-medium flex items-center justify-between transition-colors duration-200"
+                className="cursor-pointer text-sm sm:text-base lg:text-lg text-gray-800 hover:text-cyan-600 mb-2 sm:mb-3 pb-1.5 sm:pb-2 lg:pb-3 border-b border-gray-200 font-medium flex items-center justify-between transition-colors duration-200"
               >
-                <span>{levelName}</span>
-                <motion.div
-                  animate={{ rotate: expandedCategory === levelName ? 90 : 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="ml-2"
-                >
-                  <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
-                </motion.div>
+                <span>{group.name}</span>
+                <span className="flex items-center gap-1.5">
+                  <span className="text-xs text-gray-400 font-normal">Grade {group.from}–{group.to}</span>
+                  <motion.div animate={{ rotate: expandedGroup === group.name ? 90 : 0 }} transition={{ duration: 0.2 }}>
+                    <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </motion.div>
+                </span>
               </motion.div>
-              
-              {expandedCategory === levelName && (
+              {expandedGroup === group.name && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
                   transition={{ duration: 0.3 }}
-                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-1.5 sm:gap-2 lg:space-y-1.5 lg:space-x-0 text-xs sm:text-sm"
+                  className="pl-3 mb-2 space-y-1"
                 >
-                  {(items as string[]).map((item) => {
-                    const key = `${levelName}::${item}`;
-                    const customName = customNames[key] || item;
-                    return (
-                      <motion.div
-                        key={item}
-                        onClick={() => onCategoryChange(item)}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        className={`cursor-pointer transition-all duration-200 text-center sm:text-left lg:text-left min-h-8 sm:min-h-10 flex items-center justify-center sm:justify-start lg:justify-start ${
-                          selectedCategory === item 
-                            ? "bg-cyan-600 text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg shadow-md inline-block w-full font-medium"
-                            : "text-gray-600 hover:text-gray-800 hover:bg-gray-50 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg"
-                        }`}
-                      >
-                        {customName}
-                      </motion.div>
-                    );
-                  })}
+                  {group.levels.map((levelName) => renderLevel(levelName, categories[levelName] as string[], true))}
                 </motion.div>
               )}
             </div>
           ))
+        ) : (
+          // Regular mode
+          Object.entries(categories).map(([levelName, items]) => renderLevel(levelName, items as string[], false))
         )}
       </div>
     </motion.div>
