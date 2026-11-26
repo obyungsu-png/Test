@@ -300,6 +300,14 @@ export const getSubjectStructure = (schoolType: 'korean' | 'international' | 'ce
 
   const internationalSubjects = {
     "GPA": {
+      "Grade 1": ["English 1", "Math 1", "Science 1", "Social Studies 1", "World Language 1"],
+      "Grade 2": ["English 2", "Math 2", "Science 2", "Social Studies 2", "World Language 2"],
+      "Grade 3": ["English 3", "Math 3", "Science 3", "Social Studies 3", "World Language 3"],
+      "Grade 4": ["English 4", "Math 4", "Science 4", "Social Studies 4", "World Language 4"],
+      "Grade 5": ["English 5", "Math 5", "Science 5", "Social Studies 5", "World Language 5"],
+      "Grade 6": ["English 6", "Math 6", "Science 6", "Social Studies 6", "World Language 6"],
+      "Grade 7": ["English 7", "Math 7", "Science 7", "Social Studies 7", "World Language 7"],
+      "Grade 8": ["English 8", "Math 8", "Science 8", "Social Studies 8", "World Language 8"],
       "Grade 9": ["English 9", "Math 9", "Science 9", "Social Studies 9", "World Language 9"],
       "Grade 10": ["English 10", "Geometry", "Biology", "World History", "World Language 10"],
       "Grade 11": ["English 11", "Algebra II", "Chemistry", "US History", "World Language 11"],
