@@ -17,7 +17,8 @@ const GRADE_GROUPS = [
 /** 사이드바 학년 묶음: 묶음 한 줄을 펼치면 그 안의 학습 단계, 학습 단계를 펼치면 세부 과목 */
 interface LevelGroup {
   name: string;
-  hint: string;
+  /** 묶음 오른쪽 작은 설명 (없으면 생략) */
+  hint?: string;
   levels: { level: string; hint?: string; sections?: SidebarSection[] }[];
 }
 
@@ -35,7 +36,7 @@ function levelGroupsFor(schoolType: string | null, subject: string, levelNames: 
   // 한국학교 과학: 고1·고2·고3 → 고등과학
   if (schoolType === "korean" && subject === "과학") {
     const levels = HIGH_SCIENCE_LEVELS.filter((l) => levelNames.includes(l.level));
-    return levels.length ? [{ name: HIGH_SCIENCE_GROUP, hint: "고1–고3", levels }] : [];
+    return levels.length ? [{ name: HIGH_SCIENCE_GROUP, levels }] : [];
   }
   return [];
 }
@@ -542,7 +543,7 @@ export function Sidebar({ selectedSubject, selectedCategory, selectedSubCategory
                 >
                   <span>{group.name}</span>
                   <span className="flex items-center gap-1.5">
-                    <span className="text-xs text-gray-400 font-normal">{group.hint}</span>
+                    {group.hint && <span className="text-xs text-gray-400 font-normal">{group.hint}</span>}
                     <motion.div animate={{ rotate: expandedGroup === group.name ? 90 : 0 }} transition={{ duration: 0.2 }}>
                       <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
                     </motion.div>
