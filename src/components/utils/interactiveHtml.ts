@@ -3,7 +3,7 @@
 // 보조자료 탭에 올리는 .html 자료는 다운로드/PDF 뷰어가 아니라
 // 사이트 안 전체화면 플레이어(InteractiveHtmlPlayer)에서 그대로 실행된다.
 
-import { upgradePasteNoteTool } from "./pasteNoteTool";
+import { upgradeHtmlTools } from "./htmlPenTools";
 
 /** START 버튼만 보여 줄 탭 (원래 탭 이름 기준) */
 export const START_ONLY_TAB = "보조자료";
@@ -36,13 +36,13 @@ export async function loadHtmlBlob(fileData: string): Promise<Blob> {
 }
 
 /**
- * START 플레이어용 HTML — 자료 속 알려진 예전 도구(붙여넣기 글상자)는 개선판으로 바꿔 실행한다.
+ * START 플레이어용 HTML — 자료 속 필기 도구(펜 툴바 크기·붙여넣기 글상자)를 개선판으로 바꿔 실행한다.
  * 저장된 파일은 그대로 두고, 해당 도구가 없거나 다른 버전이면 원본 그대로 실행.
  */
 export async function loadHtmlForPlayer(fileData: string): Promise<Blob> {
   const blob = await loadHtmlBlob(fileData);
   const html = await blob.text();
-  const upgraded = upgradePasteNoteTool(html);
+  const upgraded = upgradeHtmlTools(html);
   return upgraded === html ? blob : new Blob([upgraded], { type: "text/html;charset=utf-8" });
 }
 

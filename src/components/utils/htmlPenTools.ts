@@ -1,12 +1,52 @@
-// 업로드한 HTML 자료 속 '붙여넣기 글상자' 도구 (펜 툴바의 붙여넣기 버튼) 개선판
+// 업로드한 HTML 자료 속 필기 도구(펜 툴바 · 붙여넣기 글상자) 개선
 //
-// 화학·영어 HTML 자료에 같은 도구가 들어 있다. 예전 버전은
-//   - 글상자 크기·줄 길이를 바꿀 방법이 없고
-//   - 설정 창(글씨체·크기·두께·색상)이 글상자를 덮는 일이 잦고
-//   - 사이트(START)에서는 저장 키가 열 때마다 바뀌어 붙여 넣은 글이 다시 열면 사라졌다.
-// 파일은 그대로 두고, START 플레이어가 실행할 때 '정확히 그 예전 버전'일 때만 아래 코드로 바꿔 끼운다.
-// (다른 버전이거나 손본 파일은 건드리지 않음)
+// 영어·화학 HTML 자료 여러 개에 같은 필기 도구가 들어 있다. 저장된 파일은 그대로 두고,
+// START 플레이어가 실행할 때만 아래 두 가지를 적용한다 (upgradeHtmlTools).
+//
+// 1) 펜 툴바·펜 설정 창 작게 — 펜 툴바(#pbar.pbar2)가 있는 모든 자료 (사이트 전체 통일)
+// 2) 붙여넣기 글상자 도구 교체 — '정확히 그 예전 버전'일 때만 (다른 버전이거나 손본 파일은 그대로)
+//    예전 버전은 글상자 크기·줄 길이를 바꿀 수 없고, 설정 창이 글상자를 덮고,
+//    사이트에서는 저장 키가 열 때마다 바뀌어 다시 열면 붙여 넣은 글이 사라졌다.
+//
+// 파일 자체를 고칠 때 쓰는 안내: docs/HTML-필기도구-변경.md (이 파일의 코드와 같은 내용)
 
+/** START 플레이어용: 필기 도구 개선을 적용한 HTML (해당 도구가 없으면 그대로) */
+export function upgradeHtmlTools(html: string): string {
+  return addPenToolbarStyle(upgradePasteNoteTool(html));
+}
+
+// ── 1) 펜 툴바·펜 설정 창 작게 ─────────────────────────────────────────────
+export const PEN_TOOLBAR_STYLE_ID = "pentool-compact";
+export const PEN_TOOLBAR_CSS = [
+  "#pbar.pbar2{gap:1px;padding:4px;border-radius:11px}",
+  "#pbar.pbar2 .pt{width:32px;height:32px;border-radius:8px}",
+  "#pbar.pbar2 .pt svg{width:17px;height:17px}",
+  "#pbar.pbar2 .pt.opt::after{right:2px;bottom:2px;border-width:2px}",
+  "#pbar.pbar2 .psep{margin:2px 4px}",
+  "#pbar.pbar2 .pdot{width:15px;height:15px}",
+  "/* 그리기·형광펜·지우개 설정 창 (붙여넣기 글상자 설정 창과 같은 크기) */",
+  ".ppop:not(.npop){box-sizing:border-box;width:236px;padding:10px 12px;gap:5px;border-radius:14px;font-size:.78rem}",
+  ".ppop:not(.npop) .pph{font-size:.72rem;font-weight:600;color:#aeb3bd}",
+  ".ppop:not(.npop) .ppr{gap:3px}",
+  ".ppop:not(.npop) .ppb{width:36px;height:30px;border-radius:8px}",
+  ".ppop:not(.npop) .ppb svg{width:18px;height:18px}",
+  ".ppop:not(.npop) .ppb .sw{width:17px;height:17px}",
+  ".ppop:not(.npop) .ppb i{width:20px}",
+  ".ppop:not(.npop) .pphint{font-size:.7rem;line-height:1.4}",
+  ".ppop:not(.npop) .ppbtn{padding:6px 8px;font-size:.78rem}",
+].join("\n");
+
+/** 펜 툴바가 있는 자료에 작은 툴바 스타일을 넣는다 (이미 들어 있으면 그대로) */
+export function addPenToolbarStyle(html: string): string {
+  if (!html.includes('class="pbar2"') || html.includes(`id="${PEN_TOOLBAR_STYLE_ID}"`)) return html;
+  const tag = `<style id="${PEN_TOOLBAR_STYLE_ID}">\n${PEN_TOOLBAR_CSS}\n</style>\n`;
+  const at = html.search(/<\/head>/i);
+  if (at >= 0) return html.slice(0, at) + tag + html.slice(at);
+  const end = html.search(/<\/body>/i);
+  return end >= 0 ? html.slice(0, end) + tag + html.slice(end) : html + tag;
+}
+
+// ── 2) 붙여넣기 글상자 도구 교체 ──────────────────────────────────────────
 /** 예전 도구 스크립트에만 있는 표식 */
 const OLD_MARKER = 'const KEY="pnotes:"+location.pathname.split("/").pop()+":"+document.title;';
 /** 예전 도구 스크립트 본문 `(function(){ … })();` 의 FNV-1a 해시 — 이 버전일 때만 교체 */
@@ -46,7 +86,7 @@ export const PASTE_NOTE_TOOL = String.raw`(function(){
 const bar=document.getElementById("pbar"), main=document.querySelector("main");
 if(!bar||!main) return;
 const FONTS=[["'Nanum Pen Script',cursive","펜글씨",1.25],["'Gaegu',cursive","개구",1],["'Gamja Flower',cursive","감자꽃",1],["'Hi Melody',cursive","멜로디",1.1],["'Nanum Brush Script',cursive","붓글씨",1.25],["'Caveat','Nanum Pen Script',cursive","Caveat",1.15]];
-const SIZES=[[15,"아주 작게"],[18,"작게"],[24,"보통"],[32,"크게"],[44,"아주 크게"]];
+const SIZES=[[12,"가장 작게"],[15,"아주 작게"],[18,"작게"],[24,"보통"],[32,"크게"],[44,"아주 크게"]];
 const WEIGHTS=[[1,"보통"],[2,"굵게"],[3,"아주 굵게"]];
 const COLS=[["#111111","검정"],["#1565C0","파랑"],["#D32F2F","빨강"],["#2E7D32","초록"],["#F9A825","노랑"]];
 const MIN_S=10, MAX_S=120, MIN_W=40;
@@ -71,6 +111,7 @@ css.textContent=[
 ".ppop.npop .ppr{gap:3px}",
 ".ppop.npop .ppb{width:38px;height:30px;border-radius:8px}",
 ".ppop.npop .nfont{flex:1 1 30%;width:auto;min-width:0;padding:0 2px;height:32px;font-size:17px;color:#e9ebef}",
+".ppop.npop .nsz{width:36px}",
 ".ppop.npop .nw,.ppop.npop .ncol{width:25px}",
 ".ppop.npop .nw b{font-size:15px;color:#e9ebef}",
 ".ppop.npop .ppb .sw{width:17px;height:17px}",
@@ -205,7 +246,7 @@ function refreshPop(){
   if(!popOpen) return;
   pop.innerHTML=
     '<div class="pph">글씨체</div><div class="ppr">'+FONTS.map((F,i)=>'<button class="ppb nfont '+(style.f===i?"on":"")+'" type="button" data-nf="'+i+'" style="font-family:'+F[0].replace(/"/g,"")+'" title="'+F[1]+'">'+(i===5?"Abc":"가나다")+'</button>').join("")+'</div>'+
-    '<div class="pph"><span>크기</span><span>'+style.s+'</span></div><div class="ppr">'+SIZES.map(([s,nm])=>'<button class="ppb '+(style.s===s?"on":"")+'" type="button" data-ns="'+s+'" title="'+nm+'" aria-label="'+nm+'"><b style="font-size:'+(9+s/3)+'px;color:#e9ebef">가</b></button>').join("")+'</div>'+
+    '<div class="pph"><span>크기</span><span>'+style.s+'</span></div><div class="ppr">'+SIZES.map(([s,nm])=>'<button class="ppb nsz '+(style.s===s?"on":"")+'" type="button" data-ns="'+s+'" title="'+nm+'" aria-label="'+nm+'"><b style="font-size:'+(9+s/3)+'px;color:#e9ebef">가</b></button>').join("")+'</div>'+
     '<div class="pph">두께 · 색상</div><div class="ppr">'+WEIGHTS.map(([w,nm])=>'<button class="ppb nw '+(style.w===w?"on":"")+'" type="button" data-nw="'+w+'" title="'+nm+'" aria-label="'+nm+'"><b style="font-weight:'+(w>1?700:400)+';-webkit-text-stroke:'+(w>2?".8px #e9ebef":"0")+'">가</b></button>').join("")+'<span class="nsep"></span>'+COLS.map(([c,nm])=>'<button class="ppb ncol '+(style.c===c?"on":"")+'" type="button" data-nc="'+c+'" title="'+nm+'" aria-label="'+nm+'"><span class="sw" style="background:'+c+'"></span></button>').join("")+'</div>'+
     '<div class="nrow2"><button class="ppbtn" type="button" data-na="edit">✏️ 글 고치기</button><button class="ppbtn" type="button" data-na="del">🗑 삭제</button></div>'+
     '<p class="pphint">⤡ 모서리: 크기 · ↔ 옆: 줄 길이<br>끌어서 옮기기 · 두 번 누르면 글 고치기</p>'+
