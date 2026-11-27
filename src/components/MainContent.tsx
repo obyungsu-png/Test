@@ -25,7 +25,7 @@ import { getFilteredMaterials } from "./utils/materialHelpers";
 import { getCategoryCustomName, updateUploadedMaterial } from "./utils/dataManager";
 import { DEFAULT_TABS, KOREAN_SCHOOL_TABS, INTERNATIONAL_SCHOOL_TABS, CERTIFICATION_TABS, CERTIFICATION_CONTENT_BY_TAB, CERTIFICATION_CONTENT_BY_SUBJECT_AND_CATEGORY } from "./constants/defaultContent";
 import { downloadFile, downloadDefaultFile, downloadAsWord } from "./utils/fileDownloader";
-import { START_ONLY_SUBJECTS, START_ONLY_TAB, enterFullscreen, isInteractiveMaterial } from "./utils/interactiveHtml";
+import { INTERACTIVE_TAB, START_ONLY_SUBJECTS, START_ONLY_TAB, enterFullscreen, isInteractiveMaterial } from "./utils/interactiveHtml";
 import { PasswordModal } from "./PasswordModal";
 import {
   Dialog,
@@ -130,8 +130,8 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
   })();
   // 커스텀 탭 이름(관리자 > 사이트 관리)은 일반 과목에만 적용
   const usesCustomTabs = !isSGRSeries && !isTeacher;
-  const tabSourceRef = useRef({ adjustedTabs, usesCustomTabs });
-  tabSourceRef.current = { adjustedTabs, usesCustomTabs };
+  const tabSourceRef = useRef({ adjustedTabs, usesCustomTabs, isCertificationMode });
+  tabSourceRef.current = { adjustedTabs, usesCustomTabs, isCertificationMode };
   // activeTab은 URL 라우팅(:tab 슬러그)에서 파생되어 prop으로 전달됨
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 20; // 한 페이지당 20개만 표시
@@ -165,8 +165,12 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
   // 보조자료(영어): 시험보기·다운로드 대신 START 버튼 하나만 표시
   // 탭 이름이 바뀌어 있어도 원래 탭 기준으로 판별
   const baseTabsForType = isCertificationMode ? CERTIFICATION_TABS : (schoolType === 'international' ? INTERNATIONAL_SCHOOL_TABS : KOREAN_SCHOOL_TABS);
-  const originalActiveTab = baseTabsForType[tabs.indexOf(activeTab)] || activeTab;
-  const isStartOnlyTab = schoolType === 'korean' && !isCertificationMode && originalActiveTab === START_ONLY_TAB && START_ONLY_SUBJECTS.includes(selectedSubject);
+  const originalActiveTab = activeTab === INTERACTIVE_TAB ? activeTab : (baseTabsForType[tabs.indexOf(activeTab)] || activeTab);
+  // 인터랙티브 탭(한국학교·국제학교)은 HTML 전용 — 항상 START
+  const isStartOnlyTab = !isCertificationMode && (
+    originalActiveTab === INTERACTIVE_TAB ||
+    (schoolType === 'korean' && originalActiveTab === START_ONLY_TAB && START_ONLY_SUBJECTS.includes(selectedSubject))
+  );
   const usesStartButton = (material: any) => isStartOnlyTab || isInteractiveMaterial(material);
 
   // Reset to page 1 when tab changes
@@ -196,7 +200,8 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
     if (!usesCustomTabs) {
       setTabs(adjustedTabs);
     } else if (Array.isArray(customTabs)) {
-      setTabs(customTabs.filter((tab: string) => !HIDDEN_TABS.includes(tab)));
+      const visible = customTabs.filter((tab: string) => !HIDDEN_TABS.includes(tab));
+      setTabs(isCertificationMode ? visible : withInteractiveTab(visible));
     } else {
       setTabs(adjustedTabs);
     }
@@ -264,9 +269,10 @@ export function MainContent({ selectedSubject, selectedCategory, selectedSubCate
       setUploadedMaterials([]);
       
       const customTabs = JSON.parse(localStorage.getItem(customTabNamesKey) || 'null');
-      const { adjustedTabs: currentTabs, usesCustomTabs: currentUsesCustom } = tabSourceRef.current;
+      const { adjustedTabs: currentTabs, usesCustomTabs: currentUsesCustom, isCertificationMode: currentIsCert } = tabSourceRef.current;
       if (Array.isArray(customTabs) && currentUsesCustom) {
-        setTabs(customTabs.filter((tab: string) => !HIDDEN_TABS.includes(tab)));
+        const visible = customTabs.filter((tab: string) => !HIDDEN_TABS.includes(tab));
+        setTabs(currentIsCert ? visible : withInteractiveTab(visible));
       } else {
         setTabs(currentTabs);
       }
@@ -933,7 +939,7 @@ ${(q.options||[]).map((o: string, j: number) => `<p>${String.fromCharCode(65+j)}
             <KoreanVocaPage selectedCategory={selectedCategory} />
           ) : (
             <>
-            {isTeacher && <TeacherTabIntro tab={activeTab} />}
+            {isTeacher && <TeacherTabIntro tab={activeTab} category={selectedCategory || ""} />}
             {/* Header with title and button */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-5 lg:mb-6 space-y-3 sm:space-y-0">
               <div className="flex items-center flex-wrap">
@@ -1827,6 +1833,13 @@ function getDownloadFile(material: any, format: 'pdf' | 'word') {
   const word = material.wordFile?.fileData ? material.wordFile : isWord(main) ? main : null;
   if (!pdf && !word) return main;
   return format === 'pdf' ? pdf : word;
+}
+
+// 관리자가 탭 이름을 바꿔 둔 목록에도 인터랙티브 탭이 빠지지 않게 (보조자료 바로 뒤에 추가)
+function withInteractiveTab(tabs: string[]): string[] {
+  if (tabs.includes(INTERACTIVE_TAB)) return tabs;
+  const at = tabs.indexOf(START_ONLY_TAB);
+  return at === -1 ? [...tabs, INTERACTIVE_TAB] : [...tabs.slice(0, at + 1), INTERACTIVE_TAB, ...tabs.slice(at + 1)];
 }
 
 // 편집용 원본 파일의 종류 이름 (다운로드 버튼·안내에 사용)

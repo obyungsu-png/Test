@@ -1,6 +1,7 @@
 // 통합 데이터 관리 시스템
 import * as lmsApi from '../../utils/lmsApi';
 import { generateSampleMaterials } from '../../utils/sampleDataGenerator';
+import { TEACHER_SUBJECT, teacherScopesOverlap } from '../constants/teacherTabs';
 
 // In-flight promise deduplication — prevents concurrent calls from hammering the server
 let materialsInflight: Promise<UploadedMaterial[]> | null = null;
@@ -404,7 +405,8 @@ export const getFilteredUploadedMaterials = async (
   return materials.filter(material => {
     const matchesSchoolType = material.schoolType === schoolType;
     const matchesSubject = material.subject === subject;
-    const matchesCategory = !category || material.category === category;
+    // 교사·강사: 고른 학년 범위와 겹치는 자료 (예: 초3 → 초3·초등 전체·전 학년 자료)
+    const matchesCategory = !category || (subject === TEACHER_SUBJECT ? teacherScopesOverlap(material.category, category) : material.category === category);
     // Only show materials from content management (not from upload page)
     const isFromContentManagement = material.source === 'content-management';
     

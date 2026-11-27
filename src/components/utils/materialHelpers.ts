@@ -2,6 +2,7 @@ import { DEFAULT_CONTENT_BY_TAB, DEFAULT_TABS, CONTENT_BY_SUBJECT_AND_CATEGORY, 
 import { getFilteredUploadedMaterials, getCategoryCustomName } from "./dataManager";
 import { ENGLISH_SAMPLE_EXAM } from "../constants/sampleMaterials";
 import { TEACHER_SUBJECT } from "../constants/teacherTabs";
+import { INTERACTIVE_TAB } from "./interactiveHtml";
 
 export const getDefaultContentByTab = (tabName: string, tabs: string[], schoolType?: 'korean' | 'international' | null, isCertificationMode?: boolean, selectedSubject?: string) => {
   const currentIndex = tabs.indexOf(tabName);
@@ -103,7 +104,8 @@ export const getFilteredMaterials = async (
   } else {
     baseTabs = schoolType === 'international' ? INTERNATIONAL_SCHOOL_TABS : KOREAN_SCHOOL_TABS;
   }
-  const originalTabName = isTeacher ? activeTab : (baseTabs[currentIndex] || activeTab);
+  // 교사·강사 탭과 인터랙티브 탭은 이름 그대로 (탭 이름을 바꾼 목록에서도 위치에 상관없이)
+  const originalTabName = isTeacher || activeTab === INTERACTIVE_TAB ? activeTab : (baseTabs[currentIndex] || activeTab);
 
   // 영어 과목 첫 탭에는 시험보기·다운로드 확인용 샘플을 맨 위에 고정
   const sampleMaterials = schoolType === 'korean' && !isCertificationMode && selectedSubject === '영어' && originalTabName === '국어'

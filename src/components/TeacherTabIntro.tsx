@@ -1,8 +1,18 @@
 import { Clock } from "lucide-react";
-import { TEACHER_TAB_INFO } from "./constants/teacherTabs";
+import { TEACHER_TAB_INFO, parseTeacherCategory, teacherScopeLabel } from "./constants/teacherTabs";
+
+// 지금 보는 학년 범위 안내 (category 가 undefined 면 범위 줄을 숨김)
+function scopeText(category: string) {
+  const scope = parseTeacherCategory(category);
+  if (!category || !scope) return "전체 과목·학년 자료";
+  const where = `${scope.area} › ${teacherScopeLabel(scope)}`;
+  if (!scope.stage) return `${where} — ${scope.area}의 모든 자료`;
+  if (!scope.grade) return `${where} — ${scope.stage} 모든 학년 자료와 전 학년 자료`;
+  return `${where} — ${scope.stage} 전체·전 학년 자료도 함께`;
+}
 
 // 교사·강사 탭 상단 안내 — 이 탭에 어떤 자료가 있는지(앞으로 무엇을 올릴지) 한눈에
-export function TeacherTabIntro({ tab }: { tab: string }) {
+export function TeacherTabIntro({ tab, category }: { tab: string; category?: string }) {
   const info = TEACHER_TAB_INFO[tab];
   if (!info) return null;
   return (
@@ -15,6 +25,9 @@ export function TeacherTabIntro({ tab }: { tab: string }) {
           </span>
         ))}
       </div>
+      {category !== undefined && (
+        <p className="mt-2 text-xs text-cyan-700">보는 범위: {scopeText(category)}</p>
+      )}
       {info.upcoming && (
         <div className="mt-3 pt-3 border-t border-gray-200">
           <p className="flex items-center gap-1.5 text-sm font-medium text-gray-700">

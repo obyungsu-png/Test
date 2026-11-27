@@ -8,15 +8,66 @@ export const TEACHER_TABS = ["수업 자료", TEACHER_SGR_TAB, "정답·해설",
 /** 파일을 올리는 탭 (SGR 수업 교재는 SGR 관리 메뉴에서 따로 관리) */
 export const TEACHER_FILE_TABS = TEACHER_TABS.filter((tab) => tab !== TEACHER_SGR_TAB);
 
-/** 사이드바·업로드에서 쓰는 과목 > 학년 구분 (학년 이름은 과목끼리 겹치지 않게) */
-export const TEACHER_STRUCTURE: Record<string, string[]> = {
-  국어: ["초등 국어", "중등 국어", "고등 국어"],
-  영어: ["초등 영어", "중등 영어", "고등 영어"],
-  수학: ["초등 수학", "중등 수학", "고등 수학"],
-  과학: ["초등 과학", "중등 과학", "고등 과학"],
-  사회: ["초등 사회", "중등 사회", "고등 사회"],
-  공통: ["전 과목 공통"],
-};
+// ─── 대상 학년 범위 ─────────────────────────────────
+// 자료마다 과목 + 범위(전 학년 / 학교급 전체 / 한 학년)를 정해 올린다.
+// 분류(category) 문자열: "국어 · 전 학년", "국어 · 초등 전체", "국어 · 초등 3학년"
+export const TEACHER_AREAS = ["국어", "영어", "수학", "과학", "사회", "공통"];
+export const TEACHER_STAGES = [
+  { name: "초등", short: "초", grades: 6 },
+  { name: "중등", short: "중", grades: 3 },
+  { name: "고등", short: "고", grades: 3 },
+];
+
+export interface TeacherScope {
+  area: string;
+  /** null = 전 학년 */
+  stage: string | null;
+  /** null = 학교급 전체 */
+  grade: number | null;
+}
+
+export const teacherScopeLabel = ({ stage, grade }: Omit<TeacherScope, "area">) =>
+  !stage ? "전 학년" : grade ? `${stage} ${grade}학년` : `${stage} 전체`;
+
+export const teacherCategory = (scope: TeacherScope) => `${scope.area} · ${teacherScopeLabel(scope)}`;
+
+export function parseTeacherCategory(category: string): TeacherScope | null {
+  const m = /^(.+?) · (?:전 학년|(초등|중등|고등) (?:전체|(\d+)학년))$/.exec(category || "");
+  if (m) return { area: m[1], stage: m[2] || null, grade: m[3] ? Number(m[3]) : null };
+  // 이전 분류 ("초등 국어", "전 과목 공통")
+  const old = /^(초등|중등|고등) (.+)$/.exec(category || "");
+  if (old) return { area: old[2], stage: old[1], grade: null };
+  if (category === "전 과목 공통") return { area: "공통", stage: null, grade: null };
+  return null;
+}
+
+/**
+ * 고른 범위와 자료의 범위가 겹치면 보여 준다.
+ * - 한 학년(초3)을 고르면: 초3 + 초등 전체 + 전 학년 자료
+ * - 학교급(초등 전체)을 고르면: 초등 모든 학년 자료 + 전 학년 자료
+ * - 전 학년을 고르면: 그 과목의 모든 자료
+ */
+export function teacherScopesOverlap(materialCategory: string, selectedCategory: string): boolean {
+  const a = parseTeacherCategory(materialCategory);
+  const b = parseTeacherCategory(selectedCategory);
+  if (!a || !b) return materialCategory === selectedCategory;
+  if (a.area !== b.area) return false;
+  if (!a.stage || !b.stage) return true;
+  if (a.stage !== b.stage) return false;
+  return !a.grade || !b.grade || a.grade === b.grade;
+}
+
+/** 업로드 대상 학년 선택지 (전 학년 → 학교급 전체 → 학년) */
+export function teacherScopeOptions(area: string): { category: string; label: string }[] {
+  const options = [{ category: teacherCategory({ area, stage: null, grade: null }), label: "전 학년" }];
+  for (const stage of TEACHER_STAGES) {
+    options.push({ category: teacherCategory({ area, stage: stage.name, grade: null }), label: `${stage.name} 전체` });
+    for (let g = 1; g <= stage.grades; g++) {
+      options.push({ category: teacherCategory({ area, stage: stage.name, grade: g }), label: `${stage.name} ${g}학년` });
+    }
+  }
+  return options;
+}
 
 /** 탭 안내 — 무엇을 올리는 곳인지 (사이트와 관리자 화면에 함께 표시) */
 export const TEACHER_TAB_INFO: Record<string, { description: string; examples: string[]; upcoming?: string[] }> = {

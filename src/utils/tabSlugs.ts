@@ -25,6 +25,7 @@ export const TAB_SLUG_MAP: Record<string, string> = {
   "Mock Exams": "mock-exams",
   "실전문제": "real-exam",
   "교과서 뽀개기": "textbook",
+  "인터랙티브": "interactive",
   "수업 자료": "class-materials",
   "SGR 수업 교재": "sgr",
   "정답·해설": "answer-keys",

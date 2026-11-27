@@ -7,6 +7,7 @@ import { Input } from "../ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { getSubjectStructure, saveMaterialsStrict } from "../utils/dataManager";
 import {
+  INTERACTIVE_TAB,
   MAX_HTML_BYTES,
   START_ONLY_TAB,
   enterFullscreen,
@@ -54,6 +55,7 @@ export default function LMSHtmlResourceUpload({ materials, onChanged }: LMSHtmlR
   const [schoolType, setSchoolType] = useState<SchoolType>("korean");
   const [subject, setSubject] = useState("영어");
   const [level, setLevel] = useState("");
+  const [contentType, setContentType] = useState(INTERACTIVE_TAB);
   const [category, setCategory] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -79,6 +81,8 @@ export default function LMSHtmlResourceUpload({ materials, onChanged }: LMSHtmlR
   }, []);
 
   const hierarchy: Record<string, Record<string, string[]>> = getSubjectStructure(schoolType) as any;
+  // 올릴 탭: 한국학교·국제학교는 인터랙티브(HTML 전용) 또는 보조자료, 인증시험은 보조자료
+  const contentTypeOptions = schoolType === "certification" ? [START_ONLY_TAB] : [INTERACTIVE_TAB, START_ONLY_TAB];
   const levels = hierarchy[subject] || {};
   const categories = levels[level] || [];
   const htmlMaterials = materials.filter(isInteractiveMaterial);
@@ -163,7 +167,7 @@ export default function LMSHtmlResourceUpload({ materials, onChanged }: LMSHtmlR
           level,
           category,
           schoolType,
-          contentType: START_ONLY_TAB,
+          contentType,
           uploadDate: now,
           password: "",
           downloadCount: 0,
@@ -182,7 +186,7 @@ export default function LMSHtmlResourceUpload({ materials, onChanged }: LMSHtmlR
         },
       ]);
       toast.success(`"${finalTitle}" 업로드 완료`, {
-        description: `${subject} › ${category} › ${START_ONLY_TAB} 탭에서 START 로 실행됩니다.`,
+        description: `${subject} › ${category} › ${contentType} 탭에서 START 로 실행됩니다.`,
       });
       clearFile();
       setDescription("");
@@ -381,8 +385,8 @@ export default function LMSHtmlResourceUpload({ materials, onChanged }: LMSHtmlR
             HTML 보조자료 업로드
           </CardTitle>
           <p className="text-sm text-gray-500">
-            .html 학습 자료를 학년별 <b>보조자료</b> 탭에 올립니다. 사이트에서는 다운로드·시험보기 대신{" "}
-            <b>START</b> 버튼 하나로 전체화면 실행됩니다.
+            .html 학습 자료(CSS·JS 포함)를 학년별 <b>인터랙티브</b> 탭(또는 보조자료 탭)에 올립니다. 사이트에서는
+            다운로드·시험보기 대신 <b>START</b> 버튼 하나로 전체화면 실행됩니다.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -397,6 +401,7 @@ export default function LMSHtmlResourceUpload({ materials, onChanged }: LMSHtmlR
                   setSubject(v === "korean" ? "영어" : "");
                   setLevel("");
                   setCategory("");
+                  setContentType(v === "certification" ? START_ONLY_TAB : INTERACTIVE_TAB);
                 }}
               >
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -441,8 +446,15 @@ export default function LMSHtmlResourceUpload({ materials, onChanged }: LMSHtmlR
               </Select>
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">콘텐츠 타입</label>
-              <Input value={START_ONLY_TAB} disabled className="bg-gray-50" />
+              <label className="block text-sm text-gray-600 mb-1">올릴 탭</label>
+              <Select value={contentType} onValueChange={setContentType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {contentTypeOptions.map((t) => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

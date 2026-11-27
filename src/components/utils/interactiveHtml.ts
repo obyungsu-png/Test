@@ -5,6 +5,8 @@
 
 /** START 버튼만 보여 줄 탭 (원래 탭 이름 기준) */
 export const START_ONLY_TAB = "보조자료";
+/** HTML(CSS·JS 포함) 자료 전용 탭 — 한국학교·국제학교 공통, 항상 START 로 실행 */
+export const INTERACTIVE_TAB = "인터랙티브";
 /** 보조자료 탭을 START 전용으로 바꾼 과목 (한국학교) — 넓히려면 여기에 과목을 추가 */
 export const START_ONLY_SUBJECTS = ["영어"];
 /** CMS 업로드 허용 크기 — 자료 목록이 한 덩어리로 저장되므로 너무 큰 파일은 막는다 */

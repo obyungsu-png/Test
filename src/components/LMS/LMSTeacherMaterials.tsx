@@ -1,14 +1,30 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, Copy, ExternalLink, FileText, Presentation, RefreshCw, Trash2, Upload } from "lucide-react";
+import { AlertTriangle, Copy, ExternalLink, FileCode2, FileText, Presentation, RefreshCw, Trash2, Upload } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { saveMaterialsStrict } from "../utils/dataManager";
 import * as lmsApi from "../../utils/lmsApi";
-import { TEACHER_FILE_TABS, TEACHER_STRUCTURE, TEACHER_SUBJECT, TEACHER_TAB_INFO } from "../constants/teacherTabs";
-import { SUPABASE_SQL_EDITOR_URL } from "../../utils/htmlMaterialStorage";
+import {
+  TEACHER_AREAS,
+  TEACHER_FILE_TABS,
+  TEACHER_SUBJECT,
+  TEACHER_TAB_INFO,
+  parseTeacherCategory,
+  teacherScopeLabel,
+  teacherScopeOptions,
+} from "../constants/teacherTabs";
+import { MAX_HTML_BYTES, extractHtmlTitle, isHtmlFile } from "../utils/interactiveHtml";
+import {
+  HTML_BUCKET,
+  HTML_STORAGE_SETUP_SQL,
+  SUPABASE_SQL_EDITOR_URL,
+  checkHtmlStorage,
+  removeHtmlFile,
+  uploadHtmlFile,
+} from "../../utils/htmlMaterialStorage";
 import {
   MAX_TEACHER_FILE_BYTES,
   ORIGINAL_ACCEPT,
@@ -22,8 +38,10 @@ import {
   newTeacherMaterialId,
   removeTeacherFiles,
   uploadTeacherFile,
-  type TeacherStorageStatus,
 } from "../../utils/teacherFileStorage";
+
+type StorageStatus = "ready" | "missing" | "unknown" | "checking";
+type Format = "document" | "html";
 
 const isTeacherMaterial = (m: any) => m?.subject === TEACHER_SUBJECT && m?.schoolType === "korean";
 
@@ -33,33 +51,47 @@ const formatSize = (bytes: number) =>
 const fileKindLabel = (name = "") => {
   const ext = name.split(".").pop()?.toLowerCase();
   if (ext === "pdf") return "PDF";
+  if (ext === "html" || ext === "htm") return "HTML";
   if (ext === "ppt" || ext === "pptx") return "PowerPoint";
   if (ext === "hwp" || ext === "hwpx") return "한글";
   return "Word";
 };
 
+const scopeOf = (category: string) => {
+  const scope = parseTeacherCategory(category);
+  return scope ? `${scope.area} · ${teacherScopeLabel(scope)}` : category;
+};
+
 /**
  * CMS > 교사·강사 자료
- * 한국학교 > 교사·강사 과목의 탭(수업 자료·정답·해설·평가·문제은행·숙제·과제)에 파일을 올린다.
- * PDF 는 사이트의 시험보기·PDF 다운로드에, 원본(Word·PowerPoint·한글)은 편집용 다운로드에 쓰인다.
+ * 한국학교 > 교사·강사 과목의 탭(수업 자료·정답·해설·평가·문제은행·숙제·과제)에 자료를 올린다.
+ * - 문서: PDF 는 시험보기·PDF 다운로드, 원본(Word·PowerPoint·한글)은 편집용 다운로드 (교사·강사 파일 저장소)
+ * - HTML 활동: CSS·JS 가 들어간 .html — 사이트에서 START 로 전체화면 실행 (HTML 보조자료 저장소)
+ * - 대상 학년: 전 학년 / 학교급 전체 / 한 학년 (학년을 고른 선생님께는 그 학교급 전체·전 학년 자료도 함께 보임)
  * 파일은 Supabase 파일 저장소에 따로 저장하고, 자료 목록에는 주소만 남긴다.
  */
 export default function LMSTeacherMaterials() {
   const [tab, setTab] = useState(TEACHER_FILE_TABS[0]);
   const [area, setArea] = useState("");
   const [category, setCategory] = useState("");
+  const [format, setFormat] = useState<Format>("document");
   const [title, setTitle] = useState("");
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [originalFile, setOriginalFile] = useState<File | null>(null);
+  const [htmlFile, setHtmlFile] = useState<File | null>(null);
   const [inputKey, setInputKey] = useState(0);
   const [saving, setSaving] = useState(false);
   const [materials, setMaterials] = useState<any[]>([]);
   const [listError, setListError] = useState<string | null>(null);
-  const [storage, setStorage] = useState<TeacherStorageStatus | "checking">("checking");
+  const [docStorage, setDocStorage] = useState<StorageStatus>("checking");
+  const [htmlStorage, setHtmlStorage] = useState<StorageStatus>("checking");
 
   const refreshStorage = async () => {
-    setStorage("checking");
-    setStorage(await checkTeacherStorage());
+    setDocStorage("checking");
+    setHtmlStorage("checking");
+    const [doc, html] = await Promise.all([checkTeacherStorage(), checkHtmlStorage()]);
+    setDocStorage(doc);
+    setHtmlStorage(html);
   };
 
   const loadMaterials = async () => {
@@ -84,41 +116,74 @@ export default function LMSTeacherMaterials() {
     return map;
   }, [materials]);
 
-  const pickFile = (file: File | null, kind: "pdf" | "original") => {
-    if (!file) return kind === "pdf" ? setPdfFile(null) : setOriginalFile(null);
-    if (kind === "pdf" ? !isPdfName(file.name) : !isOriginalName(file.name)) {
-      toast.error(kind === "pdf" ? "PDF 파일만 올릴 수 있습니다." : "Word·PowerPoint·한글 파일만 올릴 수 있습니다.");
+  const storage = format === "html" ? htmlStorage : docStorage;
+  const setupSql = format === "html" ? HTML_STORAGE_SETUP_SQL : TEACHER_STORAGE_SETUP_SQL;
+
+  const resetFiles = () => {
+    setPdfFile(null);
+    setOriginalFile(null);
+    setHtmlFile(null);
+    setInputKey((k) => k + 1);
+  };
+
+  const pickFile = async (file: File | null, kind: "pdf" | "original" | "html") => {
+    if (!file) {
+      if (kind === "pdf") setPdfFile(null);
+      else if (kind === "original") setOriginalFile(null);
+      else setHtmlFile(null);
+      return;
+    }
+    const valid = kind === "pdf" ? isPdfName(file.name) : kind === "original" ? isOriginalName(file.name) : isHtmlFile({ fileName: file.name, fileType: file.type });
+    if (!valid) {
+      toast.error(kind === "pdf" ? "PDF 파일만 올릴 수 있습니다." : kind === "original" ? "Word·PowerPoint·한글 파일만 올릴 수 있습니다." : ".html 파일만 올릴 수 있습니다.");
       setInputKey((k) => k + 1);
       return;
     }
-    if (file.size > MAX_TEACHER_FILE_BYTES) {
-      toast.error(`파일이 너무 큽니다 (최대 ${formatSize(MAX_TEACHER_FILE_BYTES)}).`);
+    const limit = kind === "html" ? MAX_HTML_BYTES : MAX_TEACHER_FILE_BYTES;
+    if (file.size > limit) {
+      toast.error(`파일이 너무 큽니다 (최대 ${formatSize(limit)}).`);
       setInputKey((k) => k + 1);
       return;
     }
     if (kind === "pdf") setPdfFile(file);
-    else setOriginalFile(file);
-    if (!title.trim()) setTitle(file.name.replace(/\.[^.]+$/, ""));
+    else if (kind === "original") setOriginalFile(file);
+    else setHtmlFile(file);
+    if (!title.trim()) {
+      const fromHtml = kind === "html" ? extractHtmlTitle(await file.text().catch(() => "")) : "";
+      setTitle(fromHtml || file.name.replace(/\.[^.]+$/, ""));
+    }
   };
 
   const handleUpload = async () => {
-    if (!area || !category) return toast.error("과목과 학년을 선택해 주세요.");
-    if (!pdfFile && !originalFile) return toast.error("PDF 또는 원본 파일을 하나 이상 선택해 주세요.");
-    const finalTitle = title.trim() || (pdfFile || originalFile)!.name;
+    if (!area || !category) return toast.error("과목과 대상 학년을 선택해 주세요.");
+    const mainFile = format === "html" ? htmlFile : pdfFile || originalFile;
+    if (!mainFile) return toast.error(format === "html" ? "HTML 파일을 선택해 주세요." : "PDF 또는 원본 파일을 하나 이상 선택해 주세요.");
+    const finalTitle = title.trim() || mainFile.name;
     const id = newTeacherMaterialId();
     const now = new Date().toISOString();
-    const uploadedPaths: string[] = [];
+    const uploaded: { bucket: string; path: string }[] = [];
     setSaving(true);
     try {
       // ① 파일은 파일 저장소에 따로
-      const fileInfo = async (file: File, suffix: string) => {
+      const docInfo = async (file: File, suffix: string) => {
         const { url, path } = await uploadTeacherFile(`${id}-${suffix}`, file);
-        uploadedPaths.push(path);
+        uploaded.push({ bucket: TEACHER_BUCKET, path });
         return { fileName: file.name, fileType: mimeOf(file.name), fileData: url, fileSize: file.size, storageBucket: TEACHER_BUCKET, storagePath: path, uploadDate: now };
       };
-      const pdf = pdfFile ? await fileInfo(pdfFile, "pdf") : null;
-      const original = originalFile ? await fileInfo(originalFile, "original") : null;
-      // ② 자료 목록에는 정보와 주소만. PDF 가 있으면 PDF 가 본 파일(시험보기), 원본은 편집용 다운로드
+      let uploadData: any;
+      let wordFile: any = null;
+      if (format === "html") {
+        const { url, path } = await uploadHtmlFile(id, htmlFile!);
+        uploaded.push({ bucket: HTML_BUCKET, path });
+        uploadData = { fileName: htmlFile!.name, fileType: "text/html", fileData: url, fileSize: htmlFile!.size, storageBucket: HTML_BUCKET, storagePath: path, uploadDate: now };
+      } else {
+        const pdf = pdfFile ? await docInfo(pdfFile, "pdf") : null;
+        const original = originalFile ? await docInfo(originalFile, "original") : null;
+        // PDF 가 있으면 PDF 가 본 파일(시험보기), 원본은 편집용 다운로드
+        uploadData = pdf || original;
+        if (pdf && original) wordFile = original;
+      }
+      // ② 자료 목록에는 정보와 주소만
       const record = {
         id,
         title: finalTitle,
@@ -131,24 +196,29 @@ export default function LMSTeacherMaterials() {
         uploadDate: now,
         password: "",
         downloadCount: 0,
-        fileSize: formatSize((pdfFile?.size || 0) + (originalFile?.size || 0)),
+        fileSize: formatSize(format === "html" ? htmlFile!.size : (pdfFile?.size || 0) + (originalFile?.size || 0)),
         isUploaded: true,
         source: "content-management",
-        uploadData: pdf || original,
-        ...(pdf && original ? { wordFile: original } : {}),
+        uploadData,
+        ...(wordFile ? { wordFile } : {}),
       };
       const next = await saveMaterialsStrict((list) => [...list, record as any]);
       setMaterials(next.filter(isTeacherMaterial));
-      toast.success(`"${finalTitle}" 업로드 완료`, { description: `교사·강사 › ${tab} › ${category}` });
+      toast.success(`"${finalTitle}" 업로드 완료`, { description: `교사·강사 › ${tab} › ${scopeOf(category)}` });
       setTitle("");
-      setPdfFile(null);
-      setOriginalFile(null);
-      setInputKey((k) => k + 1);
+      resetFiles();
     } catch (err: any) {
       console.error(err);
-      removeTeacherFiles(uploadedPaths); // 목록 저장 실패 시 올린 파일 정리
+      // 목록 저장 실패 시 올린 파일 정리
+      for (const f of uploaded) {
+        if (f.bucket === HTML_BUCKET) removeHtmlFile(f.path);
+        else removeTeacherFiles([f.path]);
+      }
       toast.error("업로드하지 못했습니다", { description: err?.message || String(err), duration: 10000 });
-      if (/저장소가 아직 없습니다/.test(err?.message || "")) setStorage("missing");
+      if (/저장소가 아직 없습니다/.test(err?.message || "")) {
+        if (format === "html") setHtmlStorage("missing");
+        else setDocStorage("missing");
+      }
     } finally {
       setSaving(false);
     }
@@ -159,7 +229,11 @@ export default function LMSTeacherMaterials() {
     try {
       const next = await saveMaterialsStrict((list) => list.filter((x: any) => x.id !== m.id));
       setMaterials(next.filter(isTeacherMaterial));
-      await removeTeacherFiles([m.uploadData?.storagePath, m.wordFile?.storagePath]);
+      for (const f of [m.uploadData, m.wordFile]) {
+        if (!f?.storagePath) continue;
+        if (f.storageBucket === HTML_BUCKET) await removeHtmlFile(f.storagePath);
+        else await removeTeacherFiles([f.storagePath]);
+      }
       toast.success("삭제했습니다.");
     } catch (err: any) {
       toast.error("삭제하지 못했습니다", { description: err?.message || String(err) });
@@ -168,7 +242,7 @@ export default function LMSTeacherMaterials() {
 
   const copySetupSql = async () => {
     try {
-      await navigator.clipboard.writeText(TEACHER_STORAGE_SETUP_SQL);
+      await navigator.clipboard.writeText(setupSql);
       toast.success("SQL 을 복사했습니다. Supabase SQL Editor 에 붙여 넣고 Run 을 누르세요.");
     } catch {
       toast.error("복사하지 못했습니다. 아래 SQL 을 직접 선택해 복사해 주세요.");
@@ -189,17 +263,17 @@ export default function LMSTeacherMaterials() {
         </div>
       </div>
 
-      {/* 파일 저장소 최초 설정 안내 */}
+      {/* 파일 저장소 최초 설정 안내 (고른 자료 형식의 저장소) */}
       {storage === "missing" && (
         <Card className="border-amber-300 bg-amber-50">
           <CardContent className="p-4 space-y-3">
             <div className="flex items-start gap-2">
               <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
               <div className="text-sm text-amber-900 space-y-1">
-                <p className="font-semibold">파일 저장소 설정이 한 번 필요합니다</p>
+                <p className="font-semibold">{format === "html" ? "HTML 파일 저장소" : "교사·강사 파일 저장소"} 설정이 한 번 필요합니다</p>
                 <p>
-                  교사·강사 자료 파일은 자료 목록과 따로 Supabase 파일 저장소에 저장합니다. 아래 SQL 을 복사해
-                  Supabase <b>SQL Editor</b> 에 붙여 넣고 <b>Run</b> 을 누른 뒤, <b>다시 확인</b>을 눌러 주세요.
+                  파일은 자료 목록과 따로 Supabase 파일 저장소에 저장합니다. 아래 SQL 을 복사해 Supabase <b>SQL Editor</b> 에
+                  붙여 넣고 <b>Run</b> 을 누른 뒤, <b>다시 확인</b>을 눌러 주세요.
                 </p>
               </div>
             </div>
@@ -215,7 +289,7 @@ export default function LMSTeacherMaterials() {
               </Button>
             </div>
             <pre className="text-[11px] leading-relaxed bg-white border border-amber-200 rounded p-3 overflow-x-auto whitespace-pre select-all">
-{TEACHER_STORAGE_SETUP_SQL}
+{setupSql}
             </pre>
           </CardContent>
         </Card>
@@ -244,48 +318,81 @@ export default function LMSTeacherMaterials() {
             </div>
             <div>
               <label className="block text-sm text-gray-600 mb-1">과목</label>
-              <Select value={area} onValueChange={(v) => { setArea(v); setCategory(TEACHER_STRUCTURE[v]?.length === 1 ? TEACHER_STRUCTURE[v][0] : ""); }}>
+              <Select value={area} onValueChange={(v) => { setArea(v); setCategory(""); }}>
                 <SelectTrigger><SelectValue placeholder="선택" /></SelectTrigger>
                 <SelectContent>
-                  {Object.keys(TEACHER_STRUCTURE).map((a) => (
+                  {TEACHER_AREAS.map((a) => (
                     <SelectItem key={a} value={a}>{a}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">학년</label>
+              <label className="block text-sm text-gray-600 mb-1">대상 학년</label>
               <Select value={category} onValueChange={setCategory} disabled={!area}>
                 <SelectTrigger><SelectValue placeholder={area ? "선택" : "과목을 먼저 선택"} /></SelectTrigger>
                 <SelectContent>
-                  {(TEACHER_STRUCTURE[area] || []).map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  {(area ? teacherScopeOptions(area) : []).map((o) => (
+                    <SelectItem key={o.category} value={o.category}>{o.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
-          {TEACHER_TAB_INFO[tab] && (
-            <p className="text-xs text-gray-500">
-              {TEACHER_TAB_INFO[tab].description} — 예: {TEACHER_TAB_INFO[tab].examples.join(", ")}
-            </p>
-          )}
+          <p className="text-xs text-gray-500">
+            {TEACHER_TAB_INFO[tab] && <>{TEACHER_TAB_INFO[tab].description} — 예: {TEACHER_TAB_INFO[tab].examples.join(", ")}. </>}
+            대상 학년: <b>전 학년</b>은 모든 학년에서, <b>초등 전체</b>는 초등 모든 학년에서, <b>초등 3학년</b>은 초3에서 보입니다.
+          </p>
+
+          {/* 자료 형식 */}
+          <div>
+            <label className="block text-sm text-gray-600 mb-1">자료 형식</label>
+            <div className="inline-flex rounded-lg bg-gray-100 p-1">
+              {([
+                ["document", "문서 (PDF·Word·PowerPoint·한글)"],
+                ["html", "HTML 활동 (CSS·JS 포함)"],
+              ] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => { setFormat(value); resetFiles(); }}
+                  aria-pressed={format === value}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${format === value ? "bg-white text-cyan-700 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm text-gray-600 mb-1">제목</label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="비워 두면 파일 이름으로 저장" />
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="비워 두면 파일 이름(HTML 은 페이지 제목)으로 저장" />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" key={inputKey}>
-            <div className="rounded-lg border border-gray-200 p-3">
-              <label className="block text-sm font-medium text-gray-700">PDF 파일</label>
-              <p className="text-xs text-gray-500 mb-2">사이트의 시험보기(필기 가능)·PDF 다운로드에 사용</p>
-              <input type="file" accept={PDF_ACCEPT} onChange={(e) => pickFile(e.target.files?.[0] || null, "pdf")} className="block w-full text-sm" />
+          {format === "document" ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" key={`doc-${inputKey}`}>
+              <div className="rounded-lg border border-gray-200 p-3">
+                <label className="block text-sm font-medium text-gray-700">PDF 파일</label>
+                <p className="text-xs text-gray-500 mb-2">사이트의 시험보기(필기 가능)·PDF 다운로드에 사용</p>
+                <input type="file" accept={PDF_ACCEPT} onChange={(e) => pickFile(e.target.files?.[0] || null, "pdf")} className="block w-full text-sm" />
+              </div>
+              <div className="rounded-lg border border-gray-200 p-3">
+                <label className="block text-sm font-medium text-gray-700">편집용 원본 (선택)</label>
+                <p className="text-xs text-gray-500 mb-2">Word·PowerPoint·한글 — 선생님이 고쳐 쓰는 파일</p>
+                <input type="file" accept={ORIGINAL_ACCEPT} onChange={(e) => pickFile(e.target.files?.[0] || null, "original")} className="block w-full text-sm" />
+              </div>
             </div>
-            <div className="rounded-lg border border-gray-200 p-3">
-              <label className="block text-sm font-medium text-gray-700">편집용 원본 (선택)</label>
-              <p className="text-xs text-gray-500 mb-2">Word·PowerPoint·한글 — 선생님이 고쳐 쓰는 파일</p>
-              <input type="file" accept={ORIGINAL_ACCEPT} onChange={(e) => pickFile(e.target.files?.[0] || null, "original")} className="block w-full text-sm" />
+          ) : (
+            <div className="rounded-lg border border-gray-200 p-3" key={`html-${inputKey}`}>
+              <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
+                <FileCode2 className="w-4 h-4 text-cyan-600" /> HTML 파일
+              </label>
+              <p className="text-xs text-gray-500 mb-2">
+                CSS·JS 를 한 파일 안에 넣은 .html (최대 {formatSize(MAX_HTML_BYTES)}) — 사이트에서 START 버튼으로 전체화면 실행
+              </p>
+              <input type="file" accept=".html,.htm" onChange={(e) => pickFile(e.target.files?.[0] || null, "html")} className="block w-full text-sm" />
             </div>
-          </div>
+          )}
           <Button onClick={handleUpload} disabled={saving || storage === "missing"} style={{ backgroundColor: "#00bcd4", color: "white" }}>
             <Upload className="w-4 h-4 mr-2" />
             {saving ? "올리는 중..." : "업로드"}
@@ -320,7 +427,7 @@ export default function LMSTeacherMaterials() {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm text-gray-800 truncate">{m.title}</p>
                           <p className="text-xs text-gray-400">
-                            {m.category} · {[m.uploadData?.fileName, m.wordFile?.fileName].filter(Boolean).map(fileKindLabel).join(" + ")} · {new Date(m.uploadDate).toLocaleDateString("ko-KR")}
+                            {scopeOf(m.category)} · {[m.uploadData?.fileName, m.wordFile?.fileName].filter(Boolean).map(fileKindLabel).join(" + ")} · {new Date(m.uploadDate).toLocaleDateString("ko-KR")}
                           </p>
                         </div>
                         <Button size="sm" variant="ghost" onClick={() => handleDelete(m)} aria-label={`${m.title} 삭제`}>

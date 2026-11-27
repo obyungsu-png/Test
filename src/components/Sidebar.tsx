@@ -2,11 +2,9 @@ import { motion } from "motion/react";
 import { ChevronRight } from "lucide-react";
 import { useState, useEffect } from "react";
 import { getSubjectStructure, getCategoryCustomName } from "./utils/dataManager";
-import { TEACHER_SUBJECT, TEACHER_STRUCTURE } from "./constants/teacherTabs";
+import { TEACHER_SUBJECT, TEACHER_AREAS, TEACHER_STAGES, teacherCategory } from "./constants/teacherTabs";
 
-// 학교별 과목 구조 + 한국학교의 교사·강사 과목
-const subjectStructureFor = (schoolType: any) =>
-  schoolType === "korean" ? { ...getSubjectStructure(schoolType), [TEACHER_SUBJECT]: TEACHER_STRUCTURE } : getSubjectStructure(schoolType);
+const subjectStructureFor = (schoolType: any) => getSubjectStructure(schoolType);
 
 // 'Grade N' 학년이 많은 과목(국제학교 GPA)은 학교급으로 묶어 보여준다: 묶음 → 학년 → 세부 과목
 const GRADE_GROUPS = [
@@ -258,6 +256,64 @@ export function Sidebar({ selectedSubject, selectedCategory, selectedSubCategory
   const subjectStructure = isCertificationMode ? certificationCategories : subjectStructureFor(schoolType);
   const categories = subjectStructure[selectedSubject] || {};
   const gradeGroups = isCertificationMode ? null : groupGrades(Object.keys(categories));
+  const isTeacherSubject = schoolType === "korean" && !isCertificationMode && selectedSubject === TEACHER_SUBJECT;
+
+  // 교사·강사: 과목 → 전 학년 / 학교급 전체 / 학년 칩
+  const scopeChip = (label: string, category: string) => (
+    <button
+      key={category || "all"}
+      type="button"
+      onClick={() => onCategoryChange(category)}
+      className={`text-xs sm:text-sm px-2.5 py-1 rounded-full border transition-colors ${
+        selectedCategory === category
+          ? "bg-cyan-600 border-cyan-600 text-white font-medium"
+          : "border-gray-200 text-gray-600 hover:border-cyan-300 hover:text-cyan-700"
+      }`}
+    >
+      {label}
+    </button>
+  );
+  const renderTeacherTree = () => (
+    <>
+      <div>{scopeChip("전체 과목·학년", "")}</div>
+      {TEACHER_AREAS.map((area) => (
+        <div key={area}>
+          <motion.div
+            onClick={() => setExpandedCategory(expandedCategory === area ? null : area)}
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            className="cursor-pointer text-sm sm:text-base lg:text-lg text-gray-800 hover:text-cyan-600 mb-2 pb-1.5 sm:pb-2 lg:pb-3 border-b border-gray-200 font-medium flex items-center justify-between transition-colors duration-200"
+          >
+            <span>{area}</span>
+            <motion.div animate={{ rotate: expandedCategory === area ? 90 : 0 }} transition={{ duration: 0.2 }} className="ml-2">
+              <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
+            </motion.div>
+          </motion.div>
+          {expandedCategory === area && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              transition={{ duration: 0.3 }}
+              className="pl-1 pb-2 space-y-2.5"
+            >
+              <div>{scopeChip("전 학년", teacherCategory({ area, stage: null, grade: null }))}</div>
+              {TEACHER_STAGES.map((stage) => (
+                <div key={stage.name}>
+                  <p className="text-xs text-gray-400 mb-1">{stage.name}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {scopeChip(`${stage.name} 전체`, teacherCategory({ area, stage: stage.name, grade: null }))}
+                    {Array.from({ length: stage.grades }, (_, i) =>
+                      scopeChip(`${stage.short}${i + 1}`, teacherCategory({ area, stage: stage.name, grade: i + 1 }))
+                    )}
+                  </div>
+                </div>
+              ))}
+            </motion.div>
+          )}
+        </div>
+      ))}
+    </>
+  );
 
   // 학년(레벨) 한 줄 + 펼치면 세부 과목. nested: 학년 묶음 안에 들어갈 때 한 단계 작게
   const renderLevel = (levelName: string, items: string[], nested: boolean) => (
@@ -441,6 +497,8 @@ export function Sidebar({ selectedSubject, selectedCategory, selectedSubCategory
               </div>
             );
           })
+        ) : isTeacherSubject ? (
+          renderTeacherTree()
         ) : gradeGroups ? (
           // 학년 묶음: 묶음 → 학년 → 세부 과목
           gradeGroups.map((group) => (
