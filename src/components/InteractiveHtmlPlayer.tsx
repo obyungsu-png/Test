@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2, Maximize2, Minimize2, X } from "lucide-react";
-import { canFullscreen, enterFullscreen, exitFullscreen, getFullscreenElement, loadHtmlBlob } from "./utils/interactiveHtml";
+import { canFullscreen, enterFullscreen, exitFullscreen, getFullscreenElement, loadHtmlForPlayer } from "./utils/interactiveHtml";
 
 interface InteractiveHtmlPlayerProps {
   material: any;
@@ -46,7 +46,7 @@ export function InteractiveHtmlPlayer({ material, onClose }: InteractiveHtmlPlay
     setSrc(null);
     setLoaded(false);
     setFailed(false);
-    loadHtmlBlob(fileData)
+    loadHtmlForPlayer(fileData)
       .then((blob) => {
         if (!alive) return;
         url = URL.createObjectURL(blob);
@@ -136,7 +136,7 @@ export function InteractiveHtmlPlayer({ material, onClose }: InteractiveHtmlPlay
             src={src}
             title={title}
             sandbox={SANDBOX}
-            allow="fullscreen; clipboard-write; autoplay"
+            allow="fullscreen; clipboard-read; clipboard-write; autoplay"
             className="absolute inset-0 w-full h-full border-0"
             onLoad={() => {
               setLoaded(true);

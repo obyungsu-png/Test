@@ -3,6 +3,8 @@
 // 보조자료 탭에 올리는 .html 자료는 다운로드/PDF 뷰어가 아니라
 // 사이트 안 전체화면 플레이어(InteractiveHtmlPlayer)에서 그대로 실행된다.
 
+import { upgradePasteNoteTool } from "./pasteNoteTool";
+
 /** START 버튼만 보여 줄 탭 (원래 탭 이름 기준) */
 export const START_ONLY_TAB = "보조자료";
 /** HTML(CSS·JS 포함) 자료 전용 탭 — 한국학교·국제학교 공통, 항상 START 로 실행 */
@@ -31,6 +33,17 @@ export async function loadHtmlBlob(fileData: string): Promise<Blob> {
   const raw = await res.blob();
   // 저장 시 MIME 이 비어 있거나 달라도 항상 UTF-8 HTML 로 실행
   return new Blob([raw], { type: "text/html;charset=utf-8" });
+}
+
+/**
+ * START 플레이어용 HTML — 자료 속 알려진 예전 도구(붙여넣기 글상자)는 개선판으로 바꿔 실행한다.
+ * 저장된 파일은 그대로 두고, 해당 도구가 없거나 다른 버전이면 원본 그대로 실행.
+ */
+export async function loadHtmlForPlayer(fileData: string): Promise<Blob> {
+  const blob = await loadHtmlBlob(fileData);
+  const html = await blob.text();
+  const upgraded = upgradePasteNoteTool(html);
+  return upgraded === html ? blob : new Blob([upgraded], { type: "text/html;charset=utf-8" });
 }
 
 /** HTML 문자열에서 <title> 추출 (CMS 제목 자동 채우기용) */
