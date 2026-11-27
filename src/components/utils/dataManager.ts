@@ -2,6 +2,7 @@
 import * as lmsApi from '../../utils/lmsApi';
 import { generateSampleMaterials } from '../../utils/sampleDataGenerator';
 import { TEACHER_SUBJECT, teacherScopesOverlap } from '../constants/teacherTabs';
+import { highScienceStructure } from '../constants/koreanScience';
 
 // In-flight promise deduplication — prevents concurrent calls from hammering the server
 let materialsInflight: Promise<UploadedMaterial[]> | null = null;
@@ -279,8 +280,9 @@ export const getSubjectStructure = (schoolType: 'korean' | 'international' | 'ce
     },
     "과학": {
       "초등과학": ["초등과학1-1", "초등과학1-2", "초등과학2-1", "초등과학2-2", "초등과학3-1", "초등과학3-2", "초등과학4-1", "초등과학4-2", "초등과학5-1", "초등과학5-2", "초등과학6-1", "초등과학6-2"],
-      "중등과학": ["중등과학1", "중등과학2", "중등과학3", "통합과학"],
-      "고등과학": ["물리학I", "물리학II", "화학I", "화학II", "생명과학I", "생명과학II", "지구과학I", "지구과학II"]
+      "중등과학": ["중등과학1", "중등과학2", "중등과학3"],
+      // 고등 과학: 고1·고2·고3 (2022 개정) — 사이드바에서는 '고등과학' 아래에 묶어 보임
+      ...highScienceStructure()
     },
     "사회": {
       "초등사회": ["초등사회1-1", "초등사회1-2", "초등사회2-1", "초등사회2-2", "초등사회3-1", "초등사회3-2", "초등사회4-1", "초등사회4-2", "초등사회5-1", "초등사회5-2", "초등사회6-1", "초등사회6-2"],
