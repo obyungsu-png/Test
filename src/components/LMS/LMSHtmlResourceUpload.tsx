@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, ArrowDown, ArrowUp, Check, Copy, ExternalLink, FileCode2, HardDriveUpload, Pencil, Play, RefreshCw, Trash2, Upload, X } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, Check, Copy, Download, ExternalLink, FileCode2, HardDriveUpload, Pencil, Play, RefreshCw, Trash2, Upload, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -301,6 +301,29 @@ export default function LMSHtmlResourceUpload({ materials, onChanged }: LMSHtmlR
     }
   };
 
+  // 올려 둔 HTML 원본을 다시 내려받기 (고쳐서 다시 올릴 때 등)
+  const downloadNameOf = (material: any) => {
+    const name = String(material.uploadData?.fileName || "").trim();
+    if (/\.html?$/i.test(name)) return name;
+    return `${String(material.title || "자료").replace(/[\\/:*?"<>|]+/g, " ").trim() || "자료"}.html`;
+  };
+  const handleDownload = async (material: any) => {
+    try {
+      const blob = await loadHtmlBlob(material.uploadData.fileData);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = downloadNameOf(material);
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch (err: any) {
+      console.error(err);
+      toast.error("내려받지 못했습니다", { description: err?.message || String(err) });
+    }
+  };
+
   const handleDelete = async (material: any) => {
     if (listSavingRef.current) return;
     if (!confirm(`"${material.title}" 을(를) 삭제할까요?`)) return;
@@ -594,6 +617,9 @@ export default function LMSHtmlResourceUpload({ materials, onChanged }: LMSHtmlR
                             </Button>
                             <Button variant="ghost" size="sm" className="px-1.5" onClick={() => play(m)} title="실행" aria-label={`${m.title} 실행`}>
                               <Play className="w-4 h-4 text-cyan-600" />
+                            </Button>
+                            <Button variant="ghost" size="sm" className="px-1.5" onClick={() => handleDownload(m)} title="원본 내려받기" aria-label={`${m.title} 원본 내려받기`}>
+                              <Download className="w-4 h-4" />
                             </Button>
                             <Button variant="ghost" size="sm" className="px-1.5" disabled={listSaving} onClick={() => { setEditingId(m.id); setEditedTitle(m.title || ""); }} title="이름 변경" aria-label={`${m.title} 이름 변경`}>
                               <Pencil className="w-4 h-4" />
