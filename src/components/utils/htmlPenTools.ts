@@ -8,6 +8,7 @@
 // 3) 펜 모드 두 손가락 스크롤 — 손가락을 그대로 따라가고 손을 떼면 살짝 미끄러지게
 // 4) 문제가 여러 개인 자료(문제 이동 버튼이 있는 TOEIC·독해형): 펜·붙여넣기를 문제마다 따로 저장,
 //    마지막 문제에서만 플레이어의 '닫기' 버튼이 보이도록 플레이어에 알림
+// 5) 한 페이지 자료(화학·독해 등 문제 이동이 없는 것): 펜 필기를 저장해 다시 열어도 남게
 //    예전 버전은 글상자 크기·줄 길이를 바꿀 수 없고, 설정 창이 글상자를 덮고,
 //    사이트에서는 저장 키가 열 때마다 바뀌어 다시 열면 붙여 넣은 글이 사라졌다.
 //
@@ -15,7 +16,7 @@
 
 /** START 플레이어용: 필기 도구 개선을 적용한 HTML (해당 도구가 없으면 그대로) */
 export function upgradeHtmlTools(html: string): string {
-  return addPageScript(addPenScrollFix(addPenToolbarStyle(upgradePasteNoteTool(html))));
+  return addPenSave(addPageScript(addPenScrollFix(addPenToolbarStyle(upgradePasteNoteTool(html)))));
 }
 
 // ── 1) 펜 툴바·펜 설정 창 작게 ─────────────────────────────────────────────
@@ -249,17 +250,51 @@ document.addEventListener("keydown",function(){ setTimeout(keep,0); },true);
 window.addEventListener("pagehide",keep);
 })();`;
 
+/** 문제 이동형 틀: 문제 목록(QS)·현재 문제(Q)·문제 이동(go)·펜 선(strokes)이 모두 있음 */
+export function isQuizTemplate(html: string): boolean {
+  return [/\blet strokes\s*=\s*\[\]/, /\bconst QS\s*=\s*\[/, /\blet Q\s*=/, /\bfunction go\(/].every((re) => re.test(html));
+}
+
 /** 문제 이동형 자료에 문제별 필기 스크립트를 넣는다 (이미 최신이면 그대로, 예전 버전이면 바꿈) */
 const OLD_PAGE_SCRIPT = /<script id="pentool-pages">\n\(function\(\)\{\n\/\* pnpage v1 [\s\S]*?<\/script>\n?/;
 export function addPageScript(html: string): string {
   if (html.includes("pnpage v2")) return html;
   const tagNow = `<script id="${PAGE_SCRIPT_ID}">\n${PAGE_SCRIPT}\n</script>\n`;
   if (OLD_PAGE_SCRIPT.test(html)) return html.replace(OLD_PAGE_SCRIPT, () => tagNow);
-  // 문제 이동형 틀: 문제 목록(QS)·현재 문제(Q)·문제 이동(go)·펜 선(strokes)이 모두 있어야 함
-  if (![/\blet strokes\s*=\s*\[\]/, /\bconst QS\s*=\s*\[/, /\blet Q\s*=/, /\bfunction go\(/].every((re) => re.test(html))) return html;
+  if (!isQuizTemplate(html)) return html;
   const tag = `<script id="${PAGE_SCRIPT_ID}">\n${PAGE_SCRIPT}\n</script>\n`;
   const end = html.toLowerCase().lastIndexOf("</body>");
   return end >= 0 ? html.slice(0, end) + tag + html.slice(end) : html + tag;
+}
+
+// ── 5) 한 페이지 자료의 펜 필기 저장 ─────────────────────────────────────────
+// 한 페이지 자료는 펜 코드가 (function(){ … })() 안에 있어 밖에서 펜 선(strokes)에 손댈 수 없다.
+// → 펜 선 선언 바로 다음 줄에 저장·복원 코드를 넣는다 (같은 범위라서 strokes 를 그대로 쓸 수 있음).
+//   문제 이동형 자료는 4) 가 문제·지문별로 저장하므로 넣지 않는다.
+export const PEN_SAVE_ANCHOR = "let strokes=[], curS=null, dpr=1, undoS=[], redoS=[], erasing=false, erased=false;";
+export const PEN_SAVE_CODE = String.raw`/* pnsave v1 — 펜 필기 저장: 닫았다가 다시 열어도 남음 (AllMyExam) */
+const PNSAVE_KEY="pnpen:"+(/^(blob|about|data):$/.test(location.protocol)?"":location.pathname.split("/").pop())+":"+document.title;
+try{ const d=JSON.parse(localStorage.getItem(PNSAVE_KEY)||"null"); if(Array.isArray(d)) strokes=d.filter(s=>s&&Array.isArray(s.pts)&&s.pts.length); }catch(e){}
+let pnsaveT=0;
+function pnsaveNow(){
+  clearTimeout(pnsaveT);
+  try{
+    if(strokes.length) localStorage.setItem(PNSAVE_KEY,JSON.stringify(strokes.map(s=>({c:s.c,w:s.w,m:s.m,pts:s.pts.map(p=>[Math.round(p[0]*10)/10,Math.round(p[1]*10)/10,Math.round((p[2]==null?0.5:p[2])*100)/100])}))));
+    else localStorage.removeItem(PNSAVE_KEY);
+  }catch(e){}
+}
+function pnsaveSoon(){ clearTimeout(pnsaveT); pnsaveT=setTimeout(pnsaveNow,300); }
+document.addEventListener("pointerup",()=>setTimeout(pnsaveSoon,0),true);
+document.addEventListener("click",e=>{ if(e.target.closest&&e.target.closest("#pbar")) setTimeout(pnsaveSoon,0); },true);
+document.addEventListener("keydown",()=>setTimeout(pnsaveSoon,0),true);
+window.addEventListener("pagehide",pnsaveNow);
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden") pnsaveNow(); });`;
+
+/** 한 페이지 자료에 펜 필기 저장 코드를 넣는다 (문제 이동형·이미 넣은 자료·펜 코드 모양이 다르면 그대로) */
+export function addPenSave(html: string): string {
+  if (html.includes("pnsave v1") || isQuizTemplate(html)) return html;
+  if (html.split(PEN_SAVE_ANCHOR).length !== 2) return html;
+  return html.replace(PEN_SAVE_ANCHOR, () => PEN_SAVE_ANCHOR + "\n" + PEN_SAVE_CODE);
 }
 
 // ── 2) 붙여넣기 글상자 도구 교체 ──────────────────────────────────────────

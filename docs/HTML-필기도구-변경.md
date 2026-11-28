@@ -1,10 +1,10 @@
 # HTML 자료 필기 도구 변경 안내
 
-펜 툴바, 펜 모드의 두 손가락 스크롤, 붙여넣기 글상자(툴바의 **T** 버튼), 문제별 필기를 고쳤습니다.
+펜 툴바, 펜 모드의 두 손가락 스크롤, 붙여넣기 글상자(툴바의 **T** 버튼), 문제별 필기, 한 페이지 자료의 펜 필기 저장을 고쳤습니다.
 **사이트(START)에서는 이미 자동으로 적용**됩니다. 올려 둔 파일은 그대로 두고, 열 때만 바꿔서 실행합니다.
 아래 내용은 **파일 자체를 고칠 때** 쓰세요. 새 자료를 만들 때나, 사이트 밖에서 파일을 열 때도 똑같이 동작하게 하려면 필요합니다.
 
-> **예전 안내대로 이미 고친 파일이 있다면:** 2단계(붙여넣기 글상자) 코드를 이 문서의 새 코드로 다시 바꾸고, 3단계·4단계 중 없는 것을 추가해 주세요. 1단계는 그대로 두면 됩니다.
+> **예전 안내대로 이미 고친 파일이 있다면:** 2단계(붙여넣기 글상자) 코드를 이 문서의 새 코드로 다시 바꾸고, 3~5단계 중 그 파일에 해당하는데 아직 없는 것을 추가해 주세요. 1단계는 그대로 두면 됩니다.
 
 ## 무엇이 바뀌었나
 
@@ -22,6 +22,7 @@
 | 저장 | 사이트에서 다시 열어도 붙여 넣은 글(접힘 상태 포함)이 남아 있음 |
 | 필기 저장 (문제 이동형 자료) | **쓴 위치로 나눠 저장**: 지문 영역에 쓴 것(밑줄·동그라미·지문 위 글상자)은 **세트 공유**(예: 149–151 세 문제 모두에서 보임), 문제·선택지 쪽에 쓴 것은 **문제별**. Part 5처럼 문제마다 문장이 다른 곳은 전부 문제별. 다른 문제에 갔다 와도, 다시 열어도 그대로 |
 | 필기 지우기 (문제 이동형 자료) | 지우개 설정 창의 **이 문제 필기 지우기**는 그 문제의 문제 쪽 필기만 지움. 세트 지문이면 **지문 필기 지우기 (149–151 공통)** 버튼이 따로 있음. 글상자의 **이 문제 글상자 지우기**도 그 문제 것만 |
+| 펜 필기 저장 (한 페이지 자료) | 화학·독해처럼 문제 이동이 없는 자료도 펜으로 쓴 것이 저장되어, 닫았다가 다시 열어도 남음. '필기 모두 지우기'를 누르면 저장된 것도 지워짐 |
 | 닫기 버튼 (문제 이동형 자료) | 사이트 플레이어의 **닫기**는 **마지막 문제에서만** 보임. 문제 이동이 없는 자료는 지금처럼 항상 보임 |
 
 > 팁: 접히면 첫 줄이 제목처럼 보입니다. 해설을 붙여 넣을 때는 첫 줄에 "3번 해설"처럼 짧은 제목이 오게 하면 깔끔합니다.
@@ -620,6 +621,38 @@ window.addEventListener("pagehide",keep);
 </script>
 ```
 
+### 5단계 — 펜 필기 저장 (문제 이동이 없는 한 페이지 자료만)
+
+화학·독해처럼 문제 번호 칩·이전/다음 버튼이 **없는** 자료에 넣습니다. 4단계를 넣은 파일에는 넣지 않습니다(4단계가 대신 저장합니다).
+
+1. 파일에서 아래 줄을 찾습니다. (펜 코드 안에 한 번만 나옵니다)
+
+```js
+let strokes=[], curS=null, dpr=1, undoS=[], redoS=[], erasing=false, erased=false;
+```
+
+2. 그 줄 **바로 다음 줄**에 아래 코드를 그대로 붙여 넣습니다. (새 `<script>`를 만들지 말고, 같은 스크립트 안에 넣어야 합니다)
+
+```js
+/* pnsave v1 — 펜 필기 저장: 닫았다가 다시 열어도 남음 (AllMyExam) */
+const PNSAVE_KEY="pnpen:"+(/^(blob|about|data):$/.test(location.protocol)?"":location.pathname.split("/").pop())+":"+document.title;
+try{ const d=JSON.parse(localStorage.getItem(PNSAVE_KEY)||"null"); if(Array.isArray(d)) strokes=d.filter(s=>s&&Array.isArray(s.pts)&&s.pts.length); }catch(e){}
+let pnsaveT=0;
+function pnsaveNow(){
+  clearTimeout(pnsaveT);
+  try{
+    if(strokes.length) localStorage.setItem(PNSAVE_KEY,JSON.stringify(strokes.map(s=>({c:s.c,w:s.w,m:s.m,pts:s.pts.map(p=>[Math.round(p[0]*10)/10,Math.round(p[1]*10)/10,Math.round((p[2]==null?0.5:p[2])*100)/100])}))));
+    else localStorage.removeItem(PNSAVE_KEY);
+  }catch(e){}
+}
+function pnsaveSoon(){ clearTimeout(pnsaveT); pnsaveT=setTimeout(pnsaveNow,300); }
+document.addEventListener("pointerup",()=>setTimeout(pnsaveSoon,0),true);
+document.addEventListener("click",e=>{ if(e.target.closest&&e.target.closest("#pbar")) setTimeout(pnsaveSoon,0); },true);
+document.addEventListener("keydown",()=>setTimeout(pnsaveSoon,0),true);
+window.addEventListener("pagehide",pnsaveNow);
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden") pnsaveNow(); });
+```
+
 ### (선택) 붙여넣기 버튼이 없는 파일에 새로 넣기
 
 펜 툴바(`id="pbar"`)와 본문 `<main>` 이 있는 파일이면 됩니다. `</body>` 바로 앞에 아래 두 가지를 순서대로 넣습니다.
@@ -659,6 +692,7 @@ body.pendraw .pnote{pointer-events:none}
 - [ ] (문제 이동형) 149번 지문에 그은 밑줄은 150·151번에서도 보이고, 149번 선택지 쪽 메모는 149번에서만 보인다
 - [ ] (문제 이동형) 지우개 설정 창에 '이 문제 필기 지우기'와 '지문 필기 지우기 (… 공통)'가 따로 있다
 - [ ] (문제 이동형) 사이트에서 열면 마지막 문제에서만 **닫기**가 보인다
+- [ ] (한 페이지 자료) 펜으로 쓰고 닫았다가 다시 열어도 그대로 있다
 
 ## 참고
 
@@ -667,4 +701,5 @@ body.pendraw .pnote{pointer-events:none}
   - 2단계: 붙여넣기 코드가 이 문서의 새 버전(코드 안에 `pnote v5`)이면 건너뜀
   - 3단계: 파일에 `__pnScroll` 이 있으면 건너뜀
   - 4단계: 파일에 `pnpage v2` 가 있으면 건너뜀 (`pnpage v1` 이 있으면 새 버전으로 바꿔 실행)
+  - 5단계: 파일에 `pnsave v1` 이 있거나 문제 이동형 자료면 건너뜀
 - 이 안내의 코드는 사이트 코드 `src/components/utils/htmlPenTools.ts` 와 같습니다.
