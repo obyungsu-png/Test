@@ -304,8 +304,9 @@ const TOOL_MARKER = 'const KEY="pnotes:"';
  * 바꿔 끼울 예전 버전들 — 스크립트 본문 `(function(){ … })();` 의 FNV-1a 해시
  *  v1: 처음 자료에 들어 있던 버전 / v2: 2026-11-27 안내 문서(손잡이·작은 설정 창) 버전
  *  v3: 2026-11-28 안내 문서(긴 글 접기·펼치기) 버전 / v4: 2026-11-28 문제별 글상자 버전
+ *  v5: 2026-11-28 위치별(지문·문제) 글상자 버전
  */
-const OLD_TOOL_HASHES = [0x1350815c, 0xede57128, 0xfe242bb1, 0xfc5047f4];
+const OLD_TOOL_HASHES = [0x1350815c, 0xede57128, 0xfe242bb1, 0xfc5047f4, 0xde8b8899];
 
 export function fnv1a(text: string): number {
   let h = 0x811c9dc5;
@@ -336,10 +337,11 @@ export function upgradePasteNoteTool(html: string): string {
 //  - 붙여 넣은 글의 앞뒤 빈 줄·공백 정리
 //  - 사이트(blob 주소)에서도 다시 열면 붙여 넣은 글이 남아 있도록 제목 기준으로 저장
 //  - 긴 글(3줄 이상 또는 60자 넘음)은 접혀서 첫 줄만: ▸ 누르면 펼침, ▾ 누르면 다시 접힘
+//  - 펼친 긴 글은 연한 크림색 메모 카드로 (밑의 문제 글씨가 비쳐 겹치지 않게)
 //  - 문제 이동형 자료: 지문 위 글상자는 세트 공유, 문제 쪽 글상자는 그 문제에서만 (문제별 필기 스크립트 알림)
 export const PASTE_NOTE_TOOL = String.raw`(function(){
 "use strict";
-/* pnote v5 — 붙여넣기 글상자 (AllMyExam START 플레이어가 예전 버전을 이 코드로 바꿔 실행) */
+/* pnote v6 — 붙여넣기 글상자 (AllMyExam START 플레이어가 예전 버전을 이 코드로 바꿔 실행) */
 const bar=document.getElementById("pbar"), main=document.querySelector("main");
 if(!bar||!main) return;
 const FONTS=[["'Nanum Pen Script',cursive","펜글씨",1.25],["'Gaegu',cursive","개구",1],["'Gamja Flower',cursive","감자꽃",1],["'Hi Melody',cursive","멜로디",1.1],["'Nanum Brush Script',cursive","붓글씨",1.25],["'Caveat','Nanum Pen Script',cursive","Caveat",1.15]];
@@ -366,6 +368,8 @@ css.textContent=[
 ".pnote{box-sizing:border-box}",
 ".pnote .pnfold{display:inline-block;margin-left:6px;padding:0 7px;border-radius:9px;background:rgb(26 115 232/.1);color:#1a73e8;font:600 12px/19px system-ui,-apple-system,'Malgun Gothic',sans-serif;-webkit-text-stroke:0;vertical-align:middle;white-space:nowrap;cursor:pointer}",
 ".pnote.fold{display:flex;align-items:center;white-space:nowrap;background:rgb(255 255 255/.85);box-shadow:0 0 0 1px rgb(0 0 0/.08)}",
+/* 펼친 긴 글: 밑의 글씨가 비치지 않는 크림색 메모 카드 */
+".pnote.open{background:#fffbeb;box-shadow:0 0 0 1px #e8d79c,0 6px 18px rgb(0 0 0/.14);padding:6px 10px 8px;border-radius:10px}",
 ".pnote.fold .pnt{overflow:hidden;text-overflow:ellipsis;min-width:0}",
 ".pnote.fold .pnfold{flex:none}",
 ".pnote.edit .pnfold{display:none}",
@@ -431,7 +435,7 @@ const folded=n=>!!n.fold && editId!==n.id && foldable(n);
 function render(n,el){
   el=el||elOf(n.id); if(!el||editId===n.id) return;
   el.textContent="";
-  const f=folded(n); el.classList.toggle("fold",f);
+  const f=folded(n); el.classList.toggle("fold",f); el.classList.toggle("open",!f&&foldable(n));
   const chip=document.createElement("span"); chip.className="pnfold";
   if(f){
     const L=n.t.split("\n"), rest=L.length-1;
@@ -503,7 +507,7 @@ function select(id){
 }
 function startEdit(id){
   const el=elOf(id), n=noteOf(id); if(!el||!n) return; editId=id;
-  el.classList.remove("fold"); el.textContent=n.t; paint(n,el);
+  el.classList.remove("fold","open"); el.textContent=n.t; paint(n,el);
   el.classList.add("edit"); el.contentEditable="true"; el.focus();
   const r=document.createRange(); r.selectNodeContents(el); r.collapse(false); const s=getSelection(); s.removeAllRanges(); s.addRange(r);
   syncFrame();

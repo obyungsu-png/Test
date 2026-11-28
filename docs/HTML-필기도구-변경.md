@@ -13,7 +13,7 @@
 | 펜 툴바 | 버튼 36px → 32px, 아이콘 19px → 17px. 전체가 조금 작아짐 |
 | 그리기·형광펜·지우개 설정 창 | 폭 272px → 236px. 글자·버튼을 붙여넣기 설정 창과 같은 크기로 맞춤 |
 | 펜 모드 두 손가락 스크롤 | 예전에는 휴대폰에서 거의 움직이지 않았음(부드러운 스크롤 설정과 충돌). 이제 손가락을 그대로 따라가고, 손을 떼면 살짝 미끄러짐. 두 손가락으로 움직이는 동안에는 선이 그어지지 않음 |
-| 붙여넣기 – 긴 글 접기 | 3줄 이상이거나 60자가 넘는 글은 **접혀서 첫 줄만** 보임. **▸ +N줄**을 누르면 펼쳐지고, **▾ 접기**를 누르면 다시 접힘. 접힘 상태는 저장됨 |
+| 붙여넣기 – 긴 글 접기 | 3줄 이상이거나 60자가 넘는 글은 **접혀서 첫 줄만** 보임. **▸ +N줄**을 누르면 펼쳐지고, **▾ 접기**를 누르면 다시 접힘. 접힘 상태는 저장됨. **펼치면 연한 크림색 메모 카드**로 보여서 밑의 문제 글씨와 겹치지 않음 |
 | 붙여넣기 – 설정 창 | 버튼: 고치기 · 접기/펼치기 · 삭제. 아래에 **긴 글 모두 접기/모두 펼치기 · 모두 지우기** |
 | 붙여넣기 – 크기 | 가장 작게 · 아주 작게 · 작게 · 보통 · 크게 · 아주 크게 (6단계) |
 | 붙여넣기 – 손잡이 | 글상자를 누르면 손잡이 2개: 모서리 **⤡** = 크기, 오른쪽 **↔** = 줄 길이(폭) |
@@ -66,7 +66,7 @@
 ```js
 (function(){
 "use strict";
-/* pnote v5 — 붙여넣기 글상자 (AllMyExam START 플레이어가 예전 버전을 이 코드로 바꿔 실행) */
+/* pnote v6 — 붙여넣기 글상자 (AllMyExam START 플레이어가 예전 버전을 이 코드로 바꿔 실행) */
 const bar=document.getElementById("pbar"), main=document.querySelector("main");
 if(!bar||!main) return;
 const FONTS=[["'Nanum Pen Script',cursive","펜글씨",1.25],["'Gaegu',cursive","개구",1],["'Gamja Flower',cursive","감자꽃",1],["'Hi Melody',cursive","멜로디",1.1],["'Nanum Brush Script',cursive","붓글씨",1.25],["'Caveat','Nanum Pen Script',cursive","Caveat",1.15]];
@@ -93,6 +93,8 @@ css.textContent=[
 ".pnote{box-sizing:border-box}",
 ".pnote .pnfold{display:inline-block;margin-left:6px;padding:0 7px;border-radius:9px;background:rgb(26 115 232/.1);color:#1a73e8;font:600 12px/19px system-ui,-apple-system,'Malgun Gothic',sans-serif;-webkit-text-stroke:0;vertical-align:middle;white-space:nowrap;cursor:pointer}",
 ".pnote.fold{display:flex;align-items:center;white-space:nowrap;background:rgb(255 255 255/.85);box-shadow:0 0 0 1px rgb(0 0 0/.08)}",
+/* 펼친 긴 글: 밑의 글씨가 비치지 않는 크림색 메모 카드 */
+".pnote.open{background:#fffbeb;box-shadow:0 0 0 1px #e8d79c,0 6px 18px rgb(0 0 0/.14);padding:6px 10px 8px;border-radius:10px}",
 ".pnote.fold .pnt{overflow:hidden;text-overflow:ellipsis;min-width:0}",
 ".pnote.fold .pnfold{flex:none}",
 ".pnote.edit .pnfold{display:none}",
@@ -158,7 +160,7 @@ const folded=n=>!!n.fold && editId!==n.id && foldable(n);
 function render(n,el){
   el=el||elOf(n.id); if(!el||editId===n.id) return;
   el.textContent="";
-  const f=folded(n); el.classList.toggle("fold",f);
+  const f=folded(n); el.classList.toggle("fold",f); el.classList.toggle("open",!f&&foldable(n));
   const chip=document.createElement("span"); chip.className="pnfold";
   if(f){
     const L=n.t.split("\n"), rest=L.length-1;
@@ -230,7 +232,7 @@ function select(id){
 }
 function startEdit(id){
   const el=elOf(id), n=noteOf(id); if(!el||!n) return; editId=id;
-  el.classList.remove("fold"); el.textContent=n.t; paint(n,el);
+  el.classList.remove("fold","open"); el.textContent=n.t; paint(n,el);
   el.classList.add("edit"); el.contentEditable="true"; el.focus();
   const r=document.createRange(); r.selectNodeContents(el); r.collapse(false); const s=getSelection(); s.removeAllRanges(); s.addRange(r);
   syncFrame();
@@ -698,7 +700,7 @@ body.pendraw .pnote{pointer-events:none}
 
 - 사이트는 이미 고친 부분은 다시 바꾸지 않습니다. 고친 파일을 올려도 겹치지 않습니다.
   - 1단계: 파일에 `id="pentool-compact"` 가 있으면 건너뜀
-  - 2단계: 붙여넣기 코드가 이 문서의 새 버전(코드 안에 `pnote v5`)이면 건너뜀
+  - 2단계: 붙여넣기 코드가 이 문서의 새 버전(코드 안에 `pnote v6`)이면 건너뜀
   - 3단계: 파일에 `__pnScroll` 이 있으면 건너뜀
   - 4단계: 파일에 `pnpage v2` 가 있으면 건너뜀 (`pnpage v1` 이 있으면 새 버전으로 바꿔 실행)
   - 5단계: 파일에 `pnsave v1` 이 있거나 문제 이동형 자료면 건너뜀
