@@ -31,6 +31,9 @@ export function InteractiveHtmlPlayer({ material, onClose }: InteractiveHtmlPlay
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(() => !!getFullscreenElement());
+  // 문제 이동형 자료는 마지막 문제에서만 '닫기'를 보여 준다 (자료가 allmyexam:close 로 알려 줌).
+  // 알려 주지 않는 자료는 항상 보임.
+  const [closeVisible, setCloseVisible] = useState(true);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -46,6 +49,7 @@ export function InteractiveHtmlPlayer({ material, onClose }: InteractiveHtmlPlay
     setSrc(null);
     setLoaded(false);
     setFailed(false);
+    setCloseVisible(true);
     loadHtmlForPlayer(fileData)
       .then((blob) => {
         if (!alive) return;
@@ -61,6 +65,17 @@ export function InteractiveHtmlPlayer({ material, onClose }: InteractiveHtmlPlay
       if (url) URL.revokeObjectURL(url);
     };
   }, [fileData]);
+
+  // 자료가 보내는 '닫기 보이기' 알림 — 이 플레이어의 iframe 에서 온 것만 받는다
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      if (!iframeRef.current || e.source !== iframeRef.current.contentWindow) return;
+      const d = e.data;
+      if (d && d.type === "allmyexam:close" && typeof d.visible === "boolean") setCloseVisible(d.visible);
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
 
   // 전체화면 상태 추적 (Esc 로 해제해도 버튼이 맞게 바뀌도록)
   useEffect(() => {
@@ -122,10 +137,12 @@ export function InteractiveHtmlPlayer({ material, onClose }: InteractiveHtmlPlay
             <span className="hidden sm:inline">{isFullscreen ? "전체화면 해제" : "전체화면"}</span>
           </button>
         )}
-        <button onClick={onClose} className={iconBtn} aria-label="닫기" title="닫기">
-          <X className="w-5 h-5" />
-          <span className="hidden sm:inline">닫기</span>
-        </button>
+        {(closeVisible || failed) && (
+          <button onClick={onClose} className={iconBtn} aria-label="닫기" title="닫기">
+            <X className="w-5 h-5" />
+            <span className="hidden sm:inline">닫기</span>
+          </button>
+        )}
       </div>
 
       {/* 실행 영역 */}

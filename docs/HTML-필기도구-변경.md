@@ -1,10 +1,10 @@
 # HTML 자료 필기 도구 변경 안내
 
-펜 툴바, 펜 모드의 두 손가락 스크롤, 붙여넣기 글상자(툴바의 **T** 버튼)를 고쳤습니다.
+펜 툴바, 펜 모드의 두 손가락 스크롤, 붙여넣기 글상자(툴바의 **T** 버튼), 문제별 필기를 고쳤습니다.
 **사이트(START)에서는 이미 자동으로 적용**됩니다. 올려 둔 파일은 그대로 두고, 열 때만 바꿔서 실행합니다.
 아래 내용은 **파일 자체를 고칠 때** 쓰세요. 새 자료를 만들 때나, 사이트 밖에서 파일을 열 때도 똑같이 동작하게 하려면 필요합니다.
 
-> **11월 27일 안내대로 이미 고친 파일이 있다면:** 2단계(붙여넣기 글상자) 코드를 이 문서의 새 코드로 다시 바꾸고, 3단계를 추가해 주세요. 1단계는 그대로 두면 됩니다.
+> **예전 안내대로 이미 고친 파일이 있다면:** 2단계(붙여넣기 글상자) 코드를 이 문서의 새 코드로 다시 바꾸고, 3단계·4단계 중 없는 것을 추가해 주세요. 1단계는 그대로 두면 됩니다.
 
 ## 무엇이 바뀌었나
 
@@ -20,6 +20,8 @@
 | 붙여넣기 – 설정 창 자리 | 글상자를 가리지 않는 자리(아래 → 위 → 오른쪽 → 왼쪽 → 화면 구석)에 뜸. 끌거나 크기를 바꾸는 동안에는 잠시 숨겨지고, 글상자를 한 번 더 누르면 닫힘 |
 | 붙여넣기 후 | 그리기 모드를 자동으로 꺼서 바로 옮기거나 크기를 바꿀 수 있음. 붙여 넣은 글의 앞뒤 빈 줄은 자동 정리 |
 | 저장 | 사이트에서 다시 열어도 붙여 넣은 글(접힘 상태 포함)이 남아 있음 |
+| 문제별 필기 (문제 이동형 자료) | 펜 선·붙여넣기 글상자·되돌리기 기록이 **문제마다 따로** 남음. 다른 문제에 갔다 오면 그 문제에 쓴 것이 그대로 보이고, 다시 열어도 유지됨 |
+| 닫기 버튼 (문제 이동형 자료) | 사이트 플레이어의 **닫기**는 **마지막 문제에서만** 보임. 문제 이동이 없는 자료는 지금처럼 항상 보임 |
 
 > 팁: 접히면 첫 줄이 제목처럼 보입니다. 해설을 붙여 넣을 때는 첫 줄에 "3번 해설"처럼 짧은 제목이 오게 하면 깔끔합니다.
 
@@ -62,7 +64,7 @@
 ```js
 (function(){
 "use strict";
-/* pnote v3 — 붙여넣기 글상자 (AllMyExam START 플레이어가 예전 버전을 이 코드로 바꿔 실행) */
+/* pnote v4 — 붙여넣기 글상자 (AllMyExam START 플레이어가 예전 버전을 이 코드로 바꿔 실행) */
 const bar=document.getElementById("pbar"), main=document.querySelector("main");
 if(!bar||!main) return;
 const FONTS=[["'Nanum Pen Script',cursive","펜글씨",1.25],["'Gaegu',cursive","개구",1],["'Gamja Flower',cursive","감자꽃",1],["'Hi Melody',cursive","멜로디",1.1],["'Nanum Brush Script',cursive","붓글씨",1.25],["'Caveat','Nanum Pen Script',cursive","Caveat",1.15]];
@@ -75,6 +77,10 @@ const FOLD_LINES=3, FOLD_CHARS=60;
 /* 사이트 미리보기(blob 주소)는 열 때마다 주소가 바뀌므로 제목으로만 저장 */
 const KEY="pnotes:"+(/^(blob|about|data):$/.test(location.protocol)?"":location.pathname.split("/").pop())+":"+document.title;
 let style={f:0,s:24,w:1,c:"#D32F2F"}, notes=[], selId=null, editId=null, popOpen=false, last=null;
+/* 문제가 여러 개인 자료: 글상자는 만든 문제에서만 보임 (예전 글상자처럼 pg 가 없으면 모든 문제에서 보임) */
+let pg=window.__pnPage?String(window.__pnPage()||""):"";
+const onPage=n=>!("pg" in n)||n.pg===pg;
+const here=()=>notes.filter(onPage);
 
 /* ---- 추가 스타일 (기존 pnote-css 뒤에 덮어씀) ---- */
 const css=document.createElement("style"); css.id="pnote-css2";
@@ -175,10 +181,15 @@ function paint(n,el){
 }
 function build(n){
   const el=document.createElement("div"); el.className="pnote"; el.dataset.id=n.id;
-  document.body.append(el); render(n,el); paint(n,el); return el;
+  document.body.append(el); render(n,el); paint(n,el); el.style.display=onPage(n)?"":"none"; return el;
 }
 function relayout(){ notes.forEach(n=>paint(n)); syncFrame(); if(popOpen) place(); }
 notes.forEach(build);
+function applyPage(){
+  notes.forEach(n=>{ const el=elOf(n.id); if(el) el.style.display=onPage(n)?"":"none"; });
+  const s=selId&&noteOf(selId); if(s&&!onPage(s)){ select(null); closePop(); }
+}
+document.addEventListener("pn:page",e=>{ if(editId) endEdit(); pg=String(e.detail||""); applyPage(); });
 window.addEventListener("resize",relayout);
 if(window.visualViewport) window.visualViewport.addEventListener("resize",relayout);
 if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>{ syncFrame(); if(popOpen) place(); });
@@ -191,7 +202,7 @@ function stopDrawing(){
 function add(text,px,py,edit){
   text=tidy(text);
   stopDrawing();
-  const n={id:Date.now().toString(36)+Math.random().toString(36).slice(2,5),t:text,x:px-mLeft(),y:py,f:style.f,s:style.s,w:style.w,c:style.c};
+  const n={id:Date.now().toString(36)+Math.random().toString(36).slice(2,5),t:text,x:px-mLeft(),y:py,f:style.f,s:style.s,w:style.w,c:style.c,pg:pg};
   if(text) n.fold=foldable(n);
   notes.push(n); build(n); select(n.id);
   if(edit||!text) startEdit(n.id); else save();
@@ -257,7 +268,7 @@ function closePop(){ popOpen=false; pop.hidden=true; }
 window.addEventListener("scroll",()=>{ if(popOpen) place(); },{passive:true});
 function refreshPop(){
   if(!popOpen) return;
-  const cur=selId&&noteOf(selId), long=notes.filter(foldable), allFolded=long.length>0&&long.every(x=>x.fold);
+  const cur=selId&&noteOf(selId), long=here().filter(foldable), allFolded=long.length>0&&long.every(x=>x.fold);
   pop.innerHTML=
     '<div class="pph">글씨체</div><div class="ppr">'+FONTS.map((F,i)=>'<button class="ppb nfont '+(style.f===i?"on":"")+'" type="button" data-nf="'+i+'" style="font-family:'+F[0].replace(/"/g,"")+'" title="'+F[1]+'">'+(i===5?"Abc":"가나다")+'</button>').join("")+'</div>'+
     '<div class="pph"><span>크기</span><span>'+style.s+'</span></div><div class="ppr">'+SIZES.map(([s,nm])=>'<button class="ppb nsz '+(style.s===s?"on":"")+'" type="button" data-ns="'+s+'" title="'+nm+'" aria-label="'+nm+'"><b style="font-size:'+(9+s/3)+'px;color:#e9ebef">가</b></button>').join("")+'</div>'+
@@ -277,9 +288,9 @@ pop.addEventListener("click",e=>{
   else if(d.nc) style.c=d.nc;
   else if(d.na==="edit"){ const id=selId; closePop(); if(id) startEdit(id); return; }
   else if(d.na==="fold"){ if(n) setFold(n,!n.fold); return; }
-  else if(d.na==="foldall"){ const long=notes.filter(foldable), v=!(long.length&&long.every(x=>x.fold)); long.forEach(x=>{ x.fold=v; render(x); paint(x); }); save(); refreshPop(); return; }
+  else if(d.na==="foldall"){ const long=here().filter(foldable), v=!(long.length&&long.every(x=>x.fold)); long.forEach(x=>{ x.fold=v; render(x); paint(x); }); save(); refreshPop(); return; }
   else if(d.na==="del"){ if(selId) remove(selId); closePop(); return; }
-  else if(d.na==="clear"){ if(notes.length && confirm("붙여 넣은 글을 모두 지울까요?")){ notes.forEach(x=>{ const el=elOf(x.id); if(el) el.remove(); }); notes=[]; selId=editId=null; syncFrame(); save(); } closePop(); return; }
+  else if(d.na==="clear"){ const hs=here(); if(hs.length && confirm("이 화면에 붙여 넣은 글을 모두 지울까요?")){ hs.forEach(x=>{ const el=elOf(x.id); if(el) el.remove(); }); notes=notes.filter(x=>!hs.includes(x)); selId=editId=null; syncFrame(); save(); } closePop(); return; }
   else return;
   if(n){ Object.assign(n,{f:style.f,s:style.s,w:style.w,c:style.c}); paint(n); }
   save(); refreshPop();
@@ -480,6 +491,69 @@ window.__pnFling=function(){ if(!byTouch()) fling(); };
    if(Object.keys(touches).length<2){ if(lastY!==null) __pnFling(); lastY=null; }
    ```
 
+### 4단계 — 문제별 필기 · 마지막 문제에서만 닫기 (문제 이동형 자료만)
+
+문제 번호 칩과 **이전/다음** 버튼으로 문제를 넘기는 자료(TOEIC·독해형 틀)에만 넣습니다. 파일 안에 `const QS = [`, `let Q =`, `function go(`, `let strokes=[]` 가 모두 있으면 이 틀입니다.
+
+`</body>` 바로 앞(다른 스크립트들 뒤)에 아래 코드를 그대로 붙여 넣습니다.
+
+```html
+<script id="pentool-pages">
+(function(){
+/* pnpage v1 — 문제별 필기 · 마지막 문제에서만 닫기 (AllMyExam) */
+function quiz(){ try{ return typeof QS!=="undefined" && Array.isArray(QS) && QS.length>0 && typeof Q==="number" && !!QS[Q]; }catch(e){ return false; } }
+function ink(){ try{ return typeof strokes!=="undefined" && Array.isArray(strokes) && typeof draw==="function"; }catch(e){ return false; } }
+function pageKey(){ try{ return quiz() ? "q"+(QS[Q].n!=null ? QS[Q].n : Q) : ""; }catch(e){ return ""; } }
+window.__pnPage=pageKey;
+var KEY="pnink:"+(/^(blob|about|data):$/.test(location.protocol)?"":location.pathname.split("/").pop())+":"+document.title;
+var store={}; try{ store=JSON.parse(localStorage.getItem(KEY)||"{}")||{}; }catch(e){ store={}; }
+var cur=null, saveT=0, lastClose=null, mem={};
+function persist(){ clearTimeout(saveT); saveT=setTimeout(function(){ try{ localStorage.setItem(KEY,JSON.stringify(store)); }catch(e){} },300); }
+function r1(v){ return Math.round(v*10)/10; }
+function keep(){
+  if(cur===null || !ink()) return;
+  try{
+    if(strokes.length) store[cur]=strokes.map(function(s){ return {c:s.c,w:s.w,m:s.m,pts:s.pts.map(function(p){ return [r1(p[0]),r1(p[1])]; })}; });
+    else delete store[cur];
+    persist();
+  }catch(e){}
+}
+/* 지금 문제의 펜 선·되돌리기 기록을 기억해 두고(메모리), 다른 문제 것을 꺼냄 */
+function stash(){ if(cur===null || !ink()) return; try{ mem[cur]={s:strokes,u:undoS,r:redoS}; }catch(e){} }
+function load(k){
+  if(!ink()) return;
+  try{
+    var m=mem[k];
+    strokes=m ? m.s : (store[k]||[]).map(function(s){ return {c:s.c,w:s.w,m:s.m,pts:s.pts.slice()}; });
+    undoS=m ? m.u : []; redoS=m ? m.r : [];
+    curS=null; draw();
+    if(typeof pbUI==="function") pbUI();
+  }catch(e){}
+}
+function tellClose(){
+  var v=!quiz() || Q===QS.length-1;
+  if(v===lastClose) return; lastClose=v;
+  try{ if(window.parent && window.parent!==window) window.parent.postMessage({type:"allmyexam:close",visible:v},"*"); }catch(e){}
+}
+function check(){
+  var k=pageKey();
+  if(k!==cur){
+    if(cur!==null){ keep(); stash(); }
+    cur=k; if(quiz()) load(k);
+    try{ document.dispatchEvent(new CustomEvent("pn:page",{detail:k})); }catch(e){}
+  }
+  tellClose();
+}
+check(); setInterval(check,250);
+/* 필기가 바뀔 때마다 저장: 선 긋기·지우기(손 뗄 때), 되돌리기·모두 지우기(툴바) */
+document.addEventListener("pointerup",function(){ setTimeout(keep,0); },true);
+document.addEventListener("click",function(e){ if(e.target.closest && e.target.closest("#pbar")) setTimeout(keep,0); },true);
+document.addEventListener("keydown",function(){ setTimeout(keep,0); },true);
+window.addEventListener("pagehide",keep);
+})();
+</script>
+```
+
 ### (선택) 붙여넣기 버튼이 없는 파일에 새로 넣기
 
 펜 툴바(`id="pbar"`)와 본문 `<main>` 이 있는 파일이면 됩니다. `</body>` 바로 앞에 아래 두 가지를 순서대로 넣습니다.
@@ -515,11 +589,14 @@ body.pendraw .pnote{pointer-events:none}
 - [ ] 글상자를 누르면 손잡이 2개(↔, ⤡)와 설정 창이 뜨고, 설정 창이 글상자를 가리지 않는다
 - [ ] 크기에 6단계가 있다(맨 앞이 가장 작게)
 - [ ] 닫았다가 다시 열어도 붙여 넣은 글과 접힘 상태가 그대로다
+- [ ] (문제 이동형) 101번에 쓰고 다음 문제로 가면 101번 필기는 안 보이고, 다시 101번으로 오면 그대로 있다
+- [ ] (문제 이동형) 사이트에서 열면 마지막 문제에서만 **닫기**가 보인다
 
 ## 참고
 
 - 사이트는 이미 고친 부분은 다시 바꾸지 않습니다. 고친 파일을 올려도 겹치지 않습니다.
   - 1단계: 파일에 `id="pentool-compact"` 가 있으면 건너뜀
-  - 2단계: 붙여넣기 코드가 이 문서의 새 버전(코드 안에 `pnote v3`)이면 건너뜀
+  - 2단계: 붙여넣기 코드가 이 문서의 새 버전(코드 안에 `pnote v4`)이면 건너뜀
   - 3단계: 파일에 `__pnScroll` 이 있으면 건너뜀
+  - 4단계: 파일에 `pnpage v1` 이 있으면 건너뜀
 - 이 안내의 코드는 사이트 코드 `src/components/utils/htmlPenTools.ts` 와 같습니다.
