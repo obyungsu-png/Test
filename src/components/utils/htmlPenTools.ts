@@ -4,7 +4,8 @@
 // START 플레이어가 실행할 때만 아래 두 가지를 적용한다 (upgradeHtmlTools).
 //
 // 1) 펜 툴바·펜 설정 창 작게 — 펜 툴바(#pbar.pbar2)가 있는 모든 자료 (사이트 전체 통일)
-// 2) 붙여넣기 글상자 도구 교체 — '정확히 그 예전 버전'일 때만 (다른 버전이거나 손본 파일은 그대로)
+// 2) 붙여넣기 글상자 도구 교체 — 알고 있는 예전 버전일 때만 (다른 버전이거나 손본 파일은 그대로)
+// 3) 펜 모드 두 손가락 스크롤 — 손가락을 그대로 따라가고 손을 떼면 살짝 미끄러지게
 //    예전 버전은 글상자 크기·줄 길이를 바꿀 수 없고, 설정 창이 글상자를 덮고,
 //    사이트에서는 저장 키가 열 때마다 바뀌어 다시 열면 붙여 넣은 글이 사라졌다.
 //
@@ -12,7 +13,7 @@
 
 /** START 플레이어용: 필기 도구 개선을 적용한 HTML (해당 도구가 없으면 그대로) */
 export function upgradeHtmlTools(html: string): string {
-  return addPenToolbarStyle(upgradePasteNoteTool(html));
+  return addPenScrollFix(addPenToolbarStyle(upgradePasteNoteTool(html)));
 }
 
 // ── 1) 펜 툴바·펜 설정 창 작게 ─────────────────────────────────────────────
@@ -46,11 +47,91 @@ export function addPenToolbarStyle(html: string): string {
   return end >= 0 ? html.slice(0, end) + tag + html.slice(end) : html + tag;
 }
 
+// ── 3) 펜 모드 두 손가락 스크롤 ─────────────────────────────────────────────
+// 자료의 펜 코드는 두 손가락이면 포인터 이벤트로 window.scrollBy 를 부르는데,
+//  - 자료에 걸린 scroll-behavior:smooth 때문에 움직일 때마다 앞 동작이 끊겨 거의 움직이지 않았고
+//    (Chromium 시험에서 손가락 이동의 40% 정도, 휴대폰에서는 사실상 안 움직임)
+//  - 휴대폰 브라우저에서는 손가락 두 개의 포인터 이벤트가 고르게 오지 않는다.
+// → 두 손가락은 터치 이벤트로 직접 처리, 스크롤 동안만 부드러운 스크롤을 끄고, 손을 떼면 살짝 미끄러지게.
+export const PEN_SCROLL_SCRIPT_ID = "pentool-scroll";
+export const PEN_SCROLL_PATCHES: [string, string][] = [
+  ["if(lastY!==null) window.scrollBy(0,lastY-a); lastY=a;", "if(lastY!==null) __pnScroll(lastY-a); lastY=a;"],
+  ["if(Object.keys(touches).length<2) lastY=null;", "if(Object.keys(touches).length<2){ if(lastY!==null) __pnFling(); lastY=null; }"],
+];
+export const PEN_SCROLL_SCRIPT = String.raw`(function(){
+/* 펜 모드 두 손가락 스크롤 — 손가락을 그대로 따라가고, 손을 떼면 살짝 미끄러짐.
+   모바일(특히 iPhone·iPad)은 터치 이벤트로 처리하고, 터치 이벤트가 없는 기기만 펜 코드(포인터)로 처리 */
+var root=document.documentElement, saved=null, raf=0, hist=[], total=0, tY=null, tLast=0;
+function instant(){ if(saved===null){ saved=root.style.scrollBehavior; root.style.scrollBehavior="auto"; } }
+function restore(){ if(saved!==null){ root.style.scrollBehavior=saved; saved=null; } }
+function move(d){
+  cancelAnimationFrame(raf); instant();
+  var now=performance.now(); total+=d; hist.push([now,total]);
+  while(hist.length>2 && now-hist[0][0]>120) hist.shift();
+  window.scrollBy(0,d);
+}
+function fling(){
+  var now=performance.now(), a=hist[0], b=hist[hist.length-1]; hist=[]; total=0;
+  if(!a||!b||now-b[0]>80||b[0]-a[0]<16){ restore(); return; }
+  var v=Math.max(-3,Math.min(3,(b[1]-a[1])/(b[0]-a[0]))), last=now;
+  cancelAnimationFrame(raf);
+  function step(t){
+    var dt=Math.min(32,Math.max(0,t-last)); last=t;
+    v*=Math.pow(0.92,dt/16);
+    if(Math.abs(v)<0.03){ restore(); return; }
+    window.scrollBy(0,v*dt); raf=requestAnimationFrame(step);
+  }
+  raf=requestAnimationFrame(step);
+}
+function avgY(ts){ var s=0; for(var i=0;i<ts.length;i++) s+=ts[i].clientY; return s/ts.length; }
+function drawing(){ return document.body.classList.contains("pendraw"); }
+var opt={capture:true,passive:true};
+document.addEventListener("touchstart",function(e){
+  cancelAnimationFrame(raf); /* 미끄러지는 중에 다시 닿으면 멈춤 */
+  if(e.touches.length>=2 && (tY!==null || drawing())){ instant(); tY=avgY(e.touches); tLast=performance.now(); }
+  else if(tY===null) restore();
+},opt);
+document.addEventListener("touchmove",function(e){
+  if(tY===null || e.touches.length<2) return;
+  var y=avgY(e.touches); move(tY-y); tY=y; tLast=performance.now();
+},opt);
+function tEnd(e){
+  if(tY===null) return;
+  tLast=performance.now();
+  if(e.touches.length>=2){ tY=avgY(e.touches); return; }
+  tY=null; fling();
+}
+document.addEventListener("touchend",tEnd,opt);
+document.addEventListener("touchcancel",tEnd,opt);
+/* 두 손가락으로 움직이는 동안에는 필기 선이 그어지지 않게 */
+window.addEventListener("pointermove",function(e){ if(tY!==null && e.pointerType==="touch") e.stopImmediatePropagation(); },true);
+/* 펜 코드(포인터 이벤트)가 부르는 함수 — 터치 이벤트로 처리 중이면 건너뜀(두 번 움직이지 않게) */
+function byTouch(){ return tY!==null || performance.now()-tLast<500; }
+window.__pnScroll=function(d){ if(!byTouch()) move(d); };
+window.__pnFling=function(){ if(!byTouch()) fling(); };
+})();`;
+
+/** 펜 코드의 두 손가락 스크롤을 고친다 (펜 코드가 알고 있는 모양일 때만, 이미 고쳤으면 그대로) */
+export function addPenScrollFix(html: string): string {
+  if (html.includes("__pnScroll")) return html;
+  if (!PEN_SCROLL_PATCHES.every(([from]) => html.split(from).length === 2)) return html;
+  let out = html;
+  for (const [from, to] of PEN_SCROLL_PATCHES) out = out.replace(from, () => to);
+  const tag = `<script id="${PEN_SCROLL_SCRIPT_ID}">\n${PEN_SCROLL_SCRIPT}\n</script>\n`;
+  const at = out.search(/<\/head>/i);
+  if (at >= 0) return out.slice(0, at) + tag + out.slice(at);
+  const end = out.search(/<\/body>/i);
+  return end >= 0 ? out.slice(0, end) + tag + out.slice(end) : out + tag;
+}
+
 // ── 2) 붙여넣기 글상자 도구 교체 ──────────────────────────────────────────
-/** 예전 도구 스크립트에만 있는 표식 */
-const OLD_MARKER = 'const KEY="pnotes:"+location.pathname.split("/").pop()+":"+document.title;';
-/** 예전 도구 스크립트 본문 `(function(){ … })();` 의 FNV-1a 해시 — 이 버전일 때만 교체 */
-const OLD_TOOL_HASH = 0x1350815c;
+/** 붙여넣기 도구 스크립트의 표식 */
+const TOOL_MARKER = 'const KEY="pnotes:"';
+/**
+ * 바꿔 끼울 예전 버전들 — 스크립트 본문 `(function(){ … })();` 의 FNV-1a 해시
+ *  v1: 처음 자료에 들어 있던 버전 / v2: 2026-11-27 안내 문서(손잡이·작은 설정 창) 버전
+ */
+const OLD_TOOL_HASHES = [0x1350815c, 0xede57128];
 
 export function fnv1a(text: string): number {
   let h = 0x811c9dc5;
@@ -63,13 +144,13 @@ export function fnv1a(text: string): number {
 
 /** 예전 붙여넣기 도구가 들어 있으면 새 버전으로 바꾼 HTML, 아니면 그대로 */
 export function upgradePasteNoteTool(html: string): string {
-  const marker = html.indexOf(OLD_MARKER);
+  const marker = html.indexOf(TOOL_MARKER);
   if (marker < 0) return html;
   const start = html.lastIndexOf("(function(){", marker);
   const endTag = html.indexOf("})();", marker);
   if (start < 0 || endTag < 0) return html;
   const end = endTag + "})();".length;
-  if (fnv1a(html.slice(start, end).replace(/\r\n/g, "\n")) !== OLD_TOOL_HASH) return html;
+  if (!OLD_TOOL_HASHES.includes(fnv1a(html.slice(start, end).replace(/\r\n/g, "\n")))) return html;
   return html.slice(0, start) + PASTE_NOTE_TOOL + html.slice(end);
 }
 
@@ -80,9 +161,10 @@ export function upgradePasteNoteTool(html: string): string {
 //  - 옮기거나 크기를 바꾸는 동안에는 설정 창을 잠시 숨김, 글상자를 한 번 더 누르면 창 닫힘
 //  - 붙여 넣은 글의 앞뒤 빈 줄·공백 정리
 //  - 사이트(blob 주소)에서도 다시 열면 붙여 넣은 글이 남아 있도록 제목 기준으로 저장
+//  - 긴 글(3줄 이상 또는 60자 넘음)은 접혀서 첫 줄만: ▸ 누르면 펼침, ▾ 누르면 다시 접힘
 export const PASTE_NOTE_TOOL = String.raw`(function(){
 "use strict";
-/* pnote v2 — 붙여넣기 글상자 (AllMyExam START 플레이어가 예전 버전을 이 코드로 바꿔 실행) */
+/* pnote v3 — 붙여넣기 글상자 (AllMyExam START 플레이어가 예전 버전을 이 코드로 바꿔 실행) */
 const bar=document.getElementById("pbar"), main=document.querySelector("main");
 if(!bar||!main) return;
 const FONTS=[["'Nanum Pen Script',cursive","펜글씨",1.25],["'Gaegu',cursive","개구",1],["'Gamja Flower',cursive","감자꽃",1],["'Hi Melody',cursive","멜로디",1.1],["'Nanum Brush Script',cursive","붓글씨",1.25],["'Caveat','Nanum Pen Script',cursive","Caveat",1.15]];
@@ -90,6 +172,8 @@ const SIZES=[[12,"가장 작게"],[15,"아주 작게"],[18,"작게"],[24,"보통
 const WEIGHTS=[[1,"보통"],[2,"굵게"],[3,"아주 굵게"]];
 const COLS=[["#111111","검정"],["#1565C0","파랑"],["#D32F2F","빨강"],["#2E7D32","초록"],["#F9A825","노랑"]];
 const MIN_S=10, MAX_S=120, MIN_W=40;
+/* 이만큼 길면 접어서 첫 줄만 보여 줌 */
+const FOLD_LINES=3, FOLD_CHARS=60;
 /* 사이트 미리보기(blob 주소)는 열 때마다 주소가 바뀌므로 제목으로만 저장 */
 const KEY="pnotes:"+(/^(blob|about|data):$/.test(location.protocol)?"":location.pathname.split("/").pop())+":"+document.title;
 let style={f:0,s:24,w:1,c:"#D32F2F"}, notes=[], selId=null, editId=null, popOpen=false, last=null;
@@ -98,6 +182,11 @@ let style={f:0,s:24,w:1,c:"#D32F2F"}, notes=[], selId=null, editId=null, popOpen
 const css=document.createElement("style"); css.id="pnote-css2";
 css.textContent=[
 ".pnote{box-sizing:border-box}",
+".pnote .pnfold{display:inline-block;margin-left:6px;padding:0 7px;border-radius:9px;background:rgb(26 115 232/.1);color:#1a73e8;font:600 12px/19px system-ui,-apple-system,'Malgun Gothic',sans-serif;-webkit-text-stroke:0;vertical-align:middle;white-space:nowrap;cursor:pointer}",
+".pnote.fold{display:flex;align-items:center;white-space:nowrap;background:rgb(255 255 255/.85);box-shadow:0 0 0 1px rgb(0 0 0/.08)}",
+".pnote.fold .pnt{overflow:hidden;text-overflow:ellipsis;min-width:0}",
+".pnote.fold .pnfold{flex:none}",
+".pnote.edit .pnfold{display:none}",
 ".pnframe{position:absolute;z-index:7;pointer-events:none}",
 ".pnframe[hidden]{display:none}",
 ".pnh{position:absolute;pointer-events:auto;touch-action:none;box-sizing:border-box;background:#fff;border:2px solid #1a73e8;box-shadow:0 1px 4px rgb(0 0 0/.3)}",
@@ -119,6 +208,7 @@ css.textContent=[
 ".ppop.npop .nrow2{display:flex;gap:5px;margin-top:3px}",
 ".ppop.npop .nrow2 .ppbtn{flex:1;padding:6px 4px;font-size:.78rem}",
 ".ppop.npop .pphint{font-size:.7rem;line-height:1.4}",
+".ppop.npop .nlinks{display:flex;justify-content:center;gap:14px}",
 ".ppop.npop .nclear{background:none;padding:2px;font-size:.72rem;font-weight:500;color:#aeb3bd;text-decoration:underline}",
 "@media print{.pnframe{display:none!important}}"
 ].join("\n");
@@ -153,20 +243,41 @@ function syncFrame(){
 }
 const ro=window.ResizeObserver?new ResizeObserver(()=>{ syncFrame(); if(popOpen) place(); }):null;
 
+/* ---- 접기·펼치기: 긴 글은 첫 줄 + ▸ 버튼, 펼치면 끝에 ▾ 접기 ---- */
+const foldable=n=>n.t.split("\n").length>=FOLD_LINES || n.t.length>FOLD_CHARS;
+const folded=n=>!!n.fold && editId!==n.id && foldable(n);
+function render(n,el){
+  el=el||elOf(n.id); if(!el||editId===n.id) return;
+  el.textContent="";
+  const f=folded(n); el.classList.toggle("fold",f);
+  const chip=document.createElement("span"); chip.className="pnfold";
+  if(f){
+    const L=n.t.split("\n"), rest=L.length-1;
+    const s=document.createElement("span"); s.className="pnt"; s.textContent=L[0];
+    chip.textContent="▸ "+(rest>0?"+"+rest+"줄":"더보기"); chip.title="펼치기";
+    el.append(s,chip);
+  } else {
+    el.append(document.createTextNode(n.t));
+    if(foldable(n)){ chip.textContent="▾ 접기"; chip.title="접기"; el.append(chip); }
+  }
+}
+function setFold(n,v){ n.fold=v; render(n); paint(n); save(); refreshPop(); }
+
 function paint(n,el){
   el=el||elOf(n.id); if(!el) return;
-  const F=FONTS[n.f]||FONTS[0], left=mLeft()+n.x;
+  const F=FONTS[n.f]||FONTS[0], left=mLeft()+n.x, px=Math.round(n.s*F[2]);
   el.style.left=left+"px"; el.style.top=n.y+"px";
-  el.style.fontFamily=F[0]; el.style.fontSize=Math.round(n.s*F[2])+"px"; el.style.color=n.c;
+  el.style.fontFamily=F[0]; el.style.fontSize=px+"px"; el.style.color=n.c;
   el.style.fontWeight=n.w>1?"700":"400";
   el.style.webkitTextStroke=n.w>2?"0.7px "+n.c:"0";
+  const maxW=Math.max(160,mRight()-left-4);
   if(n.wd){ el.style.width=n.wd+"px"; el.style.maxWidth="none"; }
-  else { el.style.width=""; el.style.maxWidth=Math.max(160,mRight()-left-4)+"px"; }
+  else { el.style.width=""; el.style.maxWidth=(folded(n)?Math.min(maxW,px*16):maxW)+"px"; }
   if(n.id===selId) syncFrame();
 }
 function build(n){
-  const el=document.createElement("div"); el.className="pnote"; el.dataset.id=n.id; el.textContent=n.t;
-  document.body.append(el); paint(n,el); return el;
+  const el=document.createElement("div"); el.className="pnote"; el.dataset.id=n.id;
+  document.body.append(el); render(n,el); paint(n,el); return el;
 }
 function relayout(){ notes.forEach(n=>paint(n)); syncFrame(); if(popOpen) place(); }
 notes.forEach(build);
@@ -183,6 +294,7 @@ function add(text,px,py,edit){
   text=tidy(text);
   stopDrawing();
   const n={id:Date.now().toString(36)+Math.random().toString(36).slice(2,5),t:text,x:px-mLeft(),y:py,f:style.f,s:style.s,w:style.w,c:style.c};
+  if(text) n.fold=foldable(n);
   notes.push(n); build(n); select(n.id);
   if(edit||!text) startEdit(n.id); else save();
   return n;
@@ -203,7 +315,8 @@ function select(id){
   syncFrame(); refreshPop();
 }
 function startEdit(id){
-  const el=elOf(id); if(!el) return; editId=id;
+  const el=elOf(id), n=noteOf(id); if(!el||!n) return; editId=id;
+  el.classList.remove("fold"); el.textContent=n.t; paint(n,el);
   el.classList.add("edit"); el.contentEditable="true"; el.focus();
   const r=document.createRange(); r.selectNodeContents(el); r.collapse(false); const s=getSelection(); s.removeAllRanges(); s.addRange(r);
   syncFrame();
@@ -213,7 +326,9 @@ function endEdit(){
   const el=elOf(id), n=noteOf(id); if(!el||!n) return;
   el.contentEditable="false"; el.classList.remove("edit");
   n.t=el.innerText.replace(/\n$/,"");
-  if(!n.t.trim()) remove(id); else { save(); syncFrame(); }
+  if(!n.t.trim()){ remove(id); return; }
+  if(n.fold===undefined) n.fold=foldable(n);
+  render(n,el); paint(n,el); save(); syncFrame();
 }
 
 /* ---- 툴바 버튼 (형광펜 다음 칸) ---- */
@@ -244,13 +359,14 @@ function closePop(){ popOpen=false; pop.hidden=true; }
 window.addEventListener("scroll",()=>{ if(popOpen) place(); },{passive:true});
 function refreshPop(){
   if(!popOpen) return;
+  const cur=selId&&noteOf(selId), long=notes.filter(foldable), allFolded=long.length>0&&long.every(x=>x.fold);
   pop.innerHTML=
     '<div class="pph">글씨체</div><div class="ppr">'+FONTS.map((F,i)=>'<button class="ppb nfont '+(style.f===i?"on":"")+'" type="button" data-nf="'+i+'" style="font-family:'+F[0].replace(/"/g,"")+'" title="'+F[1]+'">'+(i===5?"Abc":"가나다")+'</button>').join("")+'</div>'+
     '<div class="pph"><span>크기</span><span>'+style.s+'</span></div><div class="ppr">'+SIZES.map(([s,nm])=>'<button class="ppb nsz '+(style.s===s?"on":"")+'" type="button" data-ns="'+s+'" title="'+nm+'" aria-label="'+nm+'"><b style="font-size:'+(9+s/3)+'px;color:#e9ebef">가</b></button>').join("")+'</div>'+
     '<div class="pph">두께 · 색상</div><div class="ppr">'+WEIGHTS.map(([w,nm])=>'<button class="ppb nw '+(style.w===w?"on":"")+'" type="button" data-nw="'+w+'" title="'+nm+'" aria-label="'+nm+'"><b style="font-weight:'+(w>1?700:400)+';-webkit-text-stroke:'+(w>2?".8px #e9ebef":"0")+'">가</b></button>').join("")+'<span class="nsep"></span>'+COLS.map(([c,nm])=>'<button class="ppb ncol '+(style.c===c?"on":"")+'" type="button" data-nc="'+c+'" title="'+nm+'" aria-label="'+nm+'"><span class="sw" style="background:'+c+'"></span></button>').join("")+'</div>'+
-    '<div class="nrow2"><button class="ppbtn" type="button" data-na="edit">✏️ 글 고치기</button><button class="ppbtn" type="button" data-na="del">🗑 삭제</button></div>'+
+    '<div class="nrow2"><button class="ppbtn" type="button" data-na="edit">✏️ 고치기</button>'+(cur&&foldable(cur)?'<button class="ppbtn" type="button" data-na="fold">'+(cur.fold?"▸ 펼치기":"▾ 접기")+'</button>':'')+'<button class="ppbtn" type="button" data-na="del">🗑 삭제</button></div>'+
     '<p class="pphint">⤡ 모서리: 크기 · ↔ 옆: 줄 길이<br>끌어서 옮기기 · 두 번 누르면 글 고치기</p>'+
-    '<button class="ppbtn nclear" type="button" data-na="clear">붙여 넣은 글 모두 지우기</button>';
+    '<div class="nlinks">'+(long.length?'<button class="ppbtn nclear" type="button" data-na="foldall">'+(allFolded?"모두 펼치기":"긴 글 모두 접기")+'</button>':'')+'<button class="ppbtn nclear" type="button" data-na="clear">모두 지우기</button></div>';
   place();
 }
 pop.addEventListener("click",e=>{
@@ -262,6 +378,8 @@ pop.addEventListener("click",e=>{
   else if(d.nw) style.w=+d.nw;
   else if(d.nc) style.c=d.nc;
   else if(d.na==="edit"){ const id=selId; closePop(); if(id) startEdit(id); return; }
+  else if(d.na==="fold"){ if(n) setFold(n,!n.fold); return; }
+  else if(d.na==="foldall"){ const long=notes.filter(foldable), v=!(long.length&&long.every(x=>x.fold)); long.forEach(x=>{ x.fold=v; render(x); paint(x); }); save(); refreshPop(); return; }
   else if(d.na==="del"){ if(selId) remove(selId); closePop(); return; }
   else if(d.na==="clear"){ if(notes.length && confirm("붙여 넣은 글을 모두 지울까요?")){ notes.forEach(x=>{ const el=elOf(x.id); if(el) el.remove(); }); notes=[]; selId=editId=null; syncFrame(); save(); } closePop(); return; }
   else return;
@@ -327,7 +445,7 @@ document.addEventListener("pointerdown",e=>{
   }
   const el=e.target.closest(".pnote"); if(!el||el.classList.contains("edit")) return;
   e.preventDefault(); e.stopPropagation();
-  const n=noteOf(el.dataset.id); drag={kind:"m",n,el,sx:e.pageX,sy:e.pageY,x0:n.x,y0:n.y,moved:false,id:e.pointerId};
+  const n=noteOf(el.dataset.id); drag={kind:"m",n,el,sx:e.pageX,sy:e.pageY,x0:n.x,y0:n.y,moved:false,id:e.pointerId,chip:!!e.target.closest(".pnfold")};
   try{ el.setPointerCapture(e.pointerId); }catch(_){}
 },true);
 document.addEventListener("pointermove",e=>{
@@ -351,9 +469,10 @@ document.addEventListener("pointermove",e=>{
 },{passive:false});
 function dragEnd(e){
   if(!drag||e.pointerId!==drag.id) return;
-  const {n,el,moved,kind}=drag; drag=null; el.classList.remove("drag"); pop.style.visibility="";
+  const {n,el,moved,kind,chip}=drag; drag=null; el.classList.remove("drag"); pop.style.visibility="";
   if(kind!=="m"){ if(moved) save(); syncFrame(); refreshPop(); return; }
   if(moved){ select(n.id); save(); return; }
+  if(chip){ lastTap={id:null,t:0}; setFold(n,!folded(n)); return; }
   const now=Date.now(), dbl=lastTap.id===n.id && now-lastTap.t<400;
   lastTap={id:n.id,t:now};
   if(dbl){ closePop(); startEdit(n.id); }
